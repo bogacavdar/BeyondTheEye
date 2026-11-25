@@ -55,6 +55,9 @@ var _charge_hit := false
 var shield_node: Node3D
 var last_dealt := 0.0       # son vuruşta gerçekten verilen hasar (can çalma bunu kullanır)
 var pebble := false         # Taş Golemi parçalanınca çıkan küçük taşçık
+var affixes: Array = []      # SEÇKİN ÖZELLİKLERİ (room.gd verir): shielded, swift, splitting, healer, volatile, phantom
+var mini := false            # Bölünen seçkinin ölünce bıraktığı küçük kopya
+var _heal_t := 1.0
 var ward := 0.0             # Ülker Rahibesi'nin verdiği koruma kalkanı
 var _ward_t := 0.0
 var _ward_node: MeshInstance3D
@@ -119,6 +122,13 @@ func _ready() -> void:
 		_leo_variant()
 	elif zone == "virgo":
 		_virgo_variant()
+	if mini:
+		max_hp *= 0.35
+		size_k *= 0.7
+		radius *= 0.7
+	if affixes.has("swift"):
+		speed *= 1.3
+		windup_mult *= 0.85
 	# zorluk: derinlik çarpanları, daha kısa hazırlık ve daha sık saldırı
 	var em := 1.0
 	if elite:
@@ -152,6 +162,10 @@ func _ready() -> void:
 	for a in attacks:
 		_cd[a["name"]] = randf_range(0.3, 1.2)
 	_build()
+	if affixes.has("shielded"):
+		give_ward(max_hp * 0.4)
+	if not affixes.is_empty():
+		_affix_label()
 	vis.position.y = -1.6
 	vis.scale = Vector3(0.3, 0.3, 0.3)
 	var tw := create_tween().set_parallel(true)
@@ -1597,7 +1611,7 @@ func _physics_process(delta: float) -> void:
 		_hide_crack -= delta
 	if _reveal > 0.0:
 		_reveal -= delta
-	if zone == "leo" and kind == "leaper":
+	if (zone == "leo" and kind == "leaper") or affixes.has("phantom"):
 		# serap: kovalarken görünmez, arada titreşir
 		var hidden := state == "chase" and _reveal <= 0.0
 		vis.visible = not hidden or fmod(_t, 0.9) < 0.1
@@ -1607,7 +1621,22 @@ func _physics_process(delta: float) -> void:
 		_shell_win -= delta
 		if _shell_win <= 0.0:
 			_shell_hits = 0
-	if ward > 0.0:
+	if affixes.has("healer") and state != "spawn":
+		_heal_t -= delta
+		if _heal_t <= 0.0:
+			_heal_t = 1.0
+			var healed := false
+			for o in get_tree().get_nodes_in_group("enemies"):
+				if o == self or o.dead or o.get("max_hp") == null:
+					continue
+				if o.global_position.distance_to(global_position) < 5.5 and float(o.hp) < float(o.max_hp):
+					o.hp = minf(float(o.hp) + float(o.max_hp) * 0.04, float(o.max_hp))
+					healed = true
+			if healed:
+				var hr := SlashFx.make(0.0, TAU, 0.3, 5.5, Color(0.4, 1.0, 0.55), 0.35)
+				get_parent().add_child(hr)
+				hr.global_transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, 0.2, 0))
+	if ward > 0.0 and not affixes.has("shielded"):
 		_ward_t -= delta
 		if _ward_t <= 0.0:
 			ward = 0.0
@@ -2157,6 +2186,27 @@ func stun(sec: float, parried := false) -> void:
 	_set_state("stun")
 
 
+const AFFIX_NAMES := {"shielded": "SHIELDED", "swift": "SWIFT", "splitting": "SPLITTING", "healer": "HEALER", "volatile": "VOLATILE", "phantom": "PHANTOM"}
+const AFFIX_COLS := {"shielded": Color(0.5, 1.0, 0.8), "swift": Color(0.6, 0.85, 1.0), "splitting": Color(0.9, 0.7, 1.0), "healer": Color(0.45, 1.0, 0.5), "volatile": Color(1.0, 0.5, 0.3), "phantom": Color(0.8, 0.8, 0.95)}
+
+
+## Seçkin özellikleri başının üstünde yazar
+func _affix_label() -> void:
+	var lb := Label3D.new()
+	var parts: Array = []
+	for a in affixes:
+		parts.append(tr(String(AFFIX_NAMES.get(a, a))))
+	lb.text = " · ".join(parts)
+	lb.font_size = 44
+	lb.pixel_size = 0.005
+	lb.outline_size = 10
+	lb.modulate = AFFIX_COLS.get(affixes[0], Color.WHITE)
+	lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lb.no_depth_test = true
+	lb.position = Vector3(0, 2.75 * size_k + (0.5 if kind == "caster" else 0.0), 0)
+	add_child(lb)
+
+
 ## Kabuk Askeri: kabuktan çıkarken etrafına kıskaç vurur
 func _shell_snap() -> void:
 	var ring := SlashFx.make(0.0, TAU, 0.3, 2.4, DANGER_COL, 0.3)
@@ -2252,7 +2302,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		HitFx.impact(get_parent(), global_position + Vector3(0, 1.5, 0) - dir * 0.8, -dir, Color(1.0, 0.85, 0.5), false)
 	elif zone == "leo" and kind == "brute":
 		crit = true
-	if zone == "leo" and kind == "leaper":
+	if (zone == "leo" and kind == "leaper") or affixes.has("phantom"):
 		_reveal = 1.6
 	# KABUK ASKERİ: kabuktayken dokunulmaz; kısa sürede 3 vuruş alırsa kabuğuna çekilir
 	if zone == "cancer" and kind == "shade":

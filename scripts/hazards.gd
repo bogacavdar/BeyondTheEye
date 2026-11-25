@@ -324,3 +324,58 @@ class Spokes extends Node3D:
 						break
 		if _t >= life:
 			queue_free()
+
+
+# ---------------------------------------------------------------- rüzgâr hamlesi (İkiz Gökler)
+
+class Gust extends Node3D:
+	var hero = null
+	var dir := Vector3.RIGHT
+	var warn := 1.2
+	var dur := 2.6
+	var strength := 3.4
+	var bounds := 12.0
+	var _t := 0.0
+	var _em: CPUParticles3D
+
+	func _ready() -> void:
+		top_level = true
+		global_position = Vector3.ZERO
+		_em = CPUParticles3D.new()
+		_em.amount = 60
+		_em.lifetime = 1.2
+		_em.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		var side := Vector3(-dir.z, 0, dir.x)
+		_em.emission_box_extents = Vector3(bounds, 1.2, bounds)
+		_em.position = Vector3(0, 1.2, 0) - dir * 2.0
+		_em.direction = dir
+		_em.spread = 3.0
+		_em.gravity = Vector3.ZERO
+		_em.initial_velocity_min = 4.0
+		_em.initial_velocity_max = 6.0
+		var q := QuadMesh.new()
+		q.size = Vector2(1.2, 0.05)
+		var m = load("res://scripts/hazards.gd").add_mat(Color(0.9, 0.95, 1.0, 0.35))
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
+		q.material = m
+		_em.mesh = q
+		_em.local_coords = false
+		add_child(_em)
+		look_at(global_position + side, Vector3.UP)
+		Sfx.play("dash", -8.0, 0.0, 0, 0.4)
+
+	func _physics_process(delta: float) -> void:
+		_t += delta
+		var H = load("res://scripts/hazards.gd")
+		if _t < warn:
+			_em.initial_velocity_min = 2.0
+			_em.initial_velocity_max = 3.0
+		elif _t < warn + dur:
+			_em.initial_velocity_min = 12.0
+			_em.initial_velocity_max = 16.0
+			if H.hero_ok(hero) and hero.has_method("apply_pull"):
+				hero.apply_pull(hero.global_position + dir * 5.0, strength, 0.05)
+		else:
+			_em.emitting = false
+			if _t > warn + dur + 1.3:
+				queue_free()

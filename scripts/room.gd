@@ -55,7 +55,7 @@ const COMBAT_G := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "shade", "leaper"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_G := [1.9, 2.0, 2.15, 2.3]
+const HP_MULT_G := [1.6, 1.7, 1.8, 1.9]
 const DMG_MULT_G := [1.6, 1.68, 1.76, 1.85]
 const ELITE_CHANCE_G := [0.25, 0.3, 0.35, 0.35]
 const COMBAT_C := [
@@ -64,7 +64,7 @@ const COMBAT_C := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_C := [2.45, 2.6, 2.75, 2.9]
+const HP_MULT_C := [1.85, 1.95, 2.05, 2.15]
 const DMG_MULT_C := [1.9, 1.98, 2.06, 2.15]
 const ELITE_CHANCE_C := [0.3, 0.35, 0.4, 0.4]
 const COMBAT_L := [
@@ -73,7 +73,7 @@ const COMBAT_L := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["shade", "shade", "shade", "caster", "caster"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "shade"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_L := [3.05, 3.2, 3.4, 3.6]
+const HP_MULT_L := [2.1, 2.2, 2.3, 2.45]
 const DMG_MULT_L := [2.2, 2.3, 2.4, 2.5]
 const ELITE_CHANCE_L := [0.35, 0.4, 0.45, 0.45]
 const COMBAT_V := [
@@ -82,7 +82,7 @@ const COMBAT_V := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "caster", "shade"]],
 ]
-const HP_MULT_V := [3.7, 3.9, 4.1, 4.35]
+const HP_MULT_V := [2.35, 2.5, 2.6, 2.75]
 const DMG_MULT_V := [2.5, 2.6, 2.72, 2.85]
 const ELITE_CHANCE_V := [0.4, 0.45, 0.5, 0.5]
 const VIRGO_DUST := 540
@@ -99,7 +99,7 @@ const COMBAT_T := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "caster", "leaper"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "caster", "shade"]],
 ]
-const HP_MULT_T := [1.45, 1.55, 1.7, 1.85]
+const HP_MULT_T := [1.35, 1.45, 1.55, 1.65]
 const DMG_MULT_T := [1.3, 1.38, 1.46, 1.55]
 const ELITE_CHANCE_T := [0.15, 0.2, 0.25, 0.3]
 const TAURUS_DUST := 220
@@ -1312,7 +1312,15 @@ func _process(delta: float) -> void:
 		pause_ui.open()
 
 
-func _spawn_wave(kinds: Array) -> void:
+func _spawn_wave(kinds_in: Array) -> void:
+	# önce yakın dövüşçüler, sonra arkadan büyücüler
+	var kinds: Array = []
+	for k in kinds_in:
+		if String(k) != "caster":
+			kinds.append(k)
+	for k in kinds_in:
+		if String(k) == "caster":
+			kinds.append(k)
 	for i in kinds.size():
 		var pos := Vector3.ZERO
 		for tries in 20:
@@ -1322,7 +1330,7 @@ func _spawn_wave(kinds: Array) -> void:
 			if pos.distance_to(hero.global_position) > 4.5:
 				break
 		pending += 1
-		_spawn_marker(pos, 0.3 + float(i) * 0.25, String(kinds[i]))
+		_spawn_marker(pos, 0.3 + float(i) * 0.25 + (0.9 if String(kinds[i]) == "caster" else 0.0), String(kinds[i]))
 
 
 ## Doğuştan önce yerde mor-kızıl bir halka belirir (nereden geleceğini gösterir)
@@ -1345,7 +1353,7 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	pending -= 1
 	var e = EnemyScript.new()
 	e.kind = kind
-	e.zone = zone
+	e.zone = _mixed_zone()
 	e.hero = hero
 	_tune_enemy(e)
 	var di := mini(local_i, 3)
@@ -1353,6 +1361,12 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G, ELITE_CHANCE_C, ELITE_CHANCE_L, ELITE_CHANCE_V)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
 	if room_i >= 1 or Retro.rank(rt, "moon") > 0:
 		e.elite = randf() < elite_ch
+	if e.elite and room_i >= 2:
+		# ortak seçkin özellikleri: ileri bölgelerde iki tane
+		var pool: Array = ["shielded", "swift", "splitting", "healer", "volatile", "phantom"]
+		pool.shuffle()
+		var n := 2 if (ZONE_ORDER.find(zone) >= 3 or (ZONE_ORDER.find(zone) >= 1 and local_i >= 3)) else 1
+		e.affixes = pool.slice(0, n)
 	e._bounds = ARENA_R - 0.5
 	add_child(e)
 	e.global_position = pos
@@ -1363,13 +1377,24 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	alive += 1
 	Sfx.play("enemyattack", -14.0, 0.1, 120, 1.0)
 	# İkiz Gölgeler çift olarak eşleşir
-	if zone == "gemini" and kind == "shade":
+	if e.zone == "gemini" and kind == "shade":
 		if _lonely != null and is_instance_valid(_lonely) and not _lonely.dead:
 			e.partner = _lonely
 			_lonely.partner = e
 			_lonely = null
 		else:
 			_lonely = e
+
+
+const ZONE_ORDER := ["aries", "taurus", "gemini", "cancer", "leo", "virgo"]
+
+
+## KARIŞIK GRUPLAR: ileri bölgelerde yaratıkların ~%25'i önceki bölgelerden tanıdık yüzler olur
+func _mixed_zone() -> String:
+	var zi := ZONE_ORDER.find(zone)
+	if zi <= 0 or randf() > 0.25:
+		return zone
+	return String(ZONE_ORDER[randi() % zi])
 
 
 ## Derinliğe ve retro lanetlerine göre güç çarpanları
@@ -1401,15 +1426,44 @@ func _zt(a: Array, t: Array, g: Array, c: Array, l: Array, v: Array) -> Array:
 func _on_killed(e) -> void:
 	alive -= 1
 	# Taş Golem ölünce 2 taşçığa bölünür
-	if zone == "taurus" and String(e.kind) == "brute" and not bool(e.get("pebble")) and not ended and not victory:
+	if String(e.zone) == "taurus" and String(e.kind) == "brute" and not bool(e.get("pebble")) and not ended and not victory:
 		for i in 2:
 			var a := randf() * TAU
 			_spawn_pebble(e.global_position + Vector3(cos(a), 0, sin(a)) * 0.9)
+	if not ended and not victory:
+		if e.affixes.has("splitting"):
+			for i in 2:
+				var a2 := randf() * TAU
+				_spawn_mini(e, e.global_position + Vector3(cos(a2), 0, sin(a2)) * 0.9)
+		if e.affixes.has("volatile"):
+			var b := HZ.Blast.new()
+			b.hero = hero
+			b.radius = 2.3
+			b.delay = 0.9
+			b.dmg = 14.0 * float(e.dmg_mult)
+			b.col = Color(1.0, 0.45, 0.2)
+			add_child(b)
+			b.global_position = Vector3(e.global_position.x, 0.0, e.global_position.z)
 	var p: Vector3 = e.global_position + Vector3(0, 1.0, 0)
 	var total: int = DUST_BY_KIND.get(String(e.kind), 5)
 	if e.get("elite") == true:
 		total *= 3
 	_drop_dust(p, total)
+
+
+## Bölünen seçkinin küçük kopyası
+func _spawn_mini(src, pos: Vector3) -> void:
+	var e = EnemyScript.new()
+	e.kind = String(src.kind)
+	e.zone = String(src.zone)
+	e.mini = true
+	e.hero = hero
+	_tune_enemy(e)
+	e._bounds = ARENA_R - 0.5
+	add_child(e)
+	e.global_position = HZ.clamp_arena(pos, ARENA_R - 1.0)
+	e.killed.connect(_on_killed)
+	alive += 1
 
 
 func _spawn_pebble(pos: Vector3) -> void:
@@ -1451,6 +1505,7 @@ func _mote(p: Vector3, value: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_tick_hazards(delta)
 	for m in get_tree().get_nodes_in_group("motes"):
 		var t := float(m.get_meta("t")) + delta
 		m.set_meta("t", t)
@@ -1470,6 +1525,104 @@ func _physics_process(delta: float) -> void:
 				continue
 		m.set_meta("v", v)
 		m.global_position += v * delta
+
+
+# ---------------------------------------------------------------- BÖLGE TEHLİKELERİ (normal odalar)
+## Her bölgenin kendi doğal tehlikesi dövüş sürerken arada bir devreye girer; boss'takinden hafiftir.
+##  Koç: zeminden lav fışkırır · Boğa: diken tarlası (yavaşlatır) · İkizler: rüzgâr seni iter
+##  Yengeç: gelgit kıyıyı basar (iç daire güvenli) · Aslan: Zenit (gölgelere saklan) · Başak: dama ızgarası
+
+const HZ = preload("res://scripts/hazards.gd")
+const HAZARD_EVERY := {"aries": 5.0, "taurus": 6.5, "gemini": 9.0, "cancer": 13.0, "leo": 15.0, "virgo": 12.0}
+const HAZARD_DMG := {"aries": 1.0, "taurus": 1.15, "gemini": 1.3, "cancer": 1.45, "leo": 1.6, "virgo": 1.75}
+var _hazard_t := 6.0
+
+
+func _tick_hazards(delta: float) -> void:
+	if is_boss or is_rest or cleared or ended or hero == null or hero.dead:
+		return
+	if wave < 0 or alive <= 0:
+		return
+	_hazard_t -= delta
+	if _hazard_t > 0.0:
+		return
+	_hazard_t = float(HAZARD_EVERY.get(zone, 8.0)) * randf_range(0.85, 1.15)
+	var k := float(HAZARD_DMG.get(zone, 1.0)) * (1.0 + 0.12 * float(local_i))
+	var hp: Vector3 = hero.global_position
+	match zone:
+		"aries":
+			# lav fışkırması: biri ayağının dibinde, ikisi rastgele; yerde kısa süre yanan iz
+			for i in 3:
+				var p := hp + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5)) if i == 0 else Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized() * randf_range(2.0, ARENA_R - 1.5)
+				var b := HZ.Blast.new()
+				b.hero = hero
+				b.radius = 1.6
+				b.delay = 1.3 + float(i) * 0.25
+				b.dmg = 10.0 * k
+				b.col = Color(1.0, 0.4, 0.1)
+				b.pool_life = 2.0
+				add_child(b)
+				b.global_position = HZ.clamp_arena(p, ARENA_R - 0.5)
+		"taurus":
+			# diken tarlası: yavaşlatan dikenler, arkasında yavaşlatan çalılık
+			for i in 3:
+				var p2 := hp + Vector3(randf_range(-3.0, 3.0), 0, randf_range(-3.0, 3.0))
+				var b2 := HZ.Blast.new()
+				b2.hero = hero
+				b2.radius = 1.7
+				b2.delay = 1.4
+				b2.dmg = 8.0 * k
+				b2.col = Color(0.5, 1.0, 0.35)
+				b2.eff = "slow"
+				b2.pool_life = 3.0
+				add_child(b2)
+				b2.global_position = HZ.clamp_arena(p2, ARENA_R - 0.5)
+		"gemini":
+			var a := randf() * TAU
+			var g := HZ.Gust.new()
+			g.hero = hero
+			g.dir = Vector3(cos(a), 0, sin(a))
+			g.bounds = ARENA_R
+			g.strength = 3.0 + 0.3 * float(local_i)
+			add_child(g)
+		"cancer":
+			var fl := CancerScript.Flood.new()
+			fl.hero = hero
+			var c := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized() * randf_range(0.0, 4.0)
+			fl.center = c
+			fl.safe_r = 5.8
+			fl.bounds = ARENA_R + 2.0
+			fl.dps = 5.0 * k
+			fl.hold = 3.0
+			add_child(fl)
+			hud.banner("", tr("The tide rises — find dry sand"))
+		"leo":
+			var z := LeoScript.Zenith.new()
+			z.hero = hero
+			z.bounds = ARENA_R - 0.5
+			z.dmg = 12.0 * k
+			z.safe_r = 2.3
+			add_child(z)
+		"virgo":
+			# yarım ızgara: tek renk kareler patlar
+			var step := 3.0
+			var n := int(ceil(ARENA_R / step)) + 1
+			var par := randi() % 2
+			for ix in range(-n, n + 1):
+				for iz in range(-n, n + 1):
+					if (ix + iz + par) % 2 != 0:
+						continue
+					var gp := Vector3(float(ix) * step, 0, float(iz) * step)
+					if Vector2(gp.x, gp.z).length() > ARENA_R:
+						continue
+					var b3 := HZ.Blast.new()
+					b3.hero = hero
+					b3.radius = 1.5
+					b3.delay = 1.6
+					b3.dmg = 10.0 * k
+					b3.col = Color(0.35, 1.0, 0.85)
+					add_child(b3)
+					b3.global_position = gp
 
 
 # ---------------------------------------------------------------- oda sonu ve ödüller
