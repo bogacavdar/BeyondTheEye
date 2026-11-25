@@ -365,7 +365,9 @@ func _tick_attack(delta: float, move: Vector3) -> void:
 	if _atk_t < wind + act:
 		velocity = aim * float(_atk["step"])
 	else:
-		velocity = velocity.move_toward(move * SPEED * 0.25, 40.0 * delta)
+		# yay: ok atarken ayaklar yere basar (koşarken ateş edilemez); yakın dövüş silahları %25 hızla kayabilir
+		var mv := 0.0 if bool(kit.get("ranged", false)) else 0.25
+		velocity = velocity.move_toward(move * SPEED * mv, 40.0 * delta)
 	if not _atk_hit and _atk_t >= wind:
 		_atk_hit = true
 		_do_hit()
