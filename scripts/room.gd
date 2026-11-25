@@ -15,6 +15,7 @@ const EnemyScript = preload("res://scripts/enemy.gd")
 const AriesScript = preload("res://scripts/aries_boss.gd")
 const TaurusScript = preload("res://scripts/taurus_boss.gd")
 const GeminiScript = preload("res://scripts/gemini_boss.gd")
+const CancerScript = preload("res://scripts/cancer_boss.gd")
 const PauseUI = preload("res://scripts/pause_ui.gd")
 const BoonUI = preload("res://scripts/boon_ui.gd")
 const CombatHud = preload("res://scripts/combat_hud.gd")
@@ -44,8 +45,8 @@ const DUST_BY_KIND := {"shade": 5, "caster": 5, "leaper": 6, "brute": 16}
 const BOSS_DUST := 150
 const BOSS_FIRST_BONUS := 200
 ## BÖLGELER: run derinliği 0-4 Koç Geçidi (4 = Koç), 5-9 Boğa Otlakları (9 = Boğa)
-const ZONE_START := {"aries": 0, "taurus": 5, "gemini": 10}
-const LAST_DEPTH := 14
+const ZONE_START := {"aries": 0, "taurus": 5, "gemini": 10, "cancer": 15}
+const LAST_DEPTH := 19
 const COMBAT_G := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "shade"], ["leaper", "leaper", "caster", "shade", "shade"]],
@@ -55,6 +56,17 @@ const COMBAT_G := [
 const HP_MULT_G := [1.9, 2.0, 2.15, 2.3]
 const DMG_MULT_G := [1.6, 1.68, 1.76, 1.85]
 const ELITE_CHANCE_G := [0.25, 0.3, 0.35, 0.35]
+const COMBAT_C := [
+	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
+	[["shade", "leaper", "leaper", "caster"], ["brute", "caster", "shade", "shade"], ["leaper", "caster", "shade", "shade", "shade"]],
+	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
+	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
+]
+const HP_MULT_C := [2.45, 2.6, 2.75, 2.9]
+const DMG_MULT_C := [1.9, 1.98, 2.06, 2.15]
+const ELITE_CHANCE_C := [0.3, 0.35, 0.4, 0.4]
+const CANCER_DUST := 380
+const CANCER_FIRST_BONUS := 500
 const GEMINI_DUST := 300
 const GEMINI_FIRST_BONUS := 400
 const COMBAT_T := [
@@ -110,7 +122,9 @@ func _ready() -> void:
 		GameData.start_run()
 	room_i = clampi(GameData.run_room, 0, LAST_DEPTH)
 	zone = "aries"
-	if room_i >= int(ZONE_START["gemini"]):
+	if room_i >= int(ZONE_START["cancer"]):
+		zone = "cancer"
+	elif room_i >= int(ZONE_START["gemini"]):
 		zone = "gemini"
 	elif room_i >= int(ZONE_START["taurus"]):
 		zone = "taurus"
@@ -123,11 +137,14 @@ func _ready() -> void:
 	if is_boss or is_rest:
 		waves = []
 	else:
-		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G)
+		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G, COMBAT_C)
 		waves = table[mini(local_i, table.size() - 1)]
 	Sfx.play_music("res://assets/music/akash_chamber.mp3" if is_rest else "res://assets/music/awakening.mp3", -9.0)
 
-	if zone == "gemini":
+	if zone == "cancer":
+		_environment_cancer()
+		_arena_cancer()
+	elif zone == "gemini":
 		_environment_gemini()
 		_arena_gemini()
 	elif zone == "taurus":
@@ -177,7 +194,9 @@ func _ready() -> void:
 		hud.banner("SANCTUARY", tr("The stars mend your wounds"))
 		_spawn_fountain()
 	elif is_boss:
-		if zone == "gemini":
+		if zone == "cancer":
+			hud.banner("CANCER", tr("Mother of Tides"))
+		elif zone == "gemini":
 			hud.banner("GEMINI", tr("Castor & Pollux"))
 		elif zone == "taurus":
 			hud.banner("TAURUS", tr("The Immovable"))
@@ -185,7 +204,9 @@ func _ready() -> void:
 			hud.banner("ARIES", tr("The Ram's Fury"))
 		get_tree().create_timer(1.6).timeout.connect(_spawn_boss)
 	elif local_i == 0:
-		if zone == "gemini":
+		if zone == "cancer":
+			hud.banner("THE MOONLIT SHORE", tr("The Moon pulls the tide toward Cancer"))
+		elif zone == "gemini":
 			hud.banner("THE TWIN SKIES", tr("Two voices, one sky"))
 		elif zone == "taurus":
 			hud.banner("THE BULL'S MEADOWS", tr("Venus guards the road to Taurus"))
@@ -347,6 +368,135 @@ func _arena() -> void:
 		if i % 3 == 0:
 			_mesh(_sphere(hh * 0.09), pos + Vector3(0, hh * 0.5, 0), _glow(Color(1.0, 0.4, 0.1), 3.0))
 	_embers(heat)
+
+
+# ---------------------------------------------------------------- AY IŞIKLI KIYI ortamı
+
+func _environment_cancer() -> void:
+	# gece: lacivert gökyüzü, kocaman dolunay; serin, gümüşi ışık
+	var psky := ProceduralSkyMaterial.new()
+	psky.sky_top_color = Color(0.02, 0.03, 0.09)
+	psky.sky_horizon_color = Color(0.12, 0.2, 0.35)
+	psky.sky_curve = 0.12
+	psky.ground_horizon_color = Color(0.1, 0.18, 0.3)
+	psky.ground_bottom_color = Color(0.02, 0.04, 0.08)
+	psky.sun_angle_max = 0.0
+	var sky := Sky.new()
+	sky.sky_material = psky
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.42, 0.5, 0.68)
+	env.ambient_light_energy = 0.9
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.glow_enabled = true
+	env.glow_intensity = 0.55
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 1.2
+	env.ssao_enabled = true
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.15, 0.22, 0.35)
+	env.fog_light_energy = 0.8
+	env.fog_density = 0.006
+	env.fog_sky_affect = 0.15
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+	var moon := DirectionalLight3D.new()
+	moon.light_color = Color(0.78, 0.86, 1.0)
+	moon.light_energy = 1.05
+	moon.shadow_enabled = not GameData.is_web()
+	moon.rotation_degrees = Vector3(-48, 135, 0)
+	add_child(moon)
+	# dolunay ve hâlesi
+	var back := Vector3(-1, 0, -1).normalized()
+	_mesh(_sphere(9.0), back * 140.0 + Vector3(0, 52, 0), _glow(Color(0.85, 0.92, 1.0), 2.5))
+	var halo := _mesh(_sphere(15.0), back * 141.0 + Vector3(0, 52, 0), _glow(Color(0.3, 0.45, 0.8), 0.6))
+	(halo.material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	(halo.material_override as StandardMaterial3D).albedo_color.a = 0.25
+	# yıldızlar
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var st := _glow(Color(0.85, 0.9, 1.0), 3.0)
+	for i in 70:
+		var a := rng.randf() * TAU
+		var el := rng.randf_range(0.25, 1.2)
+		var d := 160.0
+		_mesh(_sphere(rng.randf_range(0.2, 0.5)), Vector3(cos(a) * cos(el), sin(el), sin(a) * cos(el)) * d, st)
+
+
+func _arena_cancer() -> void:
+	var top := CylinderMesh.new()
+	top.top_radius = ARENA_R + 0.6
+	top.bottom_radius = ARENA_R + 0.6
+	top.height = 1.0
+	top.radial_segments = 96
+	var fm := ShaderMaterial.new()
+	fm.shader = preload("res://shaders/cancer_floor.gdshader")
+	_mesh(top, Vector3(0, -0.5, 0), fm)
+	var rockm := _mat(Color(0.2, 0.24, 0.3), 0.0, 0.9)
+	var under := CylinderMesh.new()
+	under.top_radius = ARENA_R + 0.6
+	under.bottom_radius = ARENA_R - 2.0
+	under.height = 3.0
+	under.radial_segments = 32
+	_mesh(under, Vector3(0, -2.0, 0), rockm)
+	var sea := PlaneMesh.new()
+	sea.size = Vector2(320, 320)
+	var sm := ShaderMaterial.new()
+	sm.shader = preload("res://shaders/moon_sea.gdshader")
+	_mesh(sea, Vector3(0, -1.6, 0), sm)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31 + room_i * 17
+	var shellm := _mat(Color(0.95, 0.88, 0.85), 0.0, 0.5)
+	var pearl := _glow(Color(0.75, 0.9, 1.0), 3.0)
+	# kenarda deniz kayaları ve üstlerinde inci fenerleri
+	for i in 9:
+		var a := TAU * (float(i) + rng.randf() * 0.4) / 9.0
+		var dir := Vector3(cos(a), 0, sin(a))
+		var h := rng.randf_range(1.2, 3.0)
+		var rk := _mesh(_sphere(1.0), dir * (ARENA_R + 1.3) + Vector3(0, h * 0.3, 0), rockm)
+		rk.scale = Vector3(rng.randf_range(0.8, 1.3), h * 0.6, rng.randf_range(0.8, 1.3))
+		if i % 3 == 0:
+			_mesh(_sphere(0.28), dir * (ARENA_R + 1.3) + Vector3(0, h * 0.6 + 0.6, 0), pearl)
+		# kıyıya saçılmış deniz kabukları
+		var sh := _mesh(_sphere(0.18), dir.rotated(Vector3.UP, 0.2) * (ARENA_R - 0.8) + Vector3(0, 0.05, 0), shellm)
+		sh.scale = Vector3(1.4, 0.4, 1.0)
+	# uzakta deniz sütunları (kaya adacıklar)
+	for i in 10:
+		var a := rng.randf() * TAU
+		var d := rng.randf_range(24.0, 60.0)
+		var h := rng.randf_range(4.0, 14.0)
+		var c := CylinderMesh.new()
+		c.top_radius = rng.randf_range(0.6, 1.4)
+		c.bottom_radius = c.top_radius + rng.randf_range(0.8, 2.0)
+		c.height = h
+		c.radial_segments = 7
+		_mesh(c, Vector3(cos(a) * d, h * 0.5 - 2.0, sin(a) * d), rockm)
+	_plankton()
+
+
+## Havada süzülen, ay ışığında parlayan plankton ışıltıları
+func _plankton() -> void:
+	var em := CPUParticles3D.new()
+	em.amount = 50
+	em.lifetime = 6.0
+	em.preprocess = 6.0
+	em.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	em.emission_box_extents = Vector3(ARENA_R + 4.0, 0.5, ARENA_R + 4.0)
+	em.position = Vector3(0, 0.3, 0)
+	em.direction = Vector3.UP
+	em.spread = 30.0
+	em.gravity = Vector3(0, 0.15, 0)
+	em.initial_velocity_min = 0.1
+	em.initial_velocity_max = 0.4
+	var s := SphereMesh.new()
+	s.radius = 0.04
+	s.height = 0.08
+	em.mesh = s
+	em.material_override = _glow(Color(0.4, 0.9, 1.0), 4.0)
+	add_child(em)
 
 
 # ---------------------------------------------------------------- İKİZ GÖKLER ortamı
@@ -869,7 +1019,7 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	_tune_enemy(e)
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
-	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
+	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G, ELITE_CHANCE_C)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
 	if room_i >= 1 or Retro.rank(rt, "moon") > 0:
 		e.elite = randf() < elite_ch
 	e._bounds = ARENA_R - 0.5
@@ -895,15 +1045,17 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 func _tune_enemy(e) -> void:
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
-	var hpm: float = float(_zt(HP_MULT, HP_MULT_T, HP_MULT_G)[di])
-	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G)[di])
+	var hpm: float = float(_zt(HP_MULT, HP_MULT_T, HP_MULT_G, HP_MULT_C)[di])
+	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G, DMG_MULT_C)[di])
 	e.hp_mult = hpm * (1.0 + 0.25 * float(Retro.rank(rt, "jupiter")))
 	e.dmg_mult = dmm * (1.0 + 0.2 * float(Retro.rank(rt, "mars")))
 	e.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
 
 
 ## Bölgeye göre tablo seçer
-func _zt(a: Array, t: Array, g: Array) -> Array:
+func _zt(a: Array, t: Array, g: Array, c: Array) -> Array:
+	if zone == "cancer":
+		return c
 	if zone == "gemini":
 		return g
 	if zone == "taurus":
@@ -998,6 +1150,8 @@ func _on_cleared() -> void:
 		bonus = int(round(float(bonus) * 1.4))
 	elif zone == "gemini":
 		bonus = int(round(float(bonus) * 1.8))
+	elif zone == "cancer":
+		bonus = int(round(float(bonus) * 2.2))
 	bonus = int(round(float(bonus) * _retro_mult()))
 	if not is_rest:
 		GameData.stardust += bonus
@@ -1064,11 +1218,15 @@ func _door_info(type: String) -> Dictionary:
 		"rest":
 			return {"glyph": "\u2665", "color": Color(0.6, 0.95, 0.8), "label": "SANCTUARY", "title": tr("SANCTUARY")}
 		"boss":
+			if zone == "cancer":
+				return {"glyph": "\u264B", "color": Color(0.5, 0.9, 1.0), "label": "CANCER", "title": tr("FACE CANCER")}
 			if zone == "gemini":
 				return {"glyph": "\u264A", "color": Color(0.6, 0.8, 1.0), "label": "GEMINI", "title": tr("FACE THE TWINS")}
 			if zone == "taurus":
 				return {"glyph": "\u2649", "color": Color(0.55, 1.0, 0.45), "label": "TAURUS", "title": tr("FACE TAURUS")}
 			return {"glyph": "\u2648", "color": Color(1.0, 0.35, 0.2), "label": "ARIES", "title": tr("FACE ARIES")}
+		"cancer_gate":
+			return {"glyph": "\u264B", "color": Color(0.5, 0.9, 1.0), "label": "CANCER", "title": tr("ONWARD TO CANCER")}
 		"gemini_gate":
 			return {"glyph": "\u264A", "color": Color(0.6, 0.8, 1.0), "label": "GEMINI", "title": tr("ONWARD TO GEMINI")}
 		"taurus_gate":
@@ -1140,9 +1298,9 @@ func _enter_door(type: String) -> void:
 	if type == "home":
 		_leave()
 		return
-	if type == "taurus_gate" or type == "gemini_gate":
+	if type == "taurus_gate" or type == "gemini_gate" or type == "cancer_gate":
 		# sonraki bölgeye geçiş: kısa bir nefes (canın %30'u yenilenir) ve ilk odada bir lütuf
-		GameData.run_room = int(ZONE_START["taurus" if type == "taurus_gate" else "gemini"])
+		GameData.run_room = int(ZONE_START[type.trim_suffix("_gate")])
 		GameData.run_reward = "boon:" + Boons.random_planet()
 		GameData.run_hp = minf(hero.hp + hero.max_hp * 0.3, hero.max_hp)
 		GameData.go_save()
@@ -1195,7 +1353,9 @@ func _spawn_fountain() -> void:
 func _spawn_boss() -> void:
 	if ended:
 		return
-	if zone == "gemini":
+	if zone == "cancer":
+		boss = CancerScript.new()
+	elif zone == "gemini":
 		boss = GeminiScript.new()
 	elif zone == "taurus":
 		boss = TaurusScript.new()
@@ -1238,6 +1398,19 @@ func _on_boss_killed(_b) -> void:
 	await get_tree().create_timer(1.6).timeout
 	if ended:
 		return
+	if zone == "cancer":
+		var amount_c := CANCER_DUST + (CANCER_FIRST_BONUS if not GameData.cancer_defeated else 0)
+		amount_c = int(round(float(amount_c) * _retro_mult()))
+		GameData.cancer_defeated = true
+		_drop_dust(Vector3(0, 2.0, -3.5), amount_c)
+		GameData.last_run_msg = tr("Cancer is restored! Four constellations shine again. This run: %d stardust") % (GameData.run_dust + amount_c)
+		hud.banner("CANCER IS RESTORED", tr("+%d stardust") % amount_c)
+		Sfx.play("coin", -2.0, 0.0, 0, 0.5)
+		Fx.flash_light(Vector3(0, 4, 0), Color(0.6, 0.9, 1.0), 10.0, 25.0, 1.5)
+		GameData.go_save()
+		await get_tree().create_timer(1.5).timeout
+		_add_door(Vector3(0, 0, -7.5), "home")
+		return
 	if zone == "gemini":
 		var amount_g := GEMINI_DUST + (GEMINI_FIRST_BONUS if not GameData.gemini_defeated else 0)
 		amount_g = int(round(float(amount_g) * _retro_mult()))
@@ -1249,7 +1422,8 @@ func _on_boss_killed(_b) -> void:
 		Fx.flash_light(Vector3(0, 4, 0), Color(0.7, 0.85, 1.0), 10.0, 25.0, 1.5)
 		GameData.go_save()
 		await get_tree().create_timer(1.5).timeout
-		_add_door(Vector3(0, 0, -7.5), "home")
+		_add_door(Vector3(-3.4, 0, -7.5), "cancer_gate")
+		_add_door(Vector3(3.4, 0, -7.5), "home")
 		return
 	if zone == "taurus":
 		var amount_t := TAURUS_DUST + (TAURUS_FIRST_BONUS if not GameData.taurus_defeated else 0)

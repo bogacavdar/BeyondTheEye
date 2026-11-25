@@ -53,6 +53,8 @@ var _parry_cd := 0.0
 var _invuln := 0.0
 var _slow_t := 0.0      # Diken Çalısı: yavaşlatma süresi
 var _slow_mult := 1.0
+var _pull_vel := Vector3.ZERO   # Denizanası çekimi / dalga itişi
+var _pull_t := 0.0
 var _ls_budget := 0.0     # can çalma bütçesi (saniyede dolar)
 var _regen_acc := 0.0
 var _first_strike := true
@@ -269,7 +271,13 @@ func _physics_process(delta: float) -> void:
 
 	velocity.y = 0.0
 	trail.emitting = dash_t > 0.0 or sprinting
+	var _pv := Vector3.ZERO
+	if _pull_t > 0.0 and dash_t <= 0.0:
+		_pull_t -= delta
+		_pv = _pull_vel
+		velocity += _pv
 	move_and_slide()
+	velocity -= _pv
 	var flat := Vector2(global_position.x, global_position.z)
 	if flat.length() > bound_radius:
 		flat = flat.normalized() * bound_radius
@@ -989,6 +997,16 @@ func _die() -> void:
 
 
 ## Dikenli alan gibi etkiler kahramanı kısa süre yavaşlatır
+## Denizanası çeker, gelgit dalgası iter: hedefe doğru dış hız (atılma bunu yok sayar)
+func apply_pull(target: Vector3, strength: float, dur: float) -> void:
+	var v := target - global_position
+	v.y = 0.0
+	if v.length() < 0.3:
+		return
+	_pull_vel = v.normalized() * strength
+	_pull_t = maxf(_pull_t, dur)
+
+
 func apply_slow(mult: float, dur: float) -> void:
 	_slow_mult = minf(_slow_mult, mult) if _slow_t > 0.0 else mult
 	_slow_t = maxf(_slow_t, dur)

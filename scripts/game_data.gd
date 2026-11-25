@@ -262,6 +262,7 @@ static var retro := {}                  # Gök Kadranı: açık lanetler (id -> 
 static var aries_best_heat := -1        # Koç'un yenildiği en yüksek retro seviyesi
 static var taurus_defeated := false     # Boğa boss'u en az bir kez yenildi mi
 static var gemini_defeated := false     # İkizler en az bir kez yenildi mi
+static var cancer_defeated := false     # Yengeç en az bir kez yenildi mi
 
 
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
@@ -371,6 +372,7 @@ static func _load_slot(n: int) -> void:
 	aries_best_heat = int(cfg.get_value("yolculuk", "aries_best_heat", -1)) if ok else -1
 	taurus_defeated = bool(cfg.get_value("yolculuk", "taurus_defeated", false)) if ok else false
 	gemini_defeated = bool(cfg.get_value("yolculuk", "gemini_defeated", false)) if ok else false
+	cancer_defeated = bool(cfg.get_value("yolculuk", "cancer_defeated", false)) if ok else false
 	weapons_open = cfg.get_value("yolculuk", "weapons_open", ["STAR SWORD"]) if ok else ["STAR SWORD"]
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
 	saved_run = cfg.get_value("yolculuk", "saved_run", {}) if ok else {}
@@ -403,6 +405,7 @@ static func slot_summary(n: int) -> Dictionary:
 		"aries": bool(cfg.get_value("yolculuk", "aries_defeated", false)),
 		"taurus": bool(cfg.get_value("yolculuk", "taurus_defeated", false)),
 		"gemini": bool(cfg.get_value("yolculuk", "gemini_defeated", false)),
+		"cancer": bool(cfg.get_value("yolculuk", "cancer_defeated", false)),
 		"run_room": int(sr.get("room", -1)) if not sr.is_empty() else -1,
 		"time": FileAccess.get_modified_time(slot_path(n))}
 
@@ -426,6 +429,7 @@ static func go_save() -> void:
 	cfg.set_value("yolculuk", "aries_best_heat", aries_best_heat)
 	cfg.set_value("yolculuk", "taurus_defeated", taurus_defeated)
 	cfg.set_value("yolculuk", "gemini_defeated", gemini_defeated)
+	cfg.set_value("yolculuk", "cancer_defeated", cancer_defeated)
 	cfg.set_value("yolculuk", "weapons_open", weapons_open)
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
 	cfg.set_value("yolculuk", "saved_run", saved_run)
@@ -467,6 +471,7 @@ static func reset_progress() -> void:
 	aries_best_heat = -1
 	taurus_defeated = false
 	gemini_defeated = false
+	cancer_defeated = false
 	retro = {}
 	weapons_open = ["STAR SWORD"]
 	chosen_weapon = "STAR SWORD"

@@ -74,6 +74,8 @@ var partner = null          # İkiz Gölge: eşi
 var _enraged := false
 var _blink_cd := 2.0        # Merkür Habercisi ışınlanma
 var _mirror_node: MeshInstance3D
+var _shell_hits := 0         # Kabuk Askeri: kısa sürede alınan vuruş sayısı
+var _shell_win := 0.0
 
 var body_root: Node3D
 var vis: Node3D
@@ -105,6 +107,8 @@ func _ready() -> void:
 		_taurus_variant()
 	elif zone == "gemini":
 		_gemini_variant()
+	elif zone == "cancer":
+		_cancer_variant()
 	# zorluk: derinlik çarpanları, daha kısa hazırlık ve daha sık saldırı
 	var em := 1.0
 	if elite:
@@ -302,6 +306,37 @@ func _gemini_variant() -> void:
 			]
 
 
+## AY IŞIKLI KIYI yaratıkları:
+##  shade  -> KABUK ASKERİ: kısa sürede 3 kez vurulursa kabuğuna çekilir (dokunulmaz), sonra etrafına kıskaç vurur
+##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
+##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
+##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+func _cancer_variant() -> void:
+	_base_body = Color(1.0, 0.45, 0.32)
+	_base_cloth = Color(0.85, 0.35, 0.3)
+	match kind:
+		"caster":
+			attacks = [
+				{"name": "tidewave", "shape": "line", "min": 3.0, "max": 12.0, "windup": 0.9, "act": 0.15, "recover": 0.7,
+					"dmg": 14.0, "reach": 12.0, "arc": 0.0, "parry": false, "cd": 3.4, "weight": 1.0},
+			]
+		"leaper":
+			max_hp = 90.0
+			speed = 2.6
+			attacks = [
+				{"name": "pulse", "shape": "circle", "min": 0.0, "max": 2.6, "windup": 0.75, "act": 0.15, "recover": 0.8,
+					"dmg": 16.0, "reach": 2.7, "arc": 360.0, "parry": false, "cd": 2.2, "weight": 1.0},
+			]
+		"brute":
+			max_hp = 220.0
+			attacks = [
+				{"name": "smash", "shape": "fan", "min": 0.0, "max": 2.7, "windup": 0.8, "act": 0.16, "recover": 0.9,
+					"dmg": 24.0, "reach": 3.0, "arc": 120.0, "parry": true, "cd": 1.6, "weight": 2.0},
+				{"name": "bubbles", "shape": "circle", "min": 2.0, "max": 10.0, "windup": 0.8, "act": 0.15, "recover": 0.8,
+					"dmg": 10.0, "reach": 1.2, "arc": 360.0, "parry": false, "cd": 6.0, "weight": 1.5},
+			]
+
+
 ## İkiz Gölge: eşi öldü
 func lost_twin() -> void:
 	if dead or _enraged:
@@ -423,6 +458,18 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "cancer":
+		m_eye.emission = Color(0.4, 0.95, 1.0)
+		m_claw.emission = Color(1.0, 0.5, 0.35)
+		match kind:
+			"caster":
+				_build_tideoracle()
+			"leaper":
+				_build_jelly()
+			"brute":
+				_build_hermit()
+			_:
+				_build_shellguard()
 	else:
 		match kind:
 			"caster":
@@ -985,6 +1032,105 @@ func _build_mguard() -> void:
 	vis.add_child(_mirror_node)
 
 
+# ---- Ay Işıklı Kıyı görünüşleri
+
+func _shell_mat() -> StandardMaterial3D:
+	var m := _m(Color(0.95, 0.5, 0.38), 0.45)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.35, 0.25)
+	m.emission_energy_multiplier = 0.25
+	return m
+
+
+func _crab_legs(parent: Node3D, n: int, spread: float, y: float, ln: float) -> void:
+	for s in [-1.0, 1.0]:
+		for k in n:
+			var leg := _part(parent, _cone(0.05, 0.03, ln, 5), Vector3(s * spread, y, -0.25 + float(k) * 0.25), m_cloth)
+			leg.rotation.z = s * 1.0
+			leg.rotation.y = (float(k) - 1.0) * 0.3 * s
+
+
+func _build_shellguard() -> void:
+	# KABUK ASKERİ: dik duran mercan zırhlı yengeç-asker; vurulunca kabuğuna çekilir
+	var shell := _shell_mat()
+	_part(vis, _sph(0.5, 0.7), Vector3(0, 0.75, 0.05), shell, Vector3(1.2, 0.85, 1.0))
+	for k in 4:
+		_part(vis, _sph(0.18), Vector3(0, 1.05 - float(k) * 0.12, 0.35 + float(k) * 0.06), shell, Vector3(1.6, 0.5, 0.8))
+	_crab_legs(vis, 3, 0.45, 0.35, 0.6)
+	for s in [-1.0, 1.0]:
+		var stalk := _part(vis, _cone(0.03, 0.03, 0.35, 5), Vector3(s * 0.15, 1.2, -0.2), m_cloth)
+		stalk.rotation.x = -0.2
+		_part(vis, _sph(0.07), Vector3(s * 0.15, 1.4, -0.25), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.5, 0.95, -0.15), 0.55)
+	arm_r = _arm(1.0, Vector3(0.5, 0.95, -0.15), 0.55)
+	for a in [arm_l, arm_r]:
+		_part(a, _sph(0.17), Vector3(0, -0.6, -0.05), shell, Vector3(1.0, 0.7, 1.5))
+		_part(a, _sph(0.12), Vector3(0.08, -0.68, -0.2), shell, Vector3(0.6, 0.5, 1.2))
+
+
+func _build_tideoracle() -> void:
+	# GELGİT KÂHİNİ: deniz kabuğu taçlı, inci süslü, mercan cüppeli kâhin
+	var robe := _m(Color(0.9, 0.42, 0.38), 0.7)
+	robe.emission_enabled = true
+	robe.emission = Color(0.8, 0.25, 0.2)
+	robe.emission_energy_multiplier = 0.2
+	_part(vis, _cone(0.48, 0.14, 1.55, 12), Vector3(0, 0.95, 0), robe)
+	_part(vis, _sph(0.22, 0.44), Vector3(0, 1.78, 0), robe)
+	var hp := Vector3(0, 2.1, 0)
+	_part(vis, _sph(0.17), hp, _m(Color(0.95, 0.85, 0.8)))
+	_part(vis, _sph(0.035), hp + Vector3(-0.06, 0.0, -0.16), m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(vis, _sph(0.035), hp + Vector3(0.06, 0.0, -0.16), m_eye, Vector3(1.4, 0.7, 1.0))
+	var pearl := _m(Color(0.95, 0.95, 1.0), 0.15)
+	pearl.metallic = 0.4
+	for k in 7:
+		var a := -0.9 + float(k) * 0.3
+		var sp := _part(vis, _cone(0.06, 0.0, 0.3 + (0.12 if k == 3 else 0.0), 5), hp + Vector3(sin(a) * 0.16, 0.2, cos(a) * 0.05), _shell_mat())
+		sp.rotation.z = -a * 0.7
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.85, 0), 0.6)
+	arm_r = _arm(1.0, Vector3(0.3, 1.85, 0), 0.6)
+	_part(vis, _sph(0.16), Vector3(0, 1.6, -0.48), pearl)
+	_part(vis, _sph(0.1), Vector3(0, 1.6, -0.48), m_eye)
+
+
+func _build_jelly() -> void:
+	# AY DENİZANASI: yarı saydam, içi parlayan çan; sarkan dokunaçlar
+	var bell := StandardMaterial3D.new()
+	bell.albedo_color = Color(1.0, 0.6, 0.75, 0.55)
+	bell.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bell.emission_enabled = true
+	bell.emission = Color(1.0, 0.45, 0.6)
+	bell.emission_energy_multiplier = 0.8
+	bell.roughness = 0.2
+	_part(vis, _sph(0.55, 0.7), Vector3(0, 1.65, 0), bell, Vector3(1.0, 0.75, 1.0))
+	_part(vis, _sph(0.2), Vector3(0, 1.6, 0), m_eye)
+	for k in 8:
+		var a := TAU * float(k) / 8.0
+		var t := _part(vis, _cone(0.03, 0.01, 1.1, 4), Vector3(cos(a) * 0.32, 0.95, sin(a) * 0.32), bell)
+		t.rotation = Vector3(sin(a) * 0.15, 0, -cos(a) * 0.15)
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_hermit() -> void:
+	# DEV KEŞİŞ YENGECİ: sırtında sarmal deniz kabuğu, iki dev kıskaç; sırtı yumuşak
+	var shell := _shell_mat()
+	var conch := _m(Color(0.95, 0.88, 0.8), 0.6)
+	_part(vis, _sph(0.6, 0.8), Vector3(0, 0.8, 0), m_body, Vector3(1.3, 0.8, 1.1))
+	for k in 6:
+		var r := 0.7 - float(k) * 0.1
+		_part(vis, _sph(r), Vector3(0, 1.4 + float(k) * 0.22, 0.35 - float(k) * 0.05), conch if k % 2 == 0 else shell, Vector3(1.0, 0.75, 1.0))
+	_crab_legs(vis, 3, 0.7, 0.45, 0.8)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.08), Vector3(s * 0.2, 1.25, -0.6), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.85, 1.1, -0.3), 0.7)
+	arm_r = _arm(1.0, Vector3(0.85, 1.1, -0.3), 0.7)
+	for a in [arm_l, arm_r]:
+		_part(a, _sph(0.32), Vector3(0, -0.8, -0.1), shell, Vector3(1.0, 0.75, 1.5))
+		_part(a, _sph(0.2), Vector3(0.12, -0.9, -0.45), shell, Vector3(0.6, 0.5, 1.3))
+
+
 func _head(p: Vector3) -> void:
 	_part(vis, _sph(0.24, 0.5), p + Vector3(0, 0, 0.05), m_cloth, Vector3(1.0, 1.1, 1.15))
 	_part(vis, _sph(0.16), p + Vector3(0, -0.03, -0.1), _m(Color(0.01, 0.0, 0.02)))
@@ -1078,6 +1224,10 @@ func _physics_process(delta: float) -> void:
 		return
 	if zone == "taurus" and kind == "caster" and not pebble:
 		_tick_ward_caster(delta)
+	if _shell_win > 0.0:
+		_shell_win -= delta
+		if _shell_win <= 0.0:
+			_shell_hits = 0
 	if ward > 0.0:
 		_ward_t -= delta
 		if _ward_t <= 0.0:
@@ -1101,6 +1251,8 @@ func _physics_process(delta: float) -> void:
 			if hero_ok:
 				_face = _face.slerp(dir_to, minf(8.0 * delta, 1.0)).normalized()
 				want = _chase_move(dir_to, dist)
+				if zone == "cancer" and kind == "leaper" and dist < 6.0 and hero.has_method("apply_pull"):
+					hero.apply_pull(global_position, 1.8, 0.05)
 				if zone == "gemini" and kind == "caster":
 					_blink_cd -= delta
 					if dist < 3.5 and _blink_cd <= 0.0:
@@ -1133,6 +1285,18 @@ func _physics_process(delta: float) -> void:
 		"stun":
 			if _st >= _stun_len:
 				_set_state("chase")
+		"shell":
+			# Kabuk Askeri kabukta: büyüyen kızıl halka, sonra etrafına kıskaç
+			var k := clampf(_st / 1.2, 0.0, 1.0)
+			tele.visible = true
+			tele.mesh = _fan_mesh(TAU, 2.4)
+			tele_mat.albedo_color = Color(DANGER_COL.r, DANGER_COL.g, DANGER_COL.b, 0.2 + 0.6 * k)
+			tele.global_transform = Transform3D(Basis.IDENTITY, Vector3(global_position.x, 0.06, global_position.z))
+			if _st >= 1.2:
+				tele.visible = false
+				_shell_snap()
+				_set_state("chase")
+				_global_cd = 0.8
 
 	# diğerlerinden uzak dur
 	for o in get_tree().get_nodes_in_group("enemies"):
@@ -1256,6 +1420,24 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "tidewave":
+			var tw := TideWave.new()
+			tw.hero = hero
+			tw.dir = _aim_dir
+			tw.dmg = float(atk["dmg"])
+			get_parent().add_child(tw)
+			tw.global_position = Vector3(global_position.x, 0.0, global_position.z) + _aim_dir * 1.0
+			_done = true
+		elif String(atk["name"]) == "bubbles":
+			for i in 5:
+				var bb := Bubble.new()
+				bb.hero = hero
+				bb.dmg = float(atk["dmg"])
+				bb.vel = _aim_dir.rotated(Vector3.UP, (float(i) - 2.0) * 0.45) * 4.0
+				get_parent().add_child(bb)
+				bb.global_position = global_position + Vector3(0, 1.3, 0) + _aim_dir * 0.8
+			Sfx.play("parry", -10.0, 0.05, 0, 2.2)
 			_done = true
 		elif String(atk["name"]) == "windblade":
 			var wb := WindBlade.new()
@@ -1488,7 +1670,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -1549,6 +1731,20 @@ func stun(sec: float, parried := false) -> void:
 	if state == "act" and String(atk.get("name", "")) == "pounce":
 		global_position.y = 0.0
 	_set_state("stun")
+
+
+## Kabuk Askeri: kabuktan çıkarken etrafına kıskaç vurur
+func _shell_snap() -> void:
+	var ring := SlashFx.make(0.0, TAU, 0.3, 2.4, DANGER_COL, 0.3)
+	get_parent().add_child(ring)
+	ring.global_transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, 0.5, 0))
+	Sfx.play("crush", -5.0, 0.05, 0, 1.2)
+	Fx.shake(0.25)
+	if hero != null and is_instance_valid(hero) and not hero.dead:
+		var v: Vector3 = hero.global_position - global_position
+		v.y = 0.0
+		if v.length() <= 2.4 + 0.3:
+			hero.take_damage(18.0 * dmg_mult, v.normalized() if v.length() > 0.05 else _face, false)
 
 
 ## Merkür Habercisi: kahramandan uzağa ışınlanır
@@ -1623,6 +1819,24 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		return
 	if _burrowed():
 		return
+	# KABUK ASKERİ: kabuktayken dokunulmaz; kısa sürede 3 vuruş alırsa kabuğuna çekilir
+	if zone == "cancer" and kind == "shade":
+		if state == "shell":
+			HitFx.impact(get_parent(), global_position + Vector3(0, 0.9, 0) - dir * 0.6, -dir, Color(1.0, 0.7, 0.6), false)
+			Sfx.play("parry", -10.0, 0.05, 40, 1.7)
+			return
+		_shell_win = 1.3
+		_shell_hits += 1
+		if _shell_hits >= 3 and state != "stun":
+			_shell_hits = 0
+			_chain_left = 0
+			state = "shell"
+			_st = 0.0
+			Sfx.play("crush", -8.0, 0.05, 0, 1.6)
+	# KEŞİŞ YENGECİ: sırtı yumuşak, arkadan gelen vuruş iki kat
+	if zone == "cancer" and kind == "brute" and _face.dot(dir) > 0.35:
+		dmg *= 2.0
+		crit = true
 	# AYNA MUHAFIZI: ayna duruşunda hafif vuruşlar sana yansır; ağır vuruş aynayı kırar
 	if zone == "gemini" and kind == "brute" and (state == "act" or state == "windup") and String(atk.get("name", "")) == "mirror":
 		if heavy:
@@ -1762,7 +1976,7 @@ func _die(dir: Vector3) -> void:
 
 func _animate(delta: float) -> void:
 	body_root.rotation.y = lerp_angle(body_root.rotation.y, atan2(-_face.x, -_face.z), minf(14.0 * delta, 1.0))
-	var hover := sin(_t * 2.2) * 0.08 + (0.35 if kind == "caster" else 0.0) + (0.5 if _sky else 0.0)
+	var hover := sin(_t * 2.2) * 0.08 + (0.35 if kind == "caster" else 0.0) + (0.5 if _sky else 0.0) + (0.4 if zone == "cancer" and kind == "leaper" else 0.0)
 	var lean := 0.0          # öne (+) / arkaya (-) eğilme
 	var arm_lx := 0.25       # kol öne kalkma (+) / geriye (-)
 	var arm_rx := 0.25
@@ -1829,6 +2043,16 @@ func _animate(delta: float) -> void:
 				"burrow":
 					# GÖMÜLME: kendi etrafında döner
 					twist = _t * 18.0 * k
+				"pulse":
+					# DENİZANASI: çanı kasılır, içi parlar
+					py = 0.25 * e
+					glow = 3.0 + 25.0 * k
+					shake = 0.03 * k
+				"tidewave", "bubbles":
+					arm_lx = 2.6 * e
+					arm_rx = 2.6 * e
+					lean = -0.25 * e
+					glow = 3.0 + 15.0 * k
 				"mirror":
 					# AYNA: aynayı önüne kaldırır, gümüş parlar
 					arm_lx = 1.5 * e
@@ -1894,6 +2118,16 @@ func _animate(delta: float) -> void:
 			arm_rx = 0.0
 			glow = 1.0
 			hover += sin(_t * 18.0) * 0.03
+		"shell":
+			# kabuğuna çekilir: çömelir, kıskaçlar içeri
+			py = -0.35
+			arm_lx = -0.4
+			arm_rx = -0.4
+			arm_lz = 0.6
+			arm_rz = -0.6
+			glow = 2.0 + 10.0 * clampf(_st / 1.2, 0.0, 1.0)
+			tint = DANGER_COL
+			shake = 0.04 * clampf(_st / 1.2, 0.0, 1.0)
 	_flinch = maxf(_flinch - delta * 5.0, 0.0)
 	var sp := minf(18.0 * delta, 1.0)
 	vis.rotation.x = lerpf(vis.rotation.x, lean - _flinch * 0.45, sp)
@@ -2331,3 +2565,116 @@ class WindBlade extends Node3D:
 						_hit_out = true
 		if _t > 4.0:
 			queue_free()
+
+
+# ---------------------------------------------------------------- Gelgit Kâhini dalga duvarı
+
+class TideWave extends Node3D:
+	var hero = null
+	var dir := Vector3.FORWARD
+	var width := 3.6
+	var speed := 7.5
+	var travel := 15.0
+	var dmg := 14.0
+	var _d := 0.0
+	var _hit := false
+	var _mat: StandardMaterial3D
+	var _wall: MeshInstance3D
+
+	func _ready() -> void:
+		top_level = true
+		_wall = MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(width, 1.2, 0.6)
+		_wall.mesh = b
+		_mat = StandardMaterial3D.new()
+		_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mat.albedo_color = Color(0.45, 0.85, 1.0, 0.55)
+		_wall.material_override = _mat
+		_wall.position.y = 0.6
+		add_child(_wall)
+		var foam := MeshInstance3D.new()
+		var fb := BoxMesh.new()
+		fb.size = Vector3(width, 0.15, 0.7)
+		foam.mesh = fb
+		var fm := StandardMaterial3D.new()
+		fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		fm.albedo_color = Color(0.95, 1.0, 1.0)
+		foam.material_override = fm
+		foam.position.y = 1.25
+		add_child(foam)
+		look_at(global_position + dir, Vector3.UP)
+		Sfx.play("dash", -6.0, 0.05, 0, 0.5)
+
+	func _physics_process(delta: float) -> void:
+		var step := speed * delta
+		global_position += dir * step
+		_d += step
+		_wall.scale.y = 0.7 + 0.3 * sin(_d * 2.0)
+		if not _hit and hero != null and is_instance_valid(hero) and not hero.dead:
+			var v: Vector3 = hero.global_position - global_position
+			v.y = 0.0
+			var side := Vector3(-dir.z, 0, dir.x)
+			if absf(v.dot(dir)) < 0.7 and absf(v.dot(side)) < width * 0.5 + 0.3:
+				var res: String = hero.take_damage(dmg, dir, false)
+				if res == "hit":
+					_hit = true
+					if hero.has_method("apply_pull"):
+						hero.apply_pull(hero.global_position + dir * 3.0, 11.0, 0.25)
+		_mat.albedo_color.a = 0.55 * (1.0 - clampf((_d - travel + 2.0) / 2.0, 0.0, 1.0))
+		if _d >= travel:
+			queue_free()
+
+
+# ---------------------------------------------------------------- Keşiş Yengeci kabarcığı
+
+class Bubble extends Node3D:
+	var hero = null
+	var dmg := 10.0
+	var speed := 2.6
+	var life := 5.0
+	var vel := Vector3.ZERO
+	var _t := 0.0
+	var _orb: MeshInstance3D
+
+	func _ready() -> void:
+		top_level = true
+		_orb = MeshInstance3D.new()
+		var s := SphereMesh.new()
+		s.radius = 0.42
+		s.height = 0.84
+		_orb.mesh = s
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.7, 0.95, 1.0, 0.4)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.emission_enabled = true
+		m.emission = Color(0.5, 0.9, 1.0)
+		m.emission_energy_multiplier = 0.8
+		m.roughness = 0.05
+		m.rim_enabled = true
+		_orb.material_override = m
+		add_child(_orb)
+
+	func _physics_process(delta: float) -> void:
+		_t += delta
+		if hero != null and is_instance_valid(hero) and not hero.dead:
+			var to: Vector3 = hero.global_position + Vector3(0, 1.0, 0) - global_position
+			vel = vel.lerp(to.normalized() * speed, minf(1.2 * delta, 1.0))
+			if to.length() < 0.75:
+				var res: String = hero.take_damage(dmg, to.normalized(), false)
+				if res == "hit" and hero.has_method("apply_slow"):
+					hero.apply_slow(0.5, 1.5)
+				_pop()
+				return
+		global_position += vel * delta
+		_orb.scale = Vector3.ONE * (1.0 + sin(_t * 6.0) * 0.06)
+		if _t > life:
+			_pop()
+
+	func _pop() -> void:
+		var ex = load("res://scripts/slash_fx.gd").make(0.0, TAU, 0.1, 0.9, Color(0.7, 0.95, 1.0), 0.25)
+		get_parent().add_child(ex)
+		ex.global_transform = Transform3D(Basis.IDENTITY, global_position)
+		Sfx.play("parry", -14.0, 0.1, 30, 2.4)
+		queue_free()
