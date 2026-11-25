@@ -171,6 +171,9 @@ func heal(v: float) -> void:
 func _update_aim() -> void:
 	if camera == null:
 		return
+	if _aim_lock_t > 0.0:
+		_apply_lock()
+		return
 	if GameData.input_mode != "mouse":
 		_pad_aim()
 		return
@@ -202,6 +205,29 @@ func _pad_aim() -> void:
 	if rs.length() > 0.35:
 		aim = (right * rs.x - fwd * rs.y).normalized()
 		aim_point = global_position + aim * 5.0
+		# NİŞAN YARDIMI: çubuğun gösterdiği yöne 25° içindeki en uygun düşmana yapışır
+		var pick = null
+		var score := 99.0
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e.dead:
+				continue
+			var to: Vector3 = e.global_position - global_position
+			to.y = 0.0
+			var dist := to.length()
+			if dist < 0.3 or dist > 13.0:
+				continue
+			var ang := aim.angle_to(to / dist)
+			if ang > deg_to_rad(25.0):
+				continue
+			var sc := ang * 3.0 + dist * 0.08
+			if sc < score:
+				score = sc
+				pick = e
+		if pick != null:
+			var tp: Vector3 = pick.global_position - global_position
+			tp.y = 0.0
+			aim = tp.normalized()
+			aim_point = Vector3(pick.global_position.x, 0.0, pick.global_position.z)
 		return
 	var best = null
 	var bd := 9.0
@@ -267,6 +293,7 @@ func _physics_process(delta: float) -> void:
 			heal(floorf(_regen_acc))
 			_regen_acc -= floorf(_regen_acc)
 
+	_aim_lock_t -= delta
 	_update_aim()
 	var move := Vector3.ZERO
 	if not frozen and camera != null:
@@ -391,22 +418,7 @@ func _recovering() -> bool:
 func _read_actions(move: Vector3) -> void:
 	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0:
 		if state == "free" or _recovering() or (state == "parry" and _parry_t <= 0.0):
-			state = "free"
-			_queued = ""
-			dash_dir = move.normalized() if move.length() > 0.1 else aim
-			dash_t = DASH_TIME
-			dash_cd = DASH_COOLDOWN * maxf(1.0 - float(st["dash_cdr"]) / 100.0, 0.3) * float(st.get("dash_mult", 1.0))
-			if wb.has("ds_double") and _dash_extra:
-				# ikinci atılma hemen hazır; harcanan hak tam süre sonra geri gelir
-				_dash_extra = false
-				_dash_refill = dash_cd
-				dash_cd = 0.3
-			_dash_from = global_position
-			if wb.has("ds_trail"):
-				get_tree().create_timer(DASH_TIME + 0.02).timeout.connect(_dash_trail)
-			_invuln = maxf(_invuln, DASH_TIME + 0.08)
-			_dash_hits.clear()
-			Sfx.play("dash", -10.0)
+			_start_dash(move.normalized() if move.length() > 0.1 else aim)
 			return
 	if Input.is_action_just_pressed("parry") and _parry_cd <= 0.0 and (state == "free" or _recovering()) and dash_t <= 0.0:
 		state = "parry"
@@ -429,6 +441,80 @@ func _read_actions(move: Vector3) -> void:
 			_start_attack(kit["heavy"])
 		elif state == "attack":
 			_queued = "heavy"
+
+
+func _start_dash(dir: Vector3) -> void:
+	state = "free"
+	_queued = ""
+	dash_dir = dir
+	dash_t = DASH_TIME
+	dash_cd = DASH_COOLDOWN * maxf(1.0 - float(st["dash_cdr"]) / 100.0, 0.3) * float(st.get("dash_mult", 1.0))
+	if wb.has("ds_double") and _dash_extra:
+		# ikinci atılma hemen hazır; harcanan hak tam süre sonra geri gelir
+		_dash_extra = false
+		_dash_refill = dash_cd
+		dash_cd = 0.3
+	_dash_from = global_position
+	if wb.has("ds_trail"):
+		get_tree().create_timer(DASH_TIME + 0.02).timeout.connect(_dash_trail)
+	_invuln = maxf(_invuln, DASH_TIME + 0.08)
+	_dash_hits.clear()
+	Sfx.play("dash", -10.0)
+
+
+
+# ---------------------------------------------------------------- dokunmatik nişan / atılma
+
+var _aim_lock_t := 0.0
+var _aim_lock_p := Vector3.ZERO
+
+
+## Ekrandaki bir noktanın zemindeki karşılığı
+func ground_point(screen_pos: Vector2) -> Vector3:
+	if camera == null:
+		return global_position
+	var from: Vector3 = camera.project_ray_origin(screen_pos)
+	var dir: Vector3 = camera.project_ray_normal(screen_pos)
+	if absf(dir.y) < 0.001:
+		return global_position
+	var t := (1.0 - from.y) / dir.y
+	var hit := from + dir * t
+	return Vector3(hit.x, 0.0, hit.z)
+
+
+## Bir noktaya kısa süre nişan kilitler; yakınında düşman varsa ona yapışır (nişan yardımı)
+func touch_aim(p: Vector3, hold := 0.4) -> void:
+	var best = null
+	var bd := 2.0
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.dead:
+			continue
+		var d := Vector2(e.global_position.x - p.x, e.global_position.z - p.z).length()
+		if d < bd:
+			bd = d
+			best = e
+	if best != null:
+		p = Vector3(best.global_position.x, 0.0, best.global_position.z)
+	_aim_lock_p = p
+	_aim_lock_t = hold
+	_apply_lock()
+
+
+func _apply_lock() -> void:
+	aim_point = _aim_lock_p
+	var d := _aim_lock_p - global_position
+	d.y = 0.0
+	if d.length() > 0.2:
+		aim = d.normalized()
+
+
+## Ekrana çift dokunma: o yöne atıl (saldırıyı yarıda keser)
+func touch_dash(p: Vector3) -> void:
+	if dead or frozen or dash_cd > 0.0 or dash_t > 0.0:
+		return
+	var d := p - global_position
+	d.y = 0.0
+	_start_dash(d.normalized() if d.length() > 0.2 else aim)
 
 
 # ---------------------------------------------------------------- saldırı
