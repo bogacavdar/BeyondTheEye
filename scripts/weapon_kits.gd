@@ -30,7 +30,34 @@ static func _combo(arc: float, rng: float, dmg: Array, t: Array, step: Array, kb
 	]
 
 
+## Yakın dövüş silahları için küçük güçlendirme (atılma 3 sn, can çalma tavanı ve ani düşman saldırılarından sonra denge):
+## vuruş hasarı +%15, yetenek hasarı +%10, saldırılar %8 daha seri. Yay (menzilli) hariç.
+const MELEE_DMG := 1.15
+const MELEE_SKILL_DMG := 1.1
+const MELEE_SPEED := 0.92
+
+
 static func get_kit(id: String) -> Dictionary:
+	var k := _raw_kit(id)
+	if bool(k.get("ranged", false)):
+		return k
+	for a in k["combo"]:
+		_buff(a)
+	_buff(k["heavy"])
+	for sk in k["skills"]:
+		if sk.has("dmg"):
+			sk["dmg"] = float(sk["dmg"]) * MELEE_SKILL_DMG
+	return k
+
+
+static func _buff(a: Dictionary) -> void:
+	a["dmg"] = float(a["dmg"]) * MELEE_DMG
+	for key in ["wind", "rec"]:
+		if a.has(key):
+			a[key] = float(a[key]) * MELEE_SPEED
+
+
+static func _raw_kit(id: String) -> Dictionary:
 	match id:
 		"MOON SCYTHE":
 			return {
