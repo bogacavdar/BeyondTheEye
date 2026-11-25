@@ -30,6 +30,8 @@ const SKILL_RANGE := 10.0      # yetenek hedefinin en uzak mesafesi (m)
 
 func _ready() -> void:
 	layer = 40
+	# duraklatma sırasında da parmak bırakmalarını duymalı (yoksa çubuk basılı kalır)
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_view = Control.new()
 	_view.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -40,38 +42,76 @@ func _ready() -> void:
 
 
 func _layout() -> void:
+	# Düzen ekran yüksekliğine göre ölçeklenir (u = 1 birim); saldırı düğmesinin etrafında bir yay:
+	# ağır, 1, 2, 3, parry yayın üstünde; atılma sağ üstte; gözlemevinde ayrıca KULLAN
 	var s := _view.get_viewport_rect().size
 	var W := s.x
 	var H := s.y
+	var u := H / 1080.0
 	_buttons.clear()
+	var c := Vector2(W - 235.0 * u, H - 235.0 * u)
+	_buttons.append({"action": "fire", "label": "⚔", "pos": c, "r": 112.0 * u, "sub": "ATTACK"})
+	var arc := [["heavy", "Q", "HEAVY", -1], ["skill_1", "1", "", 0], ["skill_2", "2", "", 1], ["skill_3", "3", "", 2], ["parry", "◈", "PARRY", -1]]
+	for i in arc.size():
+		var ang := deg_to_rad(168.0 + 24.0 * float(i))
+		var b := {"action": arc[i][0], "label": arc[i][1], "pos": c + Vector2(cos(ang), sin(ang)) * 272.0 * u, "r": 56.0 * u, "sub": arc[i][2]}
+		if int(arc[i][3]) >= 0:
+			b["skill"] = int(arc[i][3])
+		_buttons.append(b)
+	_buttons.append({"action": "dash", "label": "»", "pos": Vector2(W - 100.0 * u, H - 440.0 * u), "r": 66.0 * u, "sub": "DASH"})
 	if hub_mode:
-		_buttons.append({"action": "interact", "label": "E", "pos": Vector2(W - 210, H - 220), "r": 105.0, "sub": "USE"})
-		_buttons.append({"action": "dash", "label": "»", "pos": Vector2(W - 420, H - 130), "r": 78.0, "sub": "DASH"})
-		_buttons.append({"action": "sprint", "label": "»»", "pos": Vector2(W - 150, H - 450), "r": 66.0, "sub": "RUN"})
-	else:
-		_buttons.append({"action": "fire", "label": "⚔", "pos": Vector2(W - 210, H - 210), "r": 110.0, "sub": "ATTACK"})
-		_buttons.append({"action": "heavy", "label": "Q", "pos": Vector2(W - 430, H - 120), "r": 72.0, "sub": "HEAVY"})
-		_buttons.append({"action": "dash", "label": "»", "pos": Vector2(W - 150, H - 440), "r": 76.0, "sub": "DASH"})
-		_buttons.append({"action": "parry", "label": "◈", "pos": Vector2(W - 400, H - 330), "r": 72.0, "sub": "PARRY"})
-		_buttons.append({"action": "skill_1", "label": "1", "pos": Vector2(W - 610, H - 170), "r": 58.0, "sub": "", "skill": 0})
-		_buttons.append({"action": "skill_2", "label": "2", "pos": Vector2(W - 590, H - 360), "r": 58.0, "sub": "", "skill": 1})
-		_buttons.append({"action": "skill_3", "label": "3", "pos": Vector2(W - 420, H - 520), "r": 58.0, "sub": "", "skill": 2})
-	_buttons.append({"action": "pause", "label": "II", "pos": Vector2(W - 70, 170), "r": 48.0, "sub": ""})
+		_buttons.append({"action": "interact", "label": "E", "pos": Vector2(W - 120.0 * u, H - 640.0 * u), "r": 66.0 * u, "sub": "USE"})
+	_buttons.append({"action": "pause", "label": "II", "pos": Vector2(W - 80.0 * u, 160.0 * u), "r": 46.0 * u, "sub": ""})
 	_view.queue_redraw()
+
+
+## Telefon arka plana gidince ya da oyun duraklayınca basılı kalan her şeyi bırak
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_reset_all()
+
+
+func _reset_all() -> void:
+	_set_stick(Vector2.ZERO)
+	_stick_idx = -999
+	for i in _pressed.keys():
+		Input.action_release(String(_buttons[i]["action"]))
+	_pressed.clear()
+	_touch.clear()
+	_skill_drag.clear()
+	Input.action_release("sprint")
+
+
+var _was_paused := false
 
 
 func _process(d: float) -> void:
 	_clock += d
+	# oyun duraklayınca (menü, lütuf seçimi) basılı kalanları bırak
+	var p := get_tree().paused
+	if p and not _was_paused:
+		_reset_all()
+	_was_paused = p
 	_view.queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
-	if get_tree().paused and not (event is InputEventScreenTouch and not event.pressed):
+	if get_tree().paused:
 		# menüler açıkken dokunuşlar düğmelere gitsin (bırakmalar yine işlenir)
 		return
 	if event is InputEventScreenTouch:
 		var st := event as InputEventScreenTouch
-		if st.pressed:
+		if st.pressed and not st.canceled:
+			# aynı parmak için bırakma kaybolduysa önce eskisini temizle
+			if _touch.has(st.index):
+				var old: int = _touch[st.index]
+				if old >= 0:
+					_release(old)
+				elif st.index == _stick_idx:
+					_set_stick(Vector2.ZERO)
+					_stick_idx = -999
+				_touch.erase(st.index)
+				_skill_drag.erase(st.index)
 			var bi := _button_at(st.position)
 			if bi >= 0:
 				_touch[st.index] = bi
@@ -116,7 +156,7 @@ func _input(event: InputEvent) -> void:
 
 ## Boş alana dokunuş: tek -> saldırı, çift -> atılma
 func _tap(p: Vector2) -> void:
-	if hero == null or not is_instance_valid(hero) or hub_mode:
+	if hero == null or not is_instance_valid(hero) or not hero.has_method("ground_point"):
 		return
 	var gp: Vector3 = hero.ground_point(p)
 	if _clock - _last_tap_t < 0.3 and p.distance_to(_last_tap_p) < 160.0:
@@ -160,7 +200,7 @@ func _release_skill(idx: int) -> void:
 	var sd: Dictionary = _skill_drag[idx]
 	var bi: int = sd["i"]
 	var tgt = _skill_target(idx)
-	if tgt != null:
+	if tgt != null and hero.has_method("touch_aim"):
 		hero.touch_aim(tgt, 0.45)
 	_skill_drag.erase(idx)
 	_pressed.erase(bi)
@@ -187,6 +227,11 @@ func _release(i: int) -> void:
 
 func _set_stick(v: Vector2) -> void:
 	_stick_v = v
+	# çubuk sonuna kadar itilince koş
+	if v.length() > 0.97:
+		Input.action_press("sprint")
+	else:
+		Input.action_release("sprint")
 	var dz := 0.15
 	_axis_action("move_right", v.x if v.x > dz else 0.0)
 	_axis_action("move_left", -v.x if v.x < -dz else 0.0)
@@ -266,6 +311,8 @@ func _draw_view() -> void:
 		var w := f.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		_view.draw_string(f, p + Vector2(-w * 0.5, fs * 0.35), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.95, 0.85, 0.95 * (1.0 if rd >= 1.0 else 0.55)))
 		var sub := tr(String(b["sub"]))
+		if b.has("skill") and hero != null and is_instance_valid(hero) and hero.get("kit") != null:
+			sub = tr(String(hero.kit["skills"][int(b["skill"])]["name"]))
 		if sub != "":
 			var sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
 			_view.draw_string(font, p + Vector2(-sw * 0.5, r + 24.0), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(gold.r, gold.g, gold.b, 0.75))

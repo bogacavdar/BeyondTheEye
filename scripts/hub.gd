@@ -85,6 +85,7 @@ func _ready() -> void:
 	if GameData.show_touch():
 		var tc = load("res://scripts/touch_controls.gd").new()
 		tc.hub_mode = true
+		tc.hero = player
 		add_child(tc)
 	player.global_position = Vector3(0, 0, 6.0)
 	camera.target = player

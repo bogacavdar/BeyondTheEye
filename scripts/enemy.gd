@@ -2693,6 +2693,7 @@ class Bolt extends Node3D:
 	var _orb: MeshInstance3D
 
 	func _ready() -> void:
+		add_to_group("enemy_shot")
 		_orb = MeshInstance3D.new()
 		var s := SphereMesh.new()
 		s.radius = 0.18
@@ -2747,6 +2748,7 @@ class Fireball extends Node3D:
 	var _pool_mat: StandardMaterial3D
 
 	func _ready() -> void:
+		add_to_group("enemy_shot")
 		top_level = true
 		_ring = load("res://scripts/star_skills.gd").ring(radius, Color(1.0, 0.15, 0.1, 0.9))
 		add_child(_ring)
@@ -3031,6 +3033,7 @@ class WindBlade extends Node3D:
 	var _blade: MeshInstance3D
 
 	func _ready() -> void:
+		add_to_group("enemy_shot")
 		top_level = true
 		_blade = MeshInstance3D.new()
 		var t := TorusMesh.new()
@@ -3150,6 +3153,7 @@ class Bubble extends Node3D:
 	var _orb: MeshInstance3D
 
 	func _ready() -> void:
+		add_to_group("enemy_shot")
 		top_level = true
 		_orb = MeshInstance3D.new()
 		var s := SphereMesh.new()

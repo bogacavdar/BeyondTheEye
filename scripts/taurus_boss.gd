@@ -629,6 +629,7 @@ class Boulder extends Node3D:
 	var _landed := false
 
 	func _ready() -> void:
+		add_to_group("enemy_shot")
 		top_level = true
 		_ring = load("res://scripts/star_skills.gd").ring(radius, Color(1.0, 0.2, 0.1, 0.9))
 		add_child(_ring)

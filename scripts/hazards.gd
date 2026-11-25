@@ -237,6 +237,7 @@ class Shot extends Node3D:
 	var _t := 0.0
 
 	func _ready() -> void:
+		add_to_group("enemy_shot")
 		top_level = true
 		var m := MeshInstance3D.new()
 		var s := SphereMesh.new()
