@@ -811,7 +811,7 @@ func _use_skill(i: int) -> void:
 		if sk.has("count"):
 			sk["count"] = int(sk["count"]) + 3
 	if not _echoing:
-		skill_cd[i] = SKILL_CD[i]
+		skill_cd[i] = SKILL_CD[i] * (1.0 - clampf(float(st.get("sk_cdr", 0.0)), 0.0, 60.0) / 100.0)
 		if wb.has("sk_empower"):
 			_emp_hits = 3
 		if wb.has("sk_echo") and String(sk["type"]) in ECHO_TYPES:

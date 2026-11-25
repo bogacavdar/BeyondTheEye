@@ -140,6 +140,8 @@ func _ready() -> void:
 		_sag_variant()
 	elif zone == "capricorn":
 		_cap_variant()
+	elif zone == "aquarius":
+		_aq_variant()
 	if mini:
 		max_hp *= 0.35
 		size_k *= 0.7
@@ -353,6 +355,45 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## FIRTINA GÖZLEMEVİ yaratıkları:
+##  shade  -> FIRTINA PERİSİ: uzaktaysan bir şimşekle yanına (arkana) ışınlanır, hemen ardından pençe
+##  caster -> ŞİMŞEK BİLGESİ: seni yavaşça kovalayan fırtına küresi fırlatır (değerse yavaşlatır)
+##  leaper -> TESTİ TAŞIYICI: testisini fırlatır; düştüğü yer bir süre su basar (yavaşlatır)
+##  brute  -> İLETKEN GOLEM: yumruğun yanında, çevresinde dönen şimşek kolları açar
+func _aq_variant() -> void:
+	_base_body = Color(0.75, 0.6, 1.0)
+	_base_cloth = Color(0.5, 0.4, 0.95)
+	match kind:
+		"shade":
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 2.0, "windup": 0.45, "act": 0.12, "recover": 0.5,
+					"dmg": 15.0, "reach": 2.2, "arc": 110.0, "parry": true, "cd": 0.9, "weight": 2.0},
+				{"name": "blink", "shape": "circle", "min": 3.5, "max": 11.0, "windup": 0.5, "act": 0.1, "recover": 0.12,
+					"dmg": 0.0, "reach": 0.8, "arc": 360.0, "parry": false, "cd": 4.0, "weight": 2.0},
+			]
+		"caster":
+			attacks = [
+				{"name": "stormorb", "shape": "circle", "min": 3.0, "max": 13.0, "windup": 0.8, "act": 0.15, "recover": 0.7,
+					"dmg": 14.0, "reach": 0.8, "arc": 360.0, "parry": false, "cd": 3.6, "weight": 1.0},
+			]
+		"leaper":
+			max_hp = 85.0
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 1.9, "windup": 0.5, "act": 0.12, "recover": 0.5,
+					"dmg": 13.0, "reach": 2.1, "arc": 100.0, "parry": true, "cd": 1.0, "weight": 1.0},
+				{"name": "urn", "shape": "circle", "min": 3.0, "max": 11.0, "windup": 0.8, "act": 0.15, "recover": 0.7,
+					"dmg": 16.0, "reach": 1.8, "arc": 360.0, "parry": false, "cd": 4.0, "weight": 2.0},
+			]
+		"brute":
+			max_hp = 240.0
+			attacks = [
+				{"name": "smash", "shape": "fan", "min": 0.0, "max": 2.7, "windup": 0.8, "act": 0.16, "recover": 0.9,
+					"dmg": 24.0, "reach": 3.0, "arc": 120.0, "parry": true, "cd": 1.6, "weight": 1.5},
+				{"name": "pulse", "shape": "circle", "min": 0.0, "max": 7.0, "windup": 0.9, "act": 0.2, "recover": 1.0,
+					"dmg": 16.0, "reach": 1.0, "arc": 360.0, "parry": false, "cd": 6.0, "weight": 1.2},
+			]
+
+
 ## DONMUŞ ZİRVE yaratıkları:
 ##  shade  -> DAĞ KEÇİSİ: pençe yerine tos (kızıl): değerse seni savurur
 ##  caster -> BUZ ERMİŞİ: sana doğru sırayla fışkıran buz dikenleri; değerse kısa süre donarsın
@@ -785,6 +826,18 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "aquarius":
+		m_eye.emission = Color(0.6, 1.0, 1.0)
+		m_body.albedo_color = Color(0.78, 0.74, 1.0)
+		match kind:
+			"caster":
+				_build_tesla()
+			"leaper":
+				_build_urnbearer()
+			"brute":
+				_build_conductor()
+			_:
+				_build_sprite()
 	elif zone == "capricorn":
 		m_eye.emission = Color(0.4, 1.0, 0.9)
 		m_body.albedo_color = Color(0.2, 0.26, 0.3)
@@ -1875,6 +1928,93 @@ func _build_siege() -> void:
 	bar.rotation.y = 0.0
 
 
+# ---- Fırtına Gözlemevi görünüşleri (parlak menekşe-beyaz fırtına varlıkları; zemin koyu lacivert)
+
+func _storm() -> StandardMaterial3D:
+	var m := _m(Color(0.78, 0.74, 1.0), 0.4)
+	m.emission_enabled = true
+	m.emission = Color(0.55, 0.45, 1.0)
+	m.emission_energy_multiplier = 0.35
+	return m
+
+
+func _spark() -> StandardMaterial3D:
+	var m := _m(Color(0.75, 1.0, 1.0), 0.2)
+	m.emission_enabled = true
+	m.emission = Color(0.5, 0.95, 1.0)
+	m.emission_energy_multiplier = 2.0
+	return m
+
+
+func _build_sprite() -> void:
+	# FIRTINA PERİSİ: havada süzülen, kıvılcım saçlı ince bir varlık; ışınlanır
+	var st := _storm()
+	_part(vis, _cone(0.3, 0.05, 1.1, 10), Vector3(0, 1.0, 0), st)
+	var hd := _part(vis, _sph(0.2), Vector3(0, 1.75, 0), st)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.04), Vector3(s * 0.08, 1.78, -0.17), m_eye)
+		var w := _part(vis, _sph(0.4), Vector3(s * 0.4, 1.4, 0.2), _spark(), Vector3(0.9, 0.08, 0.4))
+		w.rotation.z = s * 0.5
+	for i in 5:
+		var a := TAU * float(i) / 5.0
+		_part(vis, _cone(0.04, 0.0, 0.35, 4), Vector3(cos(a) * 0.15, 1.95, sin(a) * 0.15), _spark())
+	arm_l = _arm(-1.0, Vector3(-0.25, 1.45, 0), 0.5)
+	arm_r = _arm(1.0, Vector3(0.25, 1.45, 0), 0.5)
+	hd.scale = Vector3.ONE
+
+
+func _build_tesla() -> void:
+	# ŞİMŞEK BİLGESİ: cübbeli, başının üstünde dönen bir fırtına küresi taşır
+	var st := _storm()
+	_part(vis, _cone(0.48, 0.16, 1.6, 12), Vector3(0, 0.85, 0), _m(Color(0.32, 0.3, 0.6), 0.6))
+	_part(vis, _sph(0.22), Vector3(0, 1.8, 0), st)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.04), Vector3(s * 0.08, 1.82, -0.19), m_eye)
+	_part(vis, _sph(0.22), Vector3(0, 2.45, 0), _spark())
+	for i in 3:
+		var rg := _part(vis, TorusMesh.new(), Vector3(0, 2.45, 0), _spark(), Vector3(0.35, 0.35, 0.35))
+		rg.rotation = Vector3(float(i) * 1.0, float(i) * 0.7, 0)
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.6, 0), 0.6)
+	arm_r = _arm(1.0, Vector3(0.3, 1.6, 0), 0.6)
+
+
+func _build_urnbearer() -> void:
+	# TESTİ TAŞIYICI: omzunda yıldızlı su testisi; testiyi fırlatıp yeri su basar
+	var st := _storm()
+	_part(vis, _sph(0.34, 0.8), Vector3(0, 1.0, 0), st)
+	_part(vis, _sph(0.2), Vector3(0, 1.6, 0), st)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.04), Vector3(s * 0.08, 1.62, -0.17), m_eye)
+		_part(vis, _cone(0.07, 0.09, 0.7, 6), Vector3(s * 0.15, 0.35, 0), st)
+	var urn := _m(Color(0.45, 0.6, 0.85), 0.25)
+	urn.metallic = 0.6
+	_part(vis, _sph(0.3), Vector3(0.35, 1.7, 0.1), urn, Vector3(1.0, 1.2, 1.0))
+	_part(vis, _cone(0.12, 0.16, 0.2, 8), Vector3(0.35, 2.05, 0.1), urn)
+	_part(vis, _sph(0.13), Vector3(0.35, 2.15, 0.1), _spark())
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.35, 0), 0.55)
+	arm_r = _arm(1.0, Vector3(0.3, 1.35, 0), 0.55)
+
+
+func _build_conductor() -> void:
+	# İLETKEN GOLEM: gümüş-mavi metal gövde, sırtında parlayan bobinler
+	var met := _m(Color(0.7, 0.74, 0.88), 0.35)
+	met.metallic = 0.5
+	met.emission_enabled = true
+	met.emission = Color(0.45, 0.4, 1.0)
+	met.emission_energy_multiplier = 0.25
+	_part(vis, BoxMesh.new(), Vector3(0, 1.35, 0), met, Vector3(1.3, 1.2, 0.9))
+	_part(vis, BoxMesh.new(), Vector3(0, 2.15, -0.05), met, Vector3(0.6, 0.5, 0.55))
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.07), Vector3(s * 0.14, 2.2, -0.33), m_eye)
+		_part(vis, _cone(0.18, 0.22, 0.9, 6), Vector3(s * 0.35, 0.45, 0), met)
+		for k in 3:
+			_part(vis, TorusMesh.new(), Vector3(s * 0.35, 1.3 + float(k) * 0.3, 0.55), _spark(), Vector3(0.28, 0.28, 0.28))
+	arm_l = _arm(-1.0, Vector3(-0.8, 1.8, 0), 0.9)
+	arm_r = _arm(1.0, Vector3(0.8, 1.8, 0), 0.9)
+	for a in [arm_l, arm_r]:
+		_part(a, BoxMesh.new(), Vector3(0, -1.0, 0), met, Vector3(0.45, 0.5, 0.45))
+
+
 # ---- Donmuş Zirve görünüşleri (koyu arduvaz-camgöbeği deniz keçileri; zemin kar beyazı)
 
 func _slate() -> StandardMaterial3D:
@@ -2395,6 +2535,70 @@ func _set_state(s: String) -> void:
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
 			_done = true
+		elif String(atk["name"]) == "blink":
+			# şimşekle kahramanın arkasına ışınlan
+			var H4 = load("res://scripts/hazards.gd")
+			if H4.hero_ok(hero):
+				Fx.flash_light(global_position + Vector3(0, 1, 0), Color(0.7, 0.9, 1.0), 4.0, 5.0, 0.25)
+				var side := 1.0 if randf() < 0.5 else -1.0
+				var hf: Vector3 = _aim_dir.rotated(Vector3.UP, side * 0.9)
+				global_position = H4.clamp_arena(hero.global_position + hf * 1.7, 11.0)
+				_face = -hf
+				_aim_dir = -hf
+				Fx.flash_light(global_position + Vector3(0, 1, 0), Color(0.7, 0.9, 1.0), 6.0, 6.0, 0.3)
+				Sfx.play("dash", -6.0, 0.1, 0, 1.8)
+				_global_cd = 0.0
+				_cd["claw"] = 0.0
+			_done = true
+		elif String(atk["name"]) == "stormorb":
+			var H5 = load("res://scripts/hazards.gd")
+			var sh = H5.Shot.new()
+			sh.hero = hero
+			sh.vel = _aim_dir * 4.5
+			sh.homing = 1.6
+			sh.dmg = float(atk["dmg"])
+			sh.radius = 0.7
+			sh.life = 5.0
+			sh.size = 0.4
+			sh.col = Color(0.7, 0.9, 1.0)
+			sh.eff = "slow"
+			get_parent().add_child(sh)
+			sh.global_position = global_position + Vector3(0, 1.6, 0) + _aim_dir * 0.7
+			Sfx.play("parry", -10.0, 0.05, 0, 2.6)
+			_done = true
+		elif String(atk["name"]) == "urn":
+			var H6 = load("res://scripts/hazards.gd")
+			if H6.hero_ok(hero):
+				var b6 = H6.Blast.new()
+				b6.hero = hero
+				b6.radius = 1.8
+				b6.delay = 0.9
+				b6.dmg = float(atk["dmg"])
+				b6.col = Color(0.45, 0.7, 1.0)
+				b6.eff = "slow"
+				b6.pool_life = 4.0
+				get_parent().add_child(b6)
+				b6.global_position = H6.clamp_arena(hero.global_position, 11.5)
+			Sfx.play("swing", -8.0, 0.05, 0, 0.8)
+			_done = true
+		elif String(atk["name"]) == "pulse":
+			var H7 = load("res://scripts/hazards.gd")
+			var sp = H7.Spokes.new()
+			sp.hero = hero
+			sp.follow = self
+			sp.arms = 3
+			sp.length = 6.0
+			sp.width = 0.8
+			sp.spin = 1.3
+			sp.warn = 0.8
+			sp.life = 3.2
+			sp.dmg = float(atk["dmg"])
+			sp.col = Color(0.65, 0.85, 1.0)
+			sp.eff = "slow"
+			get_parent().add_child(sp)
+			sp.global_position = Vector3(global_position.x, 0, global_position.z)
+			Sfx.play("boom", -10.0, 0.05, 0, 1.6)
+			_done = true
 		elif String(atk["name"]) == "icespikes":
 			var H3 = load("res://scripts/hazards.gd")
 			for i in 4:
@@ -2743,7 +2947,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid" or nm == "volley" or nm == "ballista" or nm == "icespikes":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid" or nm == "volley" or nm == "ballista" or nm == "icespikes" or nm == "blink" or nm == "stormorb" or nm == "urn" or nm == "pulse":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -3238,6 +3442,11 @@ func _animate(delta: float) -> void:
 					lean = 0.4 * e
 					glow = 3.0 + 18.0 * k
 					shake = 0.03 * k
+				"stormorb", "urn", "pulse":
+					arm_rx = 2.6 * e
+					glow = 3.0 + 18.0 * k
+				"blink":
+					glow = 3.0 + 25.0 * k
 				"icespikes":
 					arm_rx = 2.6 * e
 					glow = 3.0 + 18.0 * k
