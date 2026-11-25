@@ -53,6 +53,7 @@ var _flinch := 0.0          # vurulunca geriye esneme
 var _charge_traveled := 0.0
 var _charge_hit := false
 var shield_node: Node3D
+var last_dealt := 0.0       # son vuruşta gerçekten verilen hasar (can çalma bunu kullanır)
 var pebble := false         # Taş Golemi parçalanınca çıkan küçük taşçık
 var ward := 0.0             # Ülker Rahibesi'nin verdiği koruma kalkanı
 var _ward_t := 0.0
@@ -1325,6 +1326,7 @@ func pull_to(point: Vector3, strength: float) -> void:
 # ---------------------------------------------------------------- hasar
 
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	last_dealt = 0.0
 	if dead or state == "spawn":
 		return
 	if _burrowed():
@@ -1353,6 +1355,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	if zone == "aries" and kind == "brute" and not heavy and state != "stun" and _face.dot(-dir) > 0.35:
 		final *= 0.35
 		hp -= final
+		last_dealt = final
 		_flash = 0.35
 		HitFx.impact(get_parent(), global_position + Vector3(0, 1.5 * size_k, 0) - dir * 0.9, dir, Color(1.0, 0.8, 0.45), false)
 		HitFx.number(get_parent(), global_position + Vector3(0, 2.2 * size_k, 0), final, false)
@@ -1365,6 +1368,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 			_die(dir)
 		return
 	hp -= final
+	last_dealt = final
 	_flash = 1.0
 	# vuruş hissi: geriye esneme, ezilip toparlanma, vuruş noktasında patlama, hasar sayısı
 	_flinch = 1.0 if heavy or crit else 0.6

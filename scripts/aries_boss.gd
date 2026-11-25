@@ -19,6 +19,7 @@ const DANGER_COL := Color(1.0, 0.1, 0.18)
 
 var kind := "aries"
 var title := "ARIES  ·  THE RAM'S FURY"
+var last_dealt := 0.0
 var dmg_mult := 1.0          # Mars retrosu
 var windup_mult := 1.0       # Plüton retrosu
 var total_eclipse := false   # Tam Tutulma: 4. evre
@@ -602,9 +603,11 @@ func _tick_burn(delta: float) -> void:
 # ---------------------------------------------------------------- hasar
 
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	last_dealt = 0.0
 	if dead or state == "intro" or state == "roar":
 		return
 	var mult := 2.0 if (state == "stun" and _parried) else 1.0
+	last_dealt = dmg * mult
 	_flash = 1.0
 	HitFx.impact(get_parent(), global_position + Vector3(0, 2.0, 0) - dir * 0.8, dir, Color(1.0, 0.7, 0.4), heavy or crit)
 	HitFx.number(get_parent(), global_position + Vector3(0, 4.0, 0), dmg * mult, crit or mult > 1.0)

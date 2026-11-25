@@ -84,13 +84,13 @@ static func get_kit(id: String) -> Dictionary:
 				"combo": [
 					{"wind": 0.07, "act": 0.04, "rec": 0.22, "dmg": 6.0, "arrows": 1, "spread": 0.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 2.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0},
 					{"wind": 0.07, "act": 0.04, "rec": 0.22, "dmg": 6.0, "arrows": 1, "spread": 0.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 2.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0},
-					{"wind": 0.12, "act": 0.05, "rec": 0.38, "dmg": 5.0, "arrows": 3, "spread": 14.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 4.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": -2.0, "finisher": true},
+					{"wind": 0.12, "act": 0.05, "rec": 0.42, "dmg": 4.0, "arrows": 3, "spread": 26.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 4.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": -2.0, "finisher": true},
 				],
 				"heavy": {"wind": 0.55, "act": 0.05, "rec": 0.4, "dmg": 22.0, "arrows": 1, "spread": 0.0, "pierce": 2, "speed": 44.0, "range": 15.0, "kb": 9.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0, "finisher": true},
 				"skills": [
 					{"name": "ARROW RAIN", "cd": 10.0, "type": "starfall", "radius": 2.6, "count": 10, "dmg": 6.0, "delay": 0.55, "star_r": 0.07, "max_range": 10.0},
 					{"name": "PIERCING STAR", "cd": 7.0, "type": "wave", "dmg": 18.0, "speed": 30.0, "range": 16.0, "width": 0.25},
-					{"name": "CENTAUR LEAP", "cd": 7.0, "type": "disengage", "dist": 6.0, "radius": 2.4, "dmg": 12.0, "stun": 0.8},
+					{"name": "CENTAUR LEAP", "cd": 11.0, "type": "disengage", "dist": 4.5, "radius": 2.4, "dmg": 12.0, "stun": 0.8},
 				],
 			}
 	# STAR SWORD (varsayılan)

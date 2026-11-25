@@ -527,7 +527,10 @@ func on_ranged_hit(dmg: float, e) -> void:
 
 ## Verilen hasarın yan etkileri: can çalma, şifacı eller, hasat
 func _on_dealt(dmg: float, e) -> void:
-	if float(st["lifesteal"]) > 0.0:
+	# dokunulmaz hedeflerden (gömülü köstebek, kalkan, kükreyen boss) can çalınmaz: gerçekten verilen hasar kullanılır
+	if e.get("last_dealt") != null:
+		dmg = float(e.last_dealt)
+	if float(st["lifesteal"]) > 0.0 and dmg > 0.0:
 		# can çalma tavanı: saniyede en fazla canın %3'ü (çok vuruşlu saldırılarla ölümsüz olmayı önler)
 		var gain := minf(dmg * float(st["lifesteal"]) / 100.0, _ls_budget)
 		if gain > 0.0:
