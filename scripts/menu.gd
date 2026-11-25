@@ -343,6 +343,8 @@ func _slot_row(n: int) -> Control:
 			extra = tr("SEVEN CONSTELLATIONS RESTORED")
 		if bool(info.get("scorpio", false)):
 			extra = tr("EIGHT CONSTELLATIONS RESTORED")
+		if bool(info.get("sagittarius", false)):
+			extra = tr("NINE CONSTELLATIONS RESTORED")
 		if int(info["run_room"]) >= 0:
 			extra += ("  ·  " if extra != "" else "") + tr("RUN IN PROGRESS") + " (%d)" % (int(info["run_room"]) + 1)
 		if extra != "":

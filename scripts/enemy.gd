@@ -133,6 +133,8 @@ func _ready() -> void:
 		_libra_variant()
 	elif zone == "scorpio":
 		_scorpio_variant()
+	elif zone == "sagittarius":
+		_sag_variant()
 	if mini:
 		max_hp *= 0.35
 		size_k *= 0.7
@@ -346,6 +348,41 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## KENTAUR BOZKIRI yaratıkları:
+##  shade  -> KENTAUR MIZRAKÇISI: vurur ve hemen geri sıçrar (vur-kaç)
+##  caster -> OKÇU: senin çevrene ok yağmuru indirir
+##  leaper -> AVCI ŞAHİN: havada süzülür, gökten dalar
+##  brute  -> KUŞATMA KENTAURU: sırtındaki balistayla arenayı boydan boya delen ok (seni savurur)
+func _sag_variant() -> void:
+	_base_body = Color(0.55, 0.4, 1.0)
+	_base_cloth = Color(0.45, 0.3, 0.85)
+	match kind:
+		"shade":
+			speed = 4.6
+		"caster":
+			attacks = [
+				{"name": "volley", "shape": "circle", "min": 3.0, "max": 13.0, "windup": 0.8, "act": 0.15, "recover": 0.7,
+					"dmg": 11.0, "reach": 1.2, "arc": 360.0, "parry": false, "cd": 3.4, "weight": 1.0},
+			]
+		"leaper":
+			_sky = true
+			max_hp = 80.0
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 1.9, "windup": 0.45, "act": 0.12, "recover": 0.5,
+					"dmg": 12.0, "reach": 2.1, "arc": 100.0, "parry": true, "cd": 1.0, "weight": 1.0},
+				{"name": "burrow", "shape": "circle", "min": 3.0, "max": 12.0, "windup": 0.45, "act": 2.4, "recover": 0.7,
+					"dmg": 22.0, "reach": 2.0, "arc": 360.0, "parry": false, "cd": 4.5, "weight": 2.0},
+			]
+		"brute":
+			max_hp = 230.0
+			attacks = [
+				{"name": "smash", "shape": "fan", "min": 0.0, "max": 2.7, "windup": 0.8, "act": 0.16, "recover": 0.9,
+					"dmg": 24.0, "reach": 3.0, "arc": 120.0, "parry": true, "cd": 1.6, "weight": 1.5},
+				{"name": "ballista", "shape": "line", "min": 3.5, "max": 14.0, "windup": 1.0, "act": 0.15, "recover": 0.9,
+					"dmg": 22.0, "reach": 14.0, "arc": 0.0, "parry": false, "cd": 4.0, "weight": 1.5},
+			]
+
+
 ## ZEHİR MAĞARALARI yaratıkları:
 ##  shade  -> ZEHİRLİ İĞNE: vuruşları zehirler (zehir canı eritir ama öldürmez)
 ##  caster -> ASİT TÜKÜRÜCÜ: yere zehirli asit gölcükleri fırlatır
@@ -700,6 +737,19 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "sagittarius":
+		m_eye.emission = Color(1.0, 0.85, 0.45)
+		m_body.albedo_color = Color(0.42, 0.3, 0.72)
+		m_cloth.albedo_color = Color(0.35, 0.25, 0.6)
+		match kind:
+			"caster":
+				_build_archer()
+			"leaper":
+				_build_hawk()
+			"brute":
+				_build_siege()
+			_:
+				_build_lancer()
 	elif zone == "scorpio":
 		m_eye.emission = Color(0.5, 1.0, 0.3)
 		m_body.albedo_color = Color(0.12, 0.1, 0.16)
@@ -1692,6 +1742,79 @@ func _build_grabber() -> void:
 		_part(a, _sph(0.3), Vector3(0, -0.9, -0.1), ch, Vector3(1.0, 0.7, 1.6))
 
 
+# ---- Kentaur Bozkırı görünüşleri (mor-lacivert kentaurlar, altın oklar; zemin adaçayı yeşili taş)
+
+func _centaur_mat() -> StandardMaterial3D:
+	var m := _m(Color(0.42, 0.3, 0.72), 0.5)
+	m.emission_enabled = true
+	m.emission = Color(0.45, 0.3, 1.0)
+	m.emission_energy_multiplier = 0.25
+	return m
+
+
+func _centaur(sc: float) -> void:
+	# at gövdesi + insan üst gövde
+	var cm := _centaur_mat()
+	var gold := _m(Color(1.0, 0.82, 0.45), 0.3)
+	_part(vis, _sph(0.42 * sc, 0.6 * sc), Vector3(0, 0.85 * sc, 0.15 * sc), cm, Vector3(0.8, 0.7, 1.5))
+	for i in 4:
+		var x := (-0.2 if i % 2 == 0 else 0.2) * sc
+		var z := (-0.3 if i < 2 else 0.55) * sc
+		_part(vis, _cone(0.06 * sc, 0.08 * sc, 0.75 * sc, 6), Vector3(x, 0.38 * sc, z), cm)
+	_part(vis, _cone(0.22 * sc, 0.28 * sc, 0.7 * sc, 8), Vector3(0, 1.35 * sc, -0.35 * sc), cm)
+	var hp := Vector3(0, 1.85 * sc, -0.38 * sc)
+	_part(vis, _sph(0.15 * sc), hp, _m(Color(0.85, 0.8, 0.95)))
+	_part(vis, _sph(0.035 * sc), hp + Vector3(-0.05, 0.0, -0.13) * sc, m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(vis, _sph(0.035 * sc), hp + Vector3(0.05, 0.0, -0.13) * sc, m_eye, Vector3(1.4, 0.7, 1.0))
+	var tail := _part(vis, _cone(0.08 * sc, 0.02 * sc, 0.6 * sc, 5), Vector3(0, 0.95 * sc, 0.85 * sc), gold)
+	tail.rotation.x = 0.8
+	arm_l = _arm(-1.0, Vector3(-0.27, 1.6, -0.38) * sc, 0.5 * sc)
+	arm_r = _arm(1.0, Vector3(0.27, 1.6, -0.38) * sc, 0.5 * sc)
+
+
+func _build_lancer() -> void:
+	# KENTAUR MIZRAKÇISI: vurur ve geri çekilir
+	_centaur(1.0)
+	_part(arm_r, _cone(0.03, 0.0, 1.6, 5), Vector3(0, -0.5, -0.6), _m(Color(1.0, 0.82, 0.45), 0.3)).rotation.x = -1.2
+
+
+func _build_archer() -> void:
+	# OKÇU: yay taşıyan kentaur; ok yağmuru
+	_centaur(1.0)
+	var bow := TorusMesh.new()
+	bow.inner_radius = 0.42
+	bow.outer_radius = 0.47
+	var b := _part(arm_l, bow, Vector3(0, -0.5, -0.1), _m(Color(1.0, 0.82, 0.45), 0.3), Vector3(1.0, 1.0, 0.25))
+	b.rotation.y = PI * 0.5
+
+
+func _build_hawk() -> void:
+	# AVCI ŞAHİN: gökten dalan mor-altın yırtıcı
+	var cm := _centaur_mat()
+	var gold := _m(Color(1.0, 0.82, 0.45), 0.3)
+	_part(vis, _sph(0.25, 0.5), Vector3(0, 0, 0), cm, Vector3(0.9, 0.8, 1.4))
+	_part(vis, _sph(0.15), Vector3(0, 0.12, -0.35), cm)
+	_part(vis, _cone(0.05, 0.0, 0.18, 4), Vector3(0, 0.08, -0.52), gold).rotation.x = -PI * 0.5
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.035), Vector3(s * 0.07, 0.16, -0.45), m_eye)
+		var w := _part(vis, _sph(0.6), Vector3(s * 0.6, 0.05, 0.05), cm, Vector3(1.0, 0.08, 0.42))
+		w.rotation.z = s * 0.15
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_siege() -> void:
+	# KUŞATMA KENTAURU: sırtında balista taşıyan dev
+	_centaur(1.45)
+	var wood := _m(Color(0.35, 0.28, 0.45), 0.7)
+	var gold := _m(Color(1.0, 0.82, 0.45), 0.3)
+	_part(vis, BoxMesh.new(), Vector3(0, 1.85, 0.2), wood, Vector3(0.3, 0.25, 1.4))
+	var bar := _part(vis, BoxMesh.new(), Vector3(0, 1.95, -0.3), gold, Vector3(1.4, 0.08, 0.08))
+	bar.rotation.y = 0.0
+
+
 func _build_shellguard() -> void:
 	# KABUK ASKERİ: dik duran mercan zırhlı yengeç-asker; vurulunca kabuğuna çekilir
 	var shell := _shell_mat()
@@ -2088,6 +2211,9 @@ func _pick_attack(dist: float, dir_to: Vector3) -> void:
 func _set_state(s: String) -> void:
 	state = s
 	_st = 0.0
+	if s == "recover" and zone == "sagittarius" and kind == "shade":
+		# vur-kaç: saldırıdan sonra geri sıçrar
+		_knock = -_face * 11.0
 	if s == "windup":
 		_show_tele()
 		if String(atk["name"]) == "burrow" or String(atk["name"]) == "mirror":
@@ -2108,6 +2234,36 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "volley":
+			var H = load("res://scripts/hazards.gd")
+			if hero != null and is_instance_valid(hero):
+				for i in 5:
+					var b = H.Blast.new()
+					b.hero = hero
+					b.radius = 1.2
+					b.delay = 0.9 + float(i) * 0.1
+					b.dmg = float(atk["dmg"])
+					b.col = Color(1.0, 0.82, 0.45)
+					get_parent().add_child(b)
+					var off := Vector3.ZERO if i == 0 else Vector3(randf_range(-2.2, 2.2), 0, randf_range(-2.2, 2.2))
+					b.global_position = H.clamp_arena(hero.global_position + off, 12.0)
+			Sfx.play("bowshot", -6.0, 0.1, 0, 0.9)
+			_done = true
+		elif String(atk["name"]) == "ballista":
+			var H2 = load("res://scripts/hazards.gd")
+			var ln = H2.Line.new()
+			ln.hero = hero
+			ln.dir = _aim_dir
+			ln.length = 15.0
+			ln.width = 1.5
+			ln.delay = 0.35
+			ln.dmg = float(atk["dmg"])
+			ln.col = Color(1.0, 0.82, 0.45)
+			ln.eff = "knock"
+			get_parent().add_child(ln)
+			ln.global_position = Vector3(global_position.x, 0, global_position.z) + _aim_dir * 0.8
+			Sfx.play("bowshot", -2.0, 0.0, 0, 0.6)
 			_done = true
 		elif String(atk["name"]) == "acid":
 			var H = load("res://scripts/hazards.gd")
@@ -2413,7 +2569,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid" or nm == "volley" or nm == "ballista":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -2895,6 +3051,11 @@ func _animate(delta: float) -> void:
 					lean = -0.2 * e
 					glow = 3.0 + 20.0 * k
 					shake = 0.03 * k
+				"volley", "ballista":
+					arm_lx = 2.2 * e
+					arm_rx = 1.6 * e
+					lean = -0.2 * e
+					glow = 3.0 + 18.0 * k
 				"acid":
 					arm_lx = 2.4 * e
 					arm_rx = 2.4 * e
