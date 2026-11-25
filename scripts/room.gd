@@ -167,7 +167,7 @@ func _ready() -> void:
 	else:
 		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G, COMBAT_C, COMBAT_L, COMBAT_V)
 		waves = table[mini(local_i, table.size() - 1)]
-	Sfx.play_music("res://assets/music/akash_chamber.mp3" if is_rest else "res://assets/music/awakening.mp3", -9.0)
+	Sfx.play_music(_music_path(), -9.0)
 
 	if zone == "virgo":
 		_environment_virgo()
@@ -267,6 +267,24 @@ func _ready() -> void:
 			hud.banner("THE BULL'S MEADOWS", tr("Venus guards the road to Taurus"))
 		else:
 			hud.banner("THE RAM'S PASS", tr("The road to Aries burns"))
+
+
+## Bölgeye ve boss'a özel müzik: dosya varsa onu, yoksa varsayılanı çalar.
+## assets/music/zone_<bölge>.(ogg|mp3) · boss_<bölge>.(ogg|mp3) · boss.(ogg|mp3)
+func _music_path() -> String:
+	if is_rest:
+		return "res://assets/music/akash_chamber.mp3"
+	var names: Array = []
+	if is_boss:
+		names = ["boss_" + zone, "boss"]
+	else:
+		names = ["zone_" + zone]
+	for n in names:
+		for ext in [".ogg", ".mp3"]:
+			var p := "res://assets/music/" + String(n) + ext
+			if ResourceLoader.exists(p):
+				return p
+	return "res://assets/music/awakening.mp3"
 
 
 func _on_hero_hurt() -> void:
