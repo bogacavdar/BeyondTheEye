@@ -226,6 +226,14 @@ func _ready() -> void:
 		var tc = load("res://scripts/touch_controls.gd").new()
 		tc.hero = hero
 		add_child(tc)
+	# gök yoldaşı
+	var CompS = load("res://scripts/companion.gd")
+	if GameData.companion != "" and CompS.unlocked(GameData.companion):
+		var comp = CompS.new()
+		comp.kind = GameData.companion
+		comp.level = CompS.lvl(int(GameData.comp_runs.get(GameData.companion, 0)))
+		comp.hero = hero
+		add_child(comp)
 	_aim_moon()
 
 	if is_rest:

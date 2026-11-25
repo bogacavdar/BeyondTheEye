@@ -37,6 +37,37 @@ func open() -> void:
 	var sub := UI.label(tr("It changes the rules of this run. Defeat a sign's boss to unlock its rising."), 17, UI.CREAM, 3)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_box.add_child(sub)
+	# gök yoldaşı seçimi
+	var ct := UI.label(tr("SKY COMPANION"), 22, UI.GOLD, 4)
+	ct.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_box.add_child(ct)
+	var crow := HBoxContainer.new()
+	crow.add_theme_constant_override("separation", 10)
+	crow.alignment = BoxContainer.ALIGNMENT_CENTER
+	_box.add_child(crow)
+	var CompS = load("res://scripts/companion.gd")
+	var GD = load("res://scripts/game_data.gd")
+	for cinfo in CompS.LIST:
+		var cid := String(cinfo["id"])
+		var open_ := bool(CompS.unlocked(cid))
+		var lv := int(CompS.lvl(int(GD.comp_runs.get(cid, 0))))
+		var sel := String(GD.companion) == cid
+		var cb := UI.button(("✓ " if sel else "") + tr(String(cinfo["name"])) + ("  " + tr("LV") + " %d" % lv if open_ else ""), 16, cinfo["col"] if open_ else Color(0.4, 0.4, 0.45))
+		cb.custom_minimum_size = Vector2(222, 50)
+		cb.disabled = not open_
+		cb.tooltip_text = tr(String(cinfo["desc"]))
+		cb.pressed.connect(func():
+			GD.companion = "" if sel else cid
+			GD.go_save()
+			open())
+		crow.add_child(cb)
+	var cd_txt := tr("No companion")
+	if String(GD.companion) != "":
+		cd_txt = tr(String(CompS.get_info(String(GD.companion)).get("desc", "")))
+	var cdl := UI.label(cd_txt, 15, UI.CREAM, 3)
+	cdl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cdl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_box.add_child(cdl)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 14)

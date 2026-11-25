@@ -123,6 +123,9 @@ func _compute_stats() -> void:
 	st = Stats.compute(GameData.chart, GameData.run_boons)
 	if GameData.run_rising != "":
 		load("res://scripts/risings.gd").apply(st, GameData.run_rising)
+	if GameData.companion == "owl":
+		var Cp = load("res://scripts/companion.gd")
+		st["dodge"] = float(st["dodge"]) + [0.0, 5.0, 10.0][Cp.lvl(int(GameData.comp_runs.get("owl", 0))) - 1]
 	if GameData.charm_eq != "":
 		var Ch = load("res://scripts/charms.gd")
 		Ch.apply(st, GameData.charm_eq, Ch.level(int(GameData.charm_runs.get(GameData.charm_eq, 0))))

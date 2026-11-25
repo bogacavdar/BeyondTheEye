@@ -272,6 +272,8 @@ static var moonstones := 0               # Ay Taşı (Ay Ana'ya hediye)
 static var ayana_bond := 0               # Ay Ana ile bağ seviyesi (0-5)
 static var charm_eq := ""                # takılı tılsım
 static var charm_runs := {}              # tılsım -> takılı girilen run sayısı
+static var companion := "fox"            # gök yoldaşı (companion.gd)
+static var comp_runs := {}               # yoldaş -> birlikte girilen run sayısı
 static var run_rising := ""             # bu run'ın yükselen burcu (risings.gd)
 static var hero_el := ""                 # kahramanın elementi (lütuflardan; hero.gd hesaplar)
 static var hero_el_n := 0
@@ -295,6 +297,8 @@ static func start_run() -> void:
 	run_hp = -1.0
 	run_dust = 0
 	run_boons = []
+	if companion != "":
+		comp_runs[companion] = int(comp_runs.get(companion, 0)) + 1
 	if charm_eq != "":
 		charm_runs[charm_eq] = int(charm_runs.get(charm_eq, 0)) + 1
 		if charm_eq == "newmoon":
@@ -409,6 +413,8 @@ static func _load_slot(n: int) -> void:
 	ayana_bond = int(cfg.get_value("ay_ana", "bond", 0)) if ok else 0
 	charm_eq = String(cfg.get_value("ay_ana", "charm", "")) if ok else ""
 	charm_runs = Dictionary(cfg.get_value("ay_ana", "charm_runs", {})) if ok else {}
+	companion = String(cfg.get_value("yoldas", "kind", "fox")) if ok else "fox"
+	comp_runs = Dictionary(cfg.get_value("yoldas", "runs", {})) if ok else {}
 	weapons_open = cfg.get_value("yolculuk", "weapons_open", ["STAR SWORD"]) if ok else ["STAR SWORD"]
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
 	saved_run = cfg.get_value("yolculuk", "saved_run", {}) if ok else {}
@@ -474,6 +480,8 @@ static func go_save() -> void:
 	cfg.set_value("ay_ana", "bond", ayana_bond)
 	cfg.set_value("ay_ana", "charm", charm_eq)
 	cfg.set_value("ay_ana", "charm_runs", charm_runs)
+	cfg.set_value("yoldas", "kind", companion)
+	cfg.set_value("yoldas", "runs", comp_runs)
 	cfg.set_value("yolculuk", "weapons_open", weapons_open)
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
 	cfg.set_value("yolculuk", "saved_run", saved_run)
@@ -523,6 +531,8 @@ static func reset_progress() -> void:
 	ayana_bond = 0
 	charm_eq = ""
 	charm_runs = {}
+	companion = "fox"
+	comp_runs = {}
 	retro = {}
 	weapons_open = ["STAR SWORD"]
 	chosen_weapon = "STAR SWORD"
