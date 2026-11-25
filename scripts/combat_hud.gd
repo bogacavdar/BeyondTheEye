@@ -159,6 +159,9 @@ func _draw() -> void:
 
 ## Element bilgisi: senin elementin (lütuflardan) ve bölgenin elementi; üstünlük durumu
 func _draw_elements(p: Vector2) -> void:
+	if GameData.run_cycle > 0:
+		_text("∞  " + tr("ENDLESS SKY") + " · " + tr("CYCLE") + " %d" % GameData.run_cycle, p, 17, Color(0.85, 0.65, 1.0), false)
+		p.y += 24.0
 	if GameData.run_rising != "":
 		var r: Dictionary = load("res://scripts/risings.gd").get_rising(GameData.run_rising)
 		if not r.is_empty():

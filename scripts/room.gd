@@ -24,6 +24,7 @@ const SagScript = preload("res://scripts/sagittarius_boss.gd")
 const CapScript = preload("res://scripts/capricorn_boss.gd")
 const AqScript = preload("res://scripts/aquarius_boss.gd")
 const PiScript = preload("res://scripts/pisces_boss.gd")
+const SkyEcho = preload("res://scripts/sky_echo.gd")
 const PauseUI = preload("res://scripts/pause_ui.gd")
 const BoonUI = preload("res://scripts/boon_ui.gd")
 const CombatHud = preload("res://scripts/combat_hud.gd")
@@ -2104,7 +2105,7 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	_tune_enemy(e)
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
-	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G, ELITE_CHANCE_C, ELITE_CHANCE_L, ELITE_CHANCE_V, ELITE_CHANCE_B, ELITE_CHANCE_S, ELITE_CHANCE_Y, ELITE_CHANCE_K, ELITE_CHANCE_Q, ELITE_CHANCE_P)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
+	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G, ELITE_CHANCE_C, ELITE_CHANCE_L, ELITE_CHANCE_V, ELITE_CHANCE_B, ELITE_CHANCE_S, ELITE_CHANCE_Y, ELITE_CHANCE_K, ELITE_CHANCE_Q, ELITE_CHANCE_P)[di]) + 0.15 * float(Retro.rank(rt, "moon")) + 0.1 * float(GameData.run_cycle)
 	if room_i >= 1 or Retro.rank(rt, "moon") > 0:
 		e.elite = randf() < elite_ch
 	if e.elite and room_i >= 2:
@@ -2149,8 +2150,8 @@ func _tune_enemy(e) -> void:
 	var rt: Dictionary = GameData.retro
 	var hpm: float = float(_zt(HP_MULT, HP_MULT_T, HP_MULT_G, HP_MULT_C, HP_MULT_L, HP_MULT_V, HP_MULT_B, HP_MULT_S, HP_MULT_Y, HP_MULT_K, HP_MULT_Q, HP_MULT_P)[di])
 	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G, DMG_MULT_C, DMG_MULT_L, DMG_MULT_V, DMG_MULT_B, DMG_MULT_S, DMG_MULT_Y, DMG_MULT_K, DMG_MULT_Q, DMG_MULT_P)[di])
-	e.hp_mult = hpm * (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * (1.15 if GameData.run_rising == "leo" else 1.0)
-	e.dmg_mult = dmm * (1.0 + 0.2 * float(Retro.rank(rt, "mars")))
+	e.hp_mult = hpm * (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * (1.15 if GameData.run_rising == "leo" else 1.0) * _cyc_hp()
+	e.dmg_mult = dmm * (1.0 + 0.2 * float(Retro.rank(rt, "mars"))) * _cyc_dmg()
 	e.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
 
 
@@ -2599,6 +2600,8 @@ func _door_info(type: String) -> Dictionary:
 			if zone == "taurus":
 				return {"glyph": "\u2649", "color": Color(0.55, 1.0, 0.45), "label": "TAURUS", "title": tr("FACE TAURUS")}
 			return {"glyph": "\u2648", "color": Color(1.0, 0.35, 0.2), "label": "ARIES", "title": tr("FACE ARIES")}
+		"cycle_gate":
+			return {"glyph": "\u221e", "color": Color(0.85, 0.65, 1.0), "label": tr("CYCLE") + " %d" % (GameData.run_cycle + 1), "title": tr("INTO THE ENDLESS SKY")}
 		"pisces_gate":
 			return {"glyph": "\u2653", "color": Color(0.85, 0.65, 1.0), "label": "PISCES", "title": tr("ONWARD TO PISCES")}
 		"aquarius_gate":
@@ -2688,6 +2691,16 @@ func _enter_door(type: String) -> void:
 	if type == "home":
 		_leave()
 		return
+	if type == "cycle_gate":
+		# Sonsuz Gökyüzü: aynı run, bir üst döngüde Koç'tan devam (canın yarısı yenilenir)
+		GameData.run_cycle += 1
+		GameData.run_room = 0
+		GameData.run_reward = "boon:" + Boons.random_planet()
+		GameData.run_hp = minf(hero.hp + hero.max_hp * 0.5, hero.max_hp)
+		GameData.go_save()
+		Sfx.play("dash", -4.0, 0.0, 0, 0.4)
+		get_tree().change_scene_to_file(ROOM_SCENE)
+		return
 	if type == "taurus_gate" or type == "gemini_gate" or type == "cancer_gate" or type == "leo_gate" or type == "virgo_gate" or type == "libra_gate" or type == "scorpio_gate" or type == "sagittarius_gate" or type == "capricorn_gate" or type == "aquarius_gate" or type == "pisces_gate":
 		# sonraki bölgeye geçiş: kısa bir nefes (canın %30'u yenilenir) ve ilk odada bir lütuf
 		GameData.run_room = int(ZONE_START[type.trim_suffix("_gate")])
@@ -2769,8 +2782,8 @@ func _spawn_boss() -> void:
 		boss = AriesScript.new()
 	boss.hero = hero
 	var rt: Dictionary = GameData.retro
-	boss.dmg_mult = 1.0 + 0.2 * float(Retro.rank(rt, "mars"))
-	boss.max_hp *= 1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))
+	boss.dmg_mult = (1.0 + 0.2 * float(Retro.rank(rt, "mars"))) * _cyc_dmg()
+	boss.max_hp *= (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * _cyc_hp()
 	boss.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
 	boss.total_eclipse = Retro.rank(rt, "eclipse") > 0
 	boss._bounds = ARENA_R - 1.0
@@ -2781,6 +2794,17 @@ func _spawn_boss() -> void:
 	boss.summon.connect(_on_summon)
 	if boss.has_signal("hint"):
 		boss.hint.connect(func(a: String, b: String): hud.banner(a, b))
+	# SONSUZ GÖKYÜZÜ: her boss düzenli aralıklarla başka bir burcun yankısını taşır (Balık zaten taşıyor)
+	if GameData.run_cycle > 0 and zone != "pisces":
+		var ec := SkyEcho.new()
+		ec.hero = hero
+		ec.par = self
+		ec.bounds = ARENA_R - 1.0
+		ec.source = boss
+		ec.own = zone
+		ec.every = maxf(11.0 - 1.5 * float(GameData.run_cycle), 5.0)
+		ec.on_hint = func(a: String, b: String): hud.banner(a, b)
+		add_child(ec)
 	hud.boss = boss
 	Fx.shake(0.6)
 	Sfx.play("bossroar", 0.0, 0.0, 0, 0.6)
@@ -2851,6 +2875,8 @@ func _on_boss_killed(_b) -> void:
 		var amount_p := PI_DUST + (PI_FIRST_BONUS if first_all else 0)
 		amount_p = int(round(float(amount_p) * _retro_mult()))
 		GameData.pisces_defeated = true
+		var unlocked_new := GameData.run_cycle + 1 > GameData.sky_best
+		GameData.sky_best = maxi(GameData.sky_best, GameData.run_cycle + 1)
 		_drop_dust(Vector3(0, 2.0, -3.5), amount_p)
 		GameData.last_run_msg = tr("Pisces is restored! All twelve constellations shine again — the sky is whole. This run: %d stardust") % (GameData.run_dust + amount_p)
 		hud.banner("PISCES IS RESTORED", tr("+%d stardust") % amount_p)
@@ -2860,9 +2886,19 @@ func _on_boss_killed(_b) -> void:
 		await get_tree().create_timer(4.5).timeout
 		if ended:
 			return
-		hud.banner("THE SKY IS WHOLE AGAIN", tr("All twelve constellations shine. Beyond the eye, the dream goes on."))
+		if GameData.run_cycle == 0:
+			hud.banner("THE SKY IS WHOLE AGAIN", tr("All twelve constellations shine. Beyond the eye, the dream goes on."))
+		else:
+			hud.banner(tr("CYCLE %d COMPLETE") % GameData.run_cycle, tr("The sky turns once more."))
+		if unlocked_new:
+			await get_tree().create_timer(3.0).timeout
+			if ended:
+				return
+			hud.banner("THE ENDLESS SKY OPENS", tr("Cycle %d unlocked. Choose it at the portal, or keep going now.") % GameData.sky_best)
 		await get_tree().create_timer(3.0).timeout
-		_add_door(Vector3(0, 0, -7.5), "home")
+		# devam: aynı run'la bir sonraki döngüye (Koç'tan yeniden), ya da eve dönüş
+		_add_door(Vector3(-3.4, 0, -7.5), "cycle_gate")
+		_add_door(Vector3(3.4, 0, -7.5), "home")
 		return
 	if zone == "aquarius":
 		var amount_q := AQ_DUST + (AQ_FIRST_BONUS if not GameData.aquarius_defeated else 0)
@@ -3027,7 +3063,16 @@ func _on_boss_killed(_b) -> void:
 
 ## Retro seviyesi başına +%10 yıldız tozu
 func _retro_mult() -> float:
-	return 1.0 + 0.1 * float(Retro.heat(GameData.retro))
+	return (1.0 + 0.1 * float(Retro.heat(GameData.retro))) * (1.0 + 0.5 * float(GameData.run_cycle))
+
+
+## Sonsuz Gökyüzü döngü çarpanları
+func _cyc_hp() -> float:
+	return 1.0 + 0.4 * float(GameData.run_cycle)
+
+
+func _cyc_dmg() -> float:
+	return 1.0 + 0.2 * float(GameData.run_cycle)
 
 
 func _on_hero_died() -> void:

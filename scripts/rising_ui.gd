@@ -68,6 +68,42 @@ func open() -> void:
 	cdl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cdl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_box.add_child(cdl)
+	# SONSUZ GÖKYÜZÜ döngü seçimi (Balık yenildikten sonra)
+	if int(GD.sky_best) >= 1:
+		var st := UI.label(tr("ENDLESS SKY"), 22, Color(0.85, 0.65, 1.0), 4)
+		st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_box.add_child(st)
+		var srow := HBoxContainer.new()
+		srow.add_theme_constant_override("separation", 10)
+		srow.alignment = BoxContainer.ALIGNMENT_CENTER
+		_box.add_child(srow)
+		var cyc := clampi(int(GD.sky_cycle), 0, int(GD.sky_best))
+		var minus := UI.button("◀", 20)
+		minus.custom_minimum_size = Vector2(60, 50)
+		minus.disabled = cyc <= 0
+		minus.pressed.connect(func():
+			GD.sky_cycle = cyc - 1
+			GD.go_save()
+			open())
+		srow.add_child(minus)
+		var cl := UI.label((tr("CYCLE") + " %d" % cyc) if cyc > 0 else tr("NORMAL SKY"), 22, Color(0.85, 0.65, 1.0) if cyc > 0 else UI.CREAM, 4)
+		cl.custom_minimum_size = Vector2(260, 0)
+		cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		srow.add_child(cl)
+		var plus := UI.button("▶", 20)
+		plus.custom_minimum_size = Vector2(60, 50)
+		plus.disabled = cyc >= int(GD.sky_best)
+		plus.pressed.connect(func():
+			GD.sky_cycle = cyc + 1
+			GD.go_save()
+			open())
+		srow.add_child(plus)
+		var sd := tr("Enemies +%d%% health, +%d%% damage. Every boss carries the echo of another sign. Stardust +%d%%.") % [40 * cyc, 20 * cyc, 50 * cyc] if cyc > 0 else tr("Defeat Pisces in a cycle to unlock the next one.")
+		var sdl := UI.label(sd, 15, UI.CREAM, 3)
+		sdl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sdl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		sdl.custom_minimum_size = Vector2(900, 0)
+		_box.add_child(sdl)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 14)

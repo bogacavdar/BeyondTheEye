@@ -277,6 +277,11 @@ static var aspect_lv := {}               # burç mührü -> seviye (0-3)
 static var aspect_eq := ""               # takılı burç mührü
 static var companion := "fox"            # gök yoldaşı (companion.gd)
 static var comp_runs := {}               # yoldaş -> birlikte girilen run sayısı
+## SONSUZ GÖKYÜZÜ (NG+): Balık yenilince açılır. Döngü arttıkça düşmanlar güçlenir, bosslar başka burçların yankısını taşır,
+## ödüller artar. sky_best = açılmış en yüksek döngü, sky_cycle = seçili başlangıç döngüsü, run_cycle = bu run'ın döngüsü.
+static var sky_best := 0
+static var sky_cycle := 0
+static var run_cycle := 0
 static var run_rising := ""             # bu run'ın yükselen burcu (risings.gd)
 static var hero_el := ""                 # kahramanın elementi (lütuflardan; hero.gd hesaplar)
 static var hero_el_n := 0
@@ -302,6 +307,7 @@ static var pisces_defeated := false     # Balık en az bir kez yenildi mi
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
 static func start_run() -> void:
 	run_rising = ""
+	run_cycle = clampi(sky_cycle, 0, sky_best)
 	run_room = 0
 	run_hp = -1.0
 	run_dust = 0
@@ -433,6 +439,10 @@ static func _load_slot(n: int) -> void:
 	aspect_lv = Dictionary(cfg.get_value("demirci", "levels", {})) if ok else {}
 	aspect_eq = String(cfg.get_value("demirci", "seal", "")) if ok else ""
 	comp_runs = Dictionary(cfg.get_value("yoldas", "runs", {})) if ok else {}
+	sky_best = int(cfg.get_value("sonsuz", "best", 0)) if ok else 0
+	sky_cycle = int(cfg.get_value("sonsuz", "cycle", 0)) if ok else 0
+	if pisces_defeated:
+		sky_best = maxi(sky_best, 1)
 	weapons_open = cfg.get_value("yolculuk", "weapons_open", ["STAR SWORD"]) if ok else ["STAR SWORD"]
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
 	saved_run = cfg.get_value("yolculuk", "saved_run", {}) if ok else {}
@@ -515,6 +525,8 @@ static func go_save() -> void:
 	cfg.set_value("demirci", "levels", aspect_lv)
 	cfg.set_value("demirci", "seal", aspect_eq)
 	cfg.set_value("yoldas", "runs", comp_runs)
+	cfg.set_value("sonsuz", "best", sky_best)
+	cfg.set_value("sonsuz", "cycle", sky_cycle)
 	cfg.set_value("yolculuk", "weapons_open", weapons_open)
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
 	cfg.set_value("yolculuk", "saved_run", saved_run)
@@ -525,7 +537,7 @@ static func go_save() -> void:
 static func snapshot_run() -> void:
 	saved_run = {"room": run_room, "hp": run_hp, "dust": run_dust, "boons": run_boons.duplicate(),
 		"reward": run_reward, "revives_used": run_revives_used, "unbroken_used": run_unbroken_used,
-		"weapon": chosen_weapon, "rising": run_rising}
+		"weapon": chosen_weapon, "rising": run_rising, "cycle": run_cycle}
 
 
 static func has_saved_run() -> bool:
@@ -539,6 +551,7 @@ static func resume_run() -> void:
 	run_dust = int(saved_run.get("dust", 0))
 	run_boons = Array(saved_run.get("boons", [])).duplicate()
 	run_rising = String(saved_run.get("rising", ""))
+	run_cycle = int(saved_run.get("cycle", 0))
 	run_reward = String(saved_run.get("reward", ""))
 	run_revives_used = int(saved_run.get("revives_used", 0))
 	run_unbroken_used = bool(saved_run.get("unbroken_used", false))
@@ -572,6 +585,9 @@ static func reset_progress() -> void:
 	charm_runs = {}
 	companion = "fox"
 	comp_runs = {}
+	sky_best = 0
+	sky_cycle = 0
+	run_cycle = 0
 	ores = {}
 	aspect_lv = {}
 	aspect_eq = ""

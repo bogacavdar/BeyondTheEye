@@ -13,6 +13,7 @@ signal hint(a: String, b: String)
 
 const H = preload("res://scripts/hazards.gd")
 const EnemyScript = preload("res://scripts/enemy.gd")
+const SkyEcho = preload("res://scripts/sky_echo.gd")
 const TAIL := {"windup": 0.55, "act": 0.16, "recover": 0.55, "dmg": 26.0, "reach": 4.0, "arc": 140.0}
 const PEARL := Color(0.88, 0.65, 1.0)
 const AQUA := Color(0.45, 0.95, 1.0)
@@ -300,132 +301,20 @@ func _act(_delta: float, _sm: float) -> Vector3:
 
 # ---------------------------------------------------------------- burçların yankısı
 
-func _blast(p: Vector3, r: float, delay: float, dmg: float, col: Color, eff := "") -> void:
-	var b := H.Blast.new()
-	b.hero = hero
-	b.radius = r
-	b.delay = delay
-	b.dmg = dmg * dmg_mult
-	b.col = col
-	b.eff = eff
-	get_parent().add_child(b)
-	b.global_position = H.clamp_arena(p, _bounds)
-
-
-func _line(from: Vector3, dir: Vector3, length: float, width: float, delay: float, dmg: float, col: Color, eff := "") -> void:
-	var ln := H.Line.new()
-	ln.hero = hero
-	ln.dir = dir
-	ln.length = length
-	ln.width = width
-	ln.delay = delay
-	ln.dmg = dmg * dmg_mult
-	ln.col = col
-	ln.eff = eff
-	get_parent().add_child(ln)
-	ln.global_position = Vector3(from.x, 0, from.z)
-
-
 func _echo() -> void:
 	if _echo_bag.is_empty():
 		_echo_bag = ECHOES.duplicate()
 		_echo_bag.shuffle()
 	var sg: String = String(_echo_bag.pop_back())
 	hint.emit(String(ECHO_NAME[sg]), "")
-	if not H.hero_ok(hero):
-		return
-	var hp: Vector3 = hero.global_position
-	hp.y = 0.0
-	match sg:
-		"aries":
-			# üç koç saldırısı: kenarlardan sana doğru
-			for i in 3:
-				var a := randf() * TAU
-				var from := Vector3(cos(a), 0, sin(a)) * (_bounds + 0.5)
-				var d := (hp - from).normalized()
-				_line(from, d, _bounds * 2.2, 2.0, 1.0 + float(i) * 0.3, 20.0, Color(1.0, 0.45, 0.3))
-		"taurus":
-			# deprem: önce yakını, sonra dış halka
-			_blast(global_position, 3.5, 0.9, 22.0, Color(0.55, 1.0, 0.45))
-			for i in 8:
-				var a2 := TAU * float(i) / 8.0
-				_blast(global_position + Vector3(cos(a2), 0, sin(a2)) * 6.0, 2.0, 1.6, 18.0, Color(0.55, 1.0, 0.45))
-		"gemini":
-			var g := H.Gust.new()
-			g.hero = hero
-			var ga := randf() * TAU
-			g.dir = Vector3(cos(ga), 0, sin(ga))
-			g.bounds = _bounds
-			g.strength = 3.8
-			get_parent().add_child(g)
-			for i in 6:
-				var bb := EnemyScript.Bubble.new()
-				bb.hero = hero
-				bb.dmg = 12.0 * dmg_mult
-				bb.vel = Vector3(cos(TAU * float(i) / 6.0), 0, sin(TAU * float(i) / 6.0)) * 3.0
-				get_parent().add_child(bb)
-				bb.global_position = global_position + Vector3(0, 1.3, 0)
-		"cancer":
-			for i in 3:
-				var tw := EnemyScript.TideWave.new()
-				tw.hero = hero
-				tw.dir = _aim_dir.rotated(Vector3.UP, (float(i) - 1.0) * 0.6)
-				tw.dmg = 18.0 * dmg_mult
-				tw.width = 4.0
-				tw.speed = 7.5
-				tw.travel = _bounds * 2.0
-				get_parent().add_child(tw)
-				tw.global_position = Vector3(global_position.x, 0, global_position.z)
-		"leo":
-			_blast(hp, 2.2, 1.0, 22.0, Color(1.0, 0.8, 0.4))
-			for i in 5:
-				var a3 := randf() * TAU
-				_blast(Vector3(cos(a3), 0, sin(a3)) * randf_range(2.0, _bounds - 1.0), 2.2, 1.0 + float(i) * 0.15, 20.0, Color(1.0, 0.8, 0.4))
-		"virgo":
-			# hasat: üstünde kesişen iki tırpan hattı
-			var va := randf() * TAU
-			var vd := Vector3(cos(va), 0, sin(va))
-			for d2 in [vd, Vector3(-vd.z, 0, vd.x)]:
-				var dd: Vector3 = d2
-				_line(hp - dd * (_bounds + 1.0), dd, _bounds * 2.2, 1.6, 1.1, 20.0, Color(0.5, 1.0, 0.85))
-		"libra":
-			# terazi: arenanın yarısı (tarafı seçilir) hüküm giyer
-			var la := randf() * TAU
-			var ld := Vector3(cos(la), 0, sin(la))
-			var side := Vector3(-ld.z, 0, ld.x)
-			_line(side * (_bounds * 0.5) - ld * (_bounds + 1.0), ld, _bounds * 2.2, _bounds, 1.4, 24.0, Color(0.4, 1.0, 0.8))
-		"scorpio":
-			for i in 3:
-				var p3 := hp if i == 0 else Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized() * randf_range(2.0, _bounds - 1.5)
-				var b := H.Blast.new()
-				b.hero = hero
-				b.radius = 1.8
-				b.delay = 0.9
-				b.dmg = 14.0 * dmg_mult
-				b.col = Color(0.5, 1.0, 0.3)
-				b.eff = "poison"
-				b.pool_life = 4.0
-				get_parent().add_child(b)
-				b.global_position = H.clamp_arena(p3, _bounds)
-		"sagittarius":
-			for i in 8:
-				var off := Vector3.ZERO if i == 0 else Vector3(randf_range(-4.0, 4.0), 0, randf_range(-4.0, 4.0))
-				_blast(hp + off, 1.3, 1.0 + float(i) * 0.08, 16.0, Color(0.75, 0.6, 1.0))
-		"capricorn":
-			var n := 10
-			var gap := randi() % n
-			for i in n:
-				if i == gap:
-					continue
-				var a4 := TAU * float(i) / float(n)
-				_blast(hp + Vector3(cos(a4), 0, sin(a4)) * 3.0, 1.3, 1.0, 18.0, Color(0.5, 0.9, 1.0), "freeze")
-			_blast(hp, 1.6, 1.5, 18.0, Color(0.5, 0.9, 1.0), "freeze")
-		"aquarius":
-			_blast(hp, 1.4, 1.0, 18.0, Color(0.65, 0.9, 1.0), "slow")
-			for i in 6:
-				var a5 := randf() * TAU
-				_blast(Vector3(cos(a5), 0, sin(a5)) * randf_range(2.0, _bounds - 0.5), 1.3, 1.0 + float(i) * 0.12, 18.0, Color(0.65, 0.9, 1.0), "slow")
-	Fx.flash_light(global_position + Vector3(0, 3, 0), PEARL, 8.0, 10.0, 0.4)
+	var ec := SkyEcho.new()
+	ec.hero = hero
+	ec.par = get_parent()
+	ec.center = Vector3(global_position.x, 0, global_position.z)
+	ec.bounds = _bounds
+	ec.dm = dmg_mult
+	ec.cast(sg)
+	ec.free()
 
 
 func _physics_process(delta: float) -> void:
