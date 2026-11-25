@@ -268,6 +268,10 @@ static var run_hp := -1.0
 static var run_dust := 0
 static var last_run_msg := ""
 static var run_boons: Array = []        # bu run'da alınan gezegen lütufları
+static var moonstones := 0               # Ay Taşı (Ay Ana'ya hediye)
+static var ayana_bond := 0               # Ay Ana ile bağ seviyesi (0-5)
+static var charm_eq := ""                # takılı tılsım
+static var charm_runs := {}              # tılsım -> takılı girilen run sayısı
 static var run_rising := ""             # bu run'ın yükselen burcu (risings.gd)
 static var hero_el := ""                 # kahramanın elementi (lütuflardan; hero.gd hesaplar)
 static var hero_el_n := 0
@@ -291,6 +295,12 @@ static func start_run() -> void:
 	run_hp = -1.0
 	run_dust = 0
 	run_boons = []
+	if charm_eq != "":
+		charm_runs[charm_eq] = int(charm_runs.get(charm_eq, 0)) + 1
+		if charm_eq == "newmoon":
+			# Yeni Ay: run'a rastgele bir lütufla başla
+			var B = load("res://scripts/boons.gd")
+			run_boons.append(String(B.BOONS[randi() % B.BOONS.size()]["id"]))
 	run_reward = "boon:" + ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"][randi() % 7]
 	run_revives_used = 0
 	run_unbroken_used = false
@@ -395,6 +405,10 @@ static func _load_slot(n: int) -> void:
 	cancer_defeated = bool(cfg.get_value("yolculuk", "cancer_defeated", false)) if ok else false
 	leo_defeated = bool(cfg.get_value("yolculuk", "leo_defeated", false)) if ok else false
 	virgo_defeated = bool(cfg.get_value("yolculuk", "virgo_defeated", false)) if ok else false
+	moonstones = int(cfg.get_value("ay_ana", "moonstones", 0)) if ok else 0
+	ayana_bond = int(cfg.get_value("ay_ana", "bond", 0)) if ok else 0
+	charm_eq = String(cfg.get_value("ay_ana", "charm", "")) if ok else ""
+	charm_runs = Dictionary(cfg.get_value("ay_ana", "charm_runs", {})) if ok else {}
 	weapons_open = cfg.get_value("yolculuk", "weapons_open", ["STAR SWORD"]) if ok else ["STAR SWORD"]
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
 	saved_run = cfg.get_value("yolculuk", "saved_run", {}) if ok else {}
@@ -456,6 +470,10 @@ static func go_save() -> void:
 	cfg.set_value("yolculuk", "cancer_defeated", cancer_defeated)
 	cfg.set_value("yolculuk", "leo_defeated", leo_defeated)
 	cfg.set_value("yolculuk", "virgo_defeated", virgo_defeated)
+	cfg.set_value("ay_ana", "moonstones", moonstones)
+	cfg.set_value("ay_ana", "bond", ayana_bond)
+	cfg.set_value("ay_ana", "charm", charm_eq)
+	cfg.set_value("ay_ana", "charm_runs", charm_runs)
 	cfg.set_value("yolculuk", "weapons_open", weapons_open)
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
 	cfg.set_value("yolculuk", "saved_run", saved_run)
@@ -501,6 +519,10 @@ static func reset_progress() -> void:
 	cancer_defeated = false
 	leo_defeated = false
 	virgo_defeated = false
+	moonstones = 0
+	ayana_bond = 0
+	charm_eq = ""
+	charm_runs = {}
 	retro = {}
 	weapons_open = ["STAR SWORD"]
 	chosen_weapon = "STAR SWORD"

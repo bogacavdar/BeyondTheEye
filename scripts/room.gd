@@ -1646,6 +1646,11 @@ func _on_cleared() -> void:
 	elif zone == "virgo":
 		bonus = int(round(float(bonus) * 3.0))
 	bonus = int(round(float(bonus) * _retro_mult()))
+	# AY TAŞI: dövüş odalarından ara sıra düşer
+	if not is_rest and not is_boss and randf() < 0.22:
+		GameData.moonstones += 1
+		Fx.flash_light(hero.global_position + Vector3(0, 2, 0), Color(0.75, 0.85, 1.0), 4.0, 6.0, 0.6)
+		get_tree().create_timer(2.2).timeout.connect(func(): if not ended: hud.banner("", tr("+1 Moonstone — Mother Moon will want it")))
 	if not is_rest:
 		GameData.stardust += bonus
 		GameData.run_dust += bonus
@@ -1896,6 +1901,7 @@ func _on_summon(kinds: Array) -> void:
 func _on_boss_killed(_b) -> void:
 	victory = true
 	cleared = true
+	GameData.moonstones += 2
 	# kalan yardımcılar da dağılır
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e) and not e.dead:

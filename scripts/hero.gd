@@ -123,6 +123,9 @@ func _compute_stats() -> void:
 	st = Stats.compute(GameData.chart, GameData.run_boons)
 	if GameData.run_rising != "":
 		load("res://scripts/risings.gd").apply(st, GameData.run_rising)
+	if GameData.charm_eq != "":
+		var Ch = load("res://scripts/charms.gd")
+		Ch.apply(st, GameData.charm_eq, Ch.level(int(GameData.charm_runs.get(GameData.charm_eq, 0))))
 	var el: Array = load("res://scripts/elements.gd").of_boons(GameData.run_boons)
 	GameData.hero_el = String(el[0])
 	GameData.hero_el_n = int(el[1])
@@ -1075,6 +1078,9 @@ func take_damage(amount: float, from_dir: Vector3, parryable := true) -> String:
 		_invuln = 0.2
 		return "miss"
 	var dmg := amount
+	if GameData.charm_eq == "tide" and hp < max_hp * 0.3:
+		var Ch = load("res://scripts/charms.gd")
+		dmg *= 1.0 - float(Ch.value("tide", Ch.level(int(GameData.charm_runs.get("tide", 0))))) / 100.0
 	var armor := float(st["armor"])
 	dmg *= 50.0 / (50.0 + armor)
 	dmg *= 1.0 - float(st["dmg_reduction"]) / 100.0

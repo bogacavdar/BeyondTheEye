@@ -694,6 +694,9 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	var Elm = load("res://scripts/elements.gd")
 	var elm: float = Elm.mult(GameData.hero_el, GameData.hero_el_n, "air")
 	dmg *= elm
+	# boss hasarı (Doğum Haritası "Boss Damage", Tutulma tılsımı)
+	if hero != null and is_instance_valid(hero) and hero.get("st") != null:
+		dmg *= 1.0 + float(hero.st.get("boss_dmg", 0.0)) / 100.0
 	if elm > 1.0:
 		crit = true
 	var mult := 2.0 if (state == "stun" and _parried) else 1.0

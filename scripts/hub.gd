@@ -71,6 +71,7 @@ func _ready() -> void:
 	_birth_chart(Vector3(-10.6, 0, 1.0))
 	_altar(Vector3(10.6, 0, 1.0))
 	_sky_dial(Vector3(0, 0, 10.6))
+	_ay_ana(Vector3(-7.6, 0, -7.6))
 
 	camera = CameraScript.new()
 	camera.offset = Vector3(10.0, 10.5, 10.0)
@@ -597,6 +598,9 @@ func _build_ui() -> void:
 	skill_ui.visible = false
 	skill_ui.closed.connect(_close_ui)
 	ui_layer.add_child(skill_ui)
+	ayana_ui = load("res://scripts/ayana_ui.gd").new()
+	ayana_ui.closed.connect(_close_ui)
+	ui_layer.add_child(ayana_ui)
 	altar_ui = AltarUI.new()
 	altar_ui.visible = false
 	altar_ui.closed.connect(_close_ui)
@@ -636,10 +640,74 @@ func _open_altar() -> void:
 	altar_ui.visible = true
 
 
+var ayana_ui = null
+
+
+## AY ANA: ay ışığında oturan, hilal taçlı gümüş kadın; Ay Taşı karşılığı tılsım verir
+func _ay_ana(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	add_child(root)
+	root.look_at(Vector3(0, 0, 0) + Vector3(0, 0, 0.01), Vector3.UP)
+	root.rotate_y(PI)
+	var robe := _mat(Color(0.78, 0.82, 0.95), 0.2, 0.45)
+	robe.emission_enabled = true
+	robe.emission = Color(0.5, 0.6, 1.0)
+	robe.emission_energy_multiplier = 0.25
+	var skin := _mat(Color(0.92, 0.94, 1.0), 0.0, 0.4)
+	var moon := _glow(Color(0.85, 0.92, 1.0), 3.0)
+	# taş kaide
+	var base := CylinderMesh.new()
+	base.top_radius = 1.0
+	base.bottom_radius = 1.2
+	base.height = 0.5
+	_mesh(base, Vector3(0, 0.25, 0), _mat(Color(0.25, 0.27, 0.4), 0.1, 0.7), root)
+	# yere yayılan cüppe ve gövde
+	var c := CylinderMesh.new()
+	c.top_radius = 0.28
+	c.bottom_radius = 0.95
+	c.height = 1.7
+	_mesh(c, Vector3(0, 1.35, 0), robe, root)
+	var h := _mesh(_sphere(0.26), Vector3(0, 2.4, 0), skin, root)
+	h.scale = Vector3(0.9, 1.05, 0.9)
+	# uzun gümüş saç
+	var hair := CylinderMesh.new()
+	hair.top_radius = 0.24
+	hair.bottom_radius = 0.42
+	hair.height = 1.3
+	_mesh(hair, Vector3(0, 1.85, 0.12), _mat(Color(0.85, 0.88, 0.98), 0.0, 0.5), root)
+	# hilal taç
+	var t := TorusMesh.new()
+	t.inner_radius = 0.28
+	t.outer_radius = 0.36
+	var cr := _mesh(t, Vector3(0, 2.78, 0), moon, root)
+	cr.rotation.x = PI * 0.5
+	cr.scale = Vector3(1.0, 1.0, 0.4)
+	# elinde ay taşı
+	_mesh(_sphere(0.14), Vector3(0.0, 1.55, -0.55), moon, root)
+	# etrafında süzülen küçük aylar
+	for i in 5:
+		var a := TAU * float(i) / 5.0
+		var o := _mesh(_sphere(0.09), Vector3(cos(a) * 1.4, 2.2 + sin(a * 2.0) * 0.3, sin(a) * 1.4), moon, root)
+		o.set_meta("speed", 0.4)
+	_light(Vector3(0, 3.2, 0), Color(0.7, 0.8, 1.0), 2.2, 7.0, root)
+	_station("MOTHER MOON", pos, _open_ayana)
+
+
+func _open_ayana() -> void:
+	_ui_open = true
+	player.frozen = true
+	ayana_ui.open()
+
+
 func _close_ui() -> void:
 	skill_ui.visible = false
 	altar_ui.visible = false
 	retro_ui.visible = false
+	if ayana_ui != null:
+		ayana_ui.visible = false
+	if rising_ui != null:
+		rising_ui.visible = false
 	player.frozen = false
 	# aynı Esc basışı menüye dönmesin diye bir kare bekle
 	await get_tree().process_frame
