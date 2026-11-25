@@ -213,6 +213,8 @@ const TR := {
 	"THE ENDLESS SKY OPENS": "SONSUZ GÖKYÜZÜ AÇILDI",
 	"Cycle %d unlocked. Choose it at the portal, or keep going now.": "Döngü %d açıldı. Portalda seçebilir ya da şimdi devam edebilirsin.",
 	"INTO THE ENDLESS SKY": "SONSUZ GÖKYÜZÜNE",
+	"%s shines again in the Observatory sky.": "%s, Gözlemevi'nin göğünde yeniden parlıyor.",
+	"All twelve constellations shine over the Observatory.": "On iki takımyıldızın hepsi Gözlemevi'nin üstünde parlıyor.",
 	"Once per run, rise again with half health; slowly regenerate health in combat, but -20 Max Health": "Yolculuk başına bir kez yarı canla yeniden doğ; savaşta yavaşça can yenilenir, ama -20 Maks. Can",
 	"THE WHIRLPOOL": "GİRDAP",
 	"Swim against the current": "Akıntıya karşı yüz",

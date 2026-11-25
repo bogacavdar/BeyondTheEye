@@ -73,6 +73,7 @@ func _ready() -> void:
 	_sky_dial(Vector3(0, 0, 10.6))
 	_ay_ana(Vector3(-7.6, 0, -7.6))
 	_saturn(Vector3(7.6, 0, -7.6))
+	_constellations()
 
 	camera = CameraScript.new()
 	camera.offset = Vector3(10.0, 10.5, 10.0)
@@ -105,6 +106,108 @@ func _ready() -> void:
 	if GameData.last_run_msg != "":
 		_message(GameData.last_run_msg, 7.0)
 		GameData.last_run_msg = ""
+
+
+# ---------------------------------------------------------------- arındırılan takımyıldızlar
+## Burç çarkının her evinde o burcun sembolü durur. Boss'u yenilen burcun sembolü kendi renginde yanar,
+## platformun kenarında o evin hizasında göğe bir ışık sütunu yükselir. Yeni arındırılan burç, gözlemevine
+## ilk dönüşte törenle yanar. On ikisi de yanınca çarkın etrafında bir taç halkası belirir.
+
+const SIGNS := ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"]
+const SIGN_GLYPH := ["\u2648", "\u2649", "\u264A", "\u264B", "\u264C", "\u264D", "\u264E", "\u264F", "\u2650", "\u2651", "\u2652", "\u2653"]
+const SIGN_COL := [Color(1.0, 0.45, 0.3), Color(0.55, 1.0, 0.45), Color(0.6, 0.8, 1.0), Color(0.5, 0.9, 1.0), Color(1.0, 0.8, 0.4), Color(0.5, 1.0, 0.85),
+	Color(0.4, 1.0, 0.8), Color(0.5, 1.0, 0.3), Color(0.7, 0.55, 1.0), Color(0.4, 1.0, 0.9), Color(0.6, 0.9, 1.0), Color(0.85, 0.65, 1.0)]
+const SIGN_NAME := ["ARIES", "TAURUS", "GEMINI", "CANCER", "LEO", "VIRGO", "LIBRA", "SCORPIO", "SAGITTARIUS", "CAPRICORN", "AQUARIUS", "PISCES"]
+
+
+func _defeated_list() -> Array:
+	return [GameData.aries_defeated, GameData.taurus_defeated, GameData.gemini_defeated, GameData.cancer_defeated,
+		GameData.leo_defeated, GameData.virgo_defeated, GameData.libra_defeated, GameData.scorpio_defeated,
+		GameData.sagittarius_defeated, GameData.capricorn_defeated, GameData.aquarius_defeated, GameData.pisces_defeated]
+
+
+func _constellations() -> void:
+	var fresh: Array = []
+	var lit := 0
+	for i in 12:
+		var done := bool(_defeated_list()[i])
+		var a := PI + (float(i) + 0.5) * TAU / 12.0
+		var dir := Vector3(cos(a), 0, -sin(a))
+		var g := Label3D.new()
+		g.text = SIGN_GLYPH[i] + "︎"
+		g.font = UI.symbol_font()
+		g.font_size = 150
+		g.pixel_size = 0.01
+		g.outline_size = 0
+		g.shaded = false
+		g.double_sided = true
+		g.position = dir * 8.75 + Vector3(0, 0.035, 0)
+		g.rotation = Vector3(-PI * 0.5, PI * 0.25, 0)
+		add_child(g)
+		if not done:
+			g.modulate = Color(0.45, 0.5, 0.75, 0.35)
+			continue
+		lit += 1
+		var c: Color = SIGN_COL[i]
+		var is_new := not GameData.hub_seen.has(SIGNS[i])
+		g.modulate = Color(c.r * 1.25, c.g * 1.25, c.b * 1.25)
+		# kenarda göğe uzanan ışık sütunu
+		# kameraya yakın taraftaki sütunlar görüşü kapatmasın diye kısa
+		var near := dir.dot(Vector3(1, 0, 1).normalized()) > 0.25
+		var bh := 3.0 if near else 16.0
+		var beam := CylinderMesh.new()
+		beam.top_radius = 0.03 if near else 0.05
+		beam.bottom_radius = 0.16
+		beam.height = bh
+		beam.radial_segments = 10
+		var bm := StandardMaterial3D.new()
+		bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		bm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		bm.albedo_color = Color(c.r, c.g, c.b, 0.25)
+		bm.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var bpos := dir * (PLATFORM_R - 0.5)
+		var b := _mesh(beam, bpos + Vector3(0, bh * 0.5, 0), bm)
+		b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var star := _mesh(_sphere(0.28), bpos + Vector3(0, 0.35, 0), _glow(c, 4.0))
+		_light(bpos + Vector3(0, 1.0, 0), c, 1.2, 4.0)
+		if is_new:
+			fresh.append(i)
+			b.scale = Vector3(1, 0.001, 1)
+			b.position.y = 0.0
+			g.modulate.a = 0.0
+			star.scale = Vector3.ONE * 0.01
+			var tw := create_tween()
+			tw.tween_interval(1.2 + 0.7 * float(fresh.size() - 1))
+			tw.tween_callback(func():
+				Sfx.play("coin", -4.0, 0.0, 0, 0.7 + 0.05 * float(i))
+				Fx.flash_light(bpos + Vector3(0, 2, 0), c, 10.0, 14.0, 0.8)
+				_message(tr("%s shines again in the Observatory sky.") % tr(SIGN_NAME[i]), 4.0))
+			tw.tween_property(g, "modulate:a", 1.0, 0.6)
+			tw.parallel().tween_property(star, "scale", Vector3.ONE, 0.6).set_trans(Tween.TRANS_BACK)
+			tw.parallel().tween_property(b, "scale", Vector3.ONE, 1.2).set_trans(Tween.TRANS_SINE)
+			tw.parallel().tween_property(b, "position:y", bh * 0.5, 1.2).set_trans(Tween.TRANS_SINE)
+	# on ikisi de yandıysa: çarkın üstünde dönen taç halkası
+	if lit == 12:
+		var crown := Node3D.new()
+		crown.position = Vector3(0, 0.06, 0)
+		add_child(crown)
+		var tr_ := TorusMesh.new()
+		tr_.inner_radius = 9.55
+		tr_.outer_radius = 9.65
+		tr_.rings = 128
+		_mesh(tr_, Vector3.ZERO, _glow(Color(1.0, 0.9, 0.6), 1.6), crown).scale = Vector3(1, 0.2, 1)
+		for i in 12:
+			var a2 := PI + (float(i) + 0.5) * TAU / 12.0
+			_mesh(_sphere(0.14), Vector3(cos(a2), 0.1, -sin(a2)) * 9.6, _glow(SIGN_COL[i], 5.0), crown)
+		spinners.append([crown, 0.06])
+	for i in fresh:
+		GameData.hub_seen.append(SIGNS[i])
+	if not fresh.is_empty():
+		GameData.go_save()
+		if lit == 12 and fresh.size() > 0:
+			get_tree().create_timer(2.5 + 0.7 * float(fresh.size())).timeout.connect(func():
+				_message(tr("All twelve constellations shine over the Observatory."), 6.0))
 
 
 # ---------------------------------------------------------------- atmosfer

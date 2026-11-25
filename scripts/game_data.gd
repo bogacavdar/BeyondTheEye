@@ -280,6 +280,7 @@ static var comp_runs := {}               # yoldaş -> birlikte girilen run sayı
 ## SONSUZ GÖKYÜZÜ (NG+): Balık yenilince açılır. Döngü arttıkça düşmanlar güçlenir, bosslar başka burçların yankısını taşır,
 ## ödüller artar. sky_best = açılmış en yüksek döngü, sky_cycle = seçili başlangıç döngüsü, run_cycle = bu run'ın döngüsü.
 static var sky_best := 0
+static var hub_seen: Array = []          # gözlemevinde yanışı gösterilmiş takımyıldızlar
 static var sky_cycle := 0
 static var run_cycle := 0
 static var run_rising := ""             # bu run'ın yükselen burcu (risings.gd)
@@ -440,6 +441,7 @@ static func _load_slot(n: int) -> void:
 	aspect_eq = String(cfg.get_value("demirci", "seal", "")) if ok else ""
 	comp_runs = Dictionary(cfg.get_value("yoldas", "runs", {})) if ok else {}
 	sky_best = int(cfg.get_value("sonsuz", "best", 0)) if ok else 0
+	hub_seen = Array(cfg.get_value("yolculuk", "hub_seen", [])) if ok else []
 	sky_cycle = int(cfg.get_value("sonsuz", "cycle", 0)) if ok else 0
 	if pisces_defeated:
 		sky_best = maxi(sky_best, 1)
@@ -526,6 +528,7 @@ static func go_save() -> void:
 	cfg.set_value("demirci", "seal", aspect_eq)
 	cfg.set_value("yoldas", "runs", comp_runs)
 	cfg.set_value("sonsuz", "best", sky_best)
+	cfg.set_value("yolculuk", "hub_seen", hub_seen)
 	cfg.set_value("sonsuz", "cycle", sky_cycle)
 	cfg.set_value("yolculuk", "weapons_open", weapons_open)
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
@@ -586,6 +589,7 @@ static func reset_progress() -> void:
 	companion = "fox"
 	comp_runs = {}
 	sky_best = 0
+	hub_seen = []
 	sky_cycle = 0
 	run_cycle = 0
 	ores = {}
