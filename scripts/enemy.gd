@@ -107,6 +107,8 @@ func _ready() -> void:
 	for a in attacks:
 		a["dmg"] = float(a["dmg"]) * dmg_mult * em
 		a["windup"] = float(a["windup"]) * 0.92 * windup_mult
+		if not bool(a["parry"]):
+			a["windup"] = float(a["windup"]) * 0.75   # kırmızı (parry'lenemez) saldırılar daha ani
 		a["recover"] = float(a["recover"]) * 0.9
 		a["cd"] = float(a["cd"]) * 0.85
 	hp = max_hp
@@ -886,7 +888,9 @@ func _physics_process(delta: float) -> void:
 				if _global_cd <= 0.0:
 					_pick_attack(dist, dir_to)
 		"windup":
-			var track := 0.6 if String(atk["shape"]) != "line" else 0.85
+			var track := 0.6 if bool(atk["parry"]) else 0.8
+			if String(atk["shape"]) == "line":
+				track = 0.85
 			if hero_ok and _st < float(atk["windup"]) * track:
 				_aim_dir = _aim_dir.slerp(dir_to, minf(7.0 * delta, 1.0)).normalized()
 				_aim_point = hero.global_position
