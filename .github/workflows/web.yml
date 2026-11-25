@@ -139,3 +139,15 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      # itch.io: itch uygulamasıyla kurulan oyunlara Windows "bilinmeyen yayıncı" uyarısı çıkmaz.
+      # BUTLER_API_KEY gizli anahtarı eklenmemişse bu adım atlanır.
+      - name: itch.io'ya yükle
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          if [ -z "$BUTLER_API_KEY" ]; then echo "BUTLER_API_KEY yok, itch.io atlandı"; exit 0; fi
+          curl -sL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d butler && chmod +x butler/butler
+          ./butler/butler push build/windows bogacavdar/beyond-the-eye:windows --userversion "${GITHUB_RUN_NUMBER}"
+          ./butler/butler push BeyondTheEye.apk bogacavdar/beyond-the-eye:android --userversion "${GITHUB_RUN_NUMBER}"
