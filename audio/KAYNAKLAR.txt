@@ -9,3 +9,11 @@ bruteroar_*, bossroar_*                        "80 CC0 creature SFX" - rubberduc
 enemyhurt_6-10, enemyattack_5-7                "Monster Sounds Volume 2" (opengameart.org/node/4017)
 
 Tüm sesler ses seviyesi eşitlenip mono OGG'ye çevrildi.
+
+MÜZİK (assets/music, hepsi CC0 – OpenGameArt.org; ses seviyesi eşitlenip OGG'ye dönüştürüldü)
+- zone_fire.ogg   : "Battle Theme A" – cynicmusic (https://opengameart.org/content/battle-theme-a)
+- zone_earth.ogg  : "Mystical Enigmatic Background Music" – CleytonKauffman (https://opengameart.org/content/mystical-enigmatic-background-music)
+- zone_air.ogg    : "Eye of the Storm" – Joth (https://opengameart.org/content/eye-of-the-storm)
+- zone_water.ogg  : "Fantasy – Rising Moon" – RandomMind (https://opengameart.org/content/fantasy-rising-moon)
+- boss.ogg        : "Epic Boss Battle [Seamlessly Looping]" – Juhani Junkala (https://opengameart.org/content/boss-battle-music)
+- boss_pisces.ogg : "Battle RPG Theme (Var)" – CleytonKauffman (https://opengameart.org/content/boss-battle-theme)

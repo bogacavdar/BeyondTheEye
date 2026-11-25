@@ -404,7 +404,8 @@ func _music_path() -> String:
 	if is_boss:
 		names = ["boss_" + zone, "boss"]
 	else:
-		names = ["zone_" + zone]
+		# önce bölgeye özel parça, yoksa bölgenin elementinin parçası (ateş/toprak/hava/su)
+		names = ["zone_" + zone, "zone_" + String(load("res://scripts/elements.gd").ZONE_EL.get(zone, ""))]
 	for n in names:
 		for ext in [".ogg", ".mp3"]:
 			var p: String = "res://assets/music/" + String(n) + String(ext)
