@@ -81,6 +81,7 @@ var _crown_node: Node3D
 var _crown_cd := 2.5
 var _hide_crack := 0.0       # Nemea Aslanı: postu çatladı (tam hasar alır)
 var _reveal := 0.0           # Serap Avcısı: görünür kalma süresi
+var _calm := 0.0             # Hasır Dev: son vuruştan bu yana geçen süre (yenilenme)
 
 var body_root: Node3D
 var vis: Node3D
@@ -116,6 +117,8 @@ func _ready() -> void:
 		_cancer_variant()
 	elif zone == "leo":
 		_leo_variant()
+	elif zone == "virgo":
+		_virgo_variant()
 	# zorluk: derinlik çarpanları, daha kısa hazırlık ve daha sık saldırı
 	var em := 1.0
 	if elite:
@@ -318,6 +321,40 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## SESSİZ HASAT yaratıkları:
+##  shade  -> ORAKÇI: altın pençe + etrafında 360° orak savuruşu (kızıl)
+##  caster -> ARŞİVCİ: sana doğru sırayla patlayan üç mühür dizer (düzen!)
+##  leaper -> TOHUM EKİCİ: üstüne atlar, indiği yere yavaşlatan tohumlar saçar
+##  brute  -> HASIR DEV: 2.5 sn vurulmazsa hızla yenilenir; baskıyı bırakma
+func _virgo_variant() -> void:
+	_base_body = Color(0.6, 0.5, 1.0)
+	_base_cloth = Color(0.45, 0.4, 0.8)
+	match kind:
+		"shade":
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 2.1, "windup": 0.55, "act": 0.14, "recover": 0.55,
+					"dmg": 16.0, "reach": 2.5, "arc": 110.0, "parry": true, "cd": 1.1, "weight": 3.0},
+				{"name": "reap", "shape": "circle", "min": 0.0, "max": 2.4, "windup": 0.8, "act": 0.18, "recover": 0.7,
+					"dmg": 20.0, "reach": 2.7, "arc": 360.0, "parry": false, "cd": 4.0, "weight": 1.2},
+			]
+		"caster":
+			attacks = [
+				{"name": "seals", "shape": "circle", "min": 2.5, "max": 12.0, "windup": 0.7, "act": 0.15, "recover": 0.8,
+					"dmg": 16.0, "reach": 1.4, "arc": 360.0, "parry": false, "cd": 3.6, "weight": 1.0},
+			]
+		"leaper":
+			max_hp = 70.0
+		"brute":
+			max_hp = 230.0
+
+
+func _tick_wicker(delta: float) -> void:
+	_calm += delta
+	if _calm > 2.5 and hp < max_hp and state != "spawn":
+		hp = minf(hp + max_hp * 0.04 * delta, max_hp)
+		m_body.emission_energy_multiplier = 0.6 + 0.4 * sin(_t * 8.0)
+
+
 ## GÜNEŞ SARAYI yaratıkları:
 ##  shade  -> SÜRÜ YAVRUSU: yakınındaki her kardeşi için +%20 hasar (en çok +%60); sürüyü dağıt
 ##  caster -> GÜNEŞ RAHİBİ: hatta güneş ışını indirir ve bir dostuna taç giydirir (taçlı: +%50 hasar)
@@ -571,6 +608,19 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "virgo":
+		m_eye.emission = Color(0.4, 1.0, 0.85)
+		m_body.albedo_color = Color(0.9, 0.9, 0.95)
+		m_cloth.albedo_color = Color(0.55, 0.5, 0.78)
+		match kind:
+			"caster":
+				_build_archivist()
+			"leaper":
+				_build_sower()
+			"brute":
+				_build_wicker()
+			_:
+				_build_reaper()
 	elif zone == "leo":
 		m_eye.emission = Color(1.0, 0.85, 0.3)
 		# altın post: koyu silüet yerine açık altın (mor zeminde kahverengi görünmesin)
@@ -1268,6 +1318,97 @@ func _build_nemean() -> void:
 	_part(vis, _sph(0.5), Vector3(0, 1.35, 0.15), plate, Vector3(1.3, 0.35, 1.9))
 
 
+# ---- Sessiz Hasat görünüşleri (porselen beyazı yaratıklar; zemin koyu yeşil-camgöbeği)
+
+func _porcelain() -> StandardMaterial3D:
+	var m := _m(Color(0.93, 0.92, 0.97), 0.25)
+	m.emission_enabled = true
+	m.emission = Color(0.55, 0.45, 0.85)
+	m.emission_energy_multiplier = 0.15
+	return m
+
+
+func _build_reaper() -> void:
+	# ORAKÇI: porselen yüzlü, uzun etekli hasatçı; elinde orak
+	var por := _porcelain()
+	_part(vis, _cone(0.42, 0.16, 1.3, 10), Vector3(0, 0.7, 0), m_cloth)
+	_part(vis, _sph(0.28, 0.5), Vector3(0, 1.45, 0), por, Vector3(1.0, 1.0, 0.8))
+	var hp := Vector3(0, 1.85, 0)
+	_part(vis, _sph(0.16), hp, por)
+	_part(vis, _sph(0.03), hp + Vector3(-0.06, 0.0, -0.15), m_eye, Vector3(1.5, 0.6, 1.0))
+	_part(vis, _sph(0.03), hp + Vector3(0.06, 0.0, -0.15), m_eye, Vector3(1.5, 0.6, 1.0))
+	_part(vis, _cone(0.2, 0.0, 0.3, 8), hp + Vector3(0, 0.2, 0.03), m_cloth)
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.55, 0), 0.55)
+	arm_r = _arm(1.0, Vector3(0.3, 1.55, 0), 0.55)
+	var silver := _m(Color(0.85, 0.9, 0.95), 0.2)
+	silver.metallic = 0.6
+	_part(arm_r, _cone(0.025, 0.025, 1.3, 5), Vector3(0, -0.5, 0), m_cloth)
+	var blade := _part(arm_r, _cone(0.06, 0.0, 0.8, 4), Vector3(-0.35, -1.1, -0.1), silver, Vector3(1.0, 1.0, 0.25))
+	blade.rotation.z = 1.3
+
+
+func _build_archivist() -> void:
+	# ARŞİVCİ: kitap taşıyan, gözlüklü porselen bilge; çevresinde dönen sayfalar
+	var por := _porcelain()
+	_part(vis, _cone(0.48, 0.2, 1.5, 12), Vector3(0, 0.9, 0), m_cloth)
+	_part(vis, _sph(0.24, 0.44), Vector3(0, 1.75, 0), por)
+	var hp := Vector3(0, 2.08, 0)
+	_part(vis, _sph(0.17), hp, por)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.055), hp + Vector3(s * 0.07, 0.0, -0.15), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.8, 0), 0.6)
+	arm_r = _arm(1.0, Vector3(0.3, 1.8, 0), 0.6)
+	var book := _m(Color(0.25, 0.55, 0.5), 0.5)
+	_part(vis, BoxMesh.new(), Vector3(0, 1.5, -0.5), book, Vector3(0.5, 0.08, 0.38))
+	var page := _m(Color(0.95, 0.95, 0.85), 0.6)
+	page.emission_enabled = true
+	page.emission = Color(0.6, 1.0, 0.9)
+	page.emission_energy_multiplier = 0.6
+	for i in 4:
+		var a := TAU * float(i) / 4.0
+		var pg := _part(vis, BoxMesh.new(), Vector3(cos(a) * 0.75, 1.9 + float(i % 2) * 0.25, sin(a) * 0.75), page, Vector3(0.25, 0.02, 0.32))
+		pg.rotation.y = a
+
+
+func _build_sower() -> void:
+	# TOHUM EKİCİ: kanatlı, tohum keseli küçük porselen peri
+	var por := _porcelain()
+	_part(vis, _sph(0.3, 0.5), Vector3(0, 0.9, 0), por, Vector3(1.0, 1.1, 0.9))
+	_part(vis, _sph(0.17), Vector3(0, 1.35, -0.05), por)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.035), Vector3(s * 0.06, 1.37, -0.2), m_eye, Vector3(1.4, 0.7, 1.0))
+		var w := _part(vis, _sph(0.4), Vector3(s * 0.45, 1.1, 0.15), m_cloth, Vector3(1.0, 0.6, 0.08))
+		w.rotation.y = s * 0.5
+		_part(vis, _cone(0.04, 0.05, 0.5, 5), Vector3(s * 0.12, 0.4, 0), por)
+	_part(vis, _sph(0.18), Vector3(0.25, 0.75, 0.1), _m(Color(0.3, 0.6, 0.45)))
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_wicker() -> void:
+	# HASIR DEV: başak demetlerinden örülmüş dev; içi camgöbeği ışıkla yanar
+	var straw := _m(Color(0.85, 0.85, 0.78), 0.9)
+	var core := _m(Color(0.3, 1.0, 0.85), 0.4)
+	core.emission_enabled = true
+	core.emission = Color(0.3, 1.0, 0.85)
+	core.emission_energy_multiplier = 1.5
+	_part(vis, _sph(0.3), Vector3(0, 1.3, 0), core)
+	for i in 10:
+		var a := TAU * float(i) / 10.0
+		var st := _part(vis, _cone(0.08, 0.05, 1.6, 5), Vector3(cos(a) * 0.4, 1.3, sin(a) * 0.4), straw)
+		st.rotation = Vector3(sin(a) * 0.25, 0, -cos(a) * 0.25)
+	_part(vis, _sph(0.3), Vector3(0, 2.2, 0), straw, Vector3(1.0, 1.2, 1.0))
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.06), Vector3(s * 0.1, 2.25, -0.27), m_eye)
+		_part(vis, _cone(0.1, 0.12, 1.0, 5), Vector3(s * 0.22, 0.35, 0), straw)
+	arm_l = _arm(-1.0, Vector3(-0.6, 1.9, 0), 0.9)
+	arm_r = _arm(1.0, Vector3(0.6, 1.9, 0), 0.9)
+	for a in [arm_l, arm_r]:
+		_part(a, _sph(0.25), Vector3(0, -1.0, 0), straw, Vector3(1.0, 1.3, 1.0))
+
+
 func _build_shellguard() -> void:
 	# KABUK ASKERİ: dik duran mercan zırhlı yengeç-asker; vurulunca kabuğuna çekilir
 	var shell := _shell_mat()
@@ -1442,6 +1583,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if zone == "taurus" and kind == "caster" and not pebble:
 		_tick_ward_caster(delta)
+	if zone == "virgo" and kind == "brute":
+		_tick_wicker(delta)
 	if zone == "leo" and kind == "caster":
 		_tick_crown_caster(delta)
 	if crowned > 0.0:
@@ -1656,6 +1799,22 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "seals":
+			# üç mühür: kahramana doğru sırayla
+			var H = load("res://scripts/hazards.gd")
+			var tgt: Vector3 = hero.global_position if hero != null and is_instance_valid(hero) else global_position + _aim_dir * 5.0
+			for i in 3:
+				var b = H.Blast.new()
+				b.hero = hero
+				b.radius = 1.5
+				b.delay = 0.7 + float(i) * 0.35
+				b.dmg = float(atk["dmg"])
+				b.col = Color(0.4, 1.0, 0.85)
+				get_parent().add_child(b)
+				var p := global_position.lerp(tgt, (float(i) + 1.0) / 3.0) + _aim_dir * float(i) * 0.6
+				b.global_position = H.clamp_arena(p, 12.0)
+			Sfx.play("parry", -10.0, 0.05, 0, 1.6)
 			_done = true
 		elif String(atk["name"]) == "sunbeam":
 			var sb := SunBeam.new()
@@ -1914,7 +2073,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -1923,6 +2082,21 @@ func _resolve() -> void:
 		center = Vector3(_aim_point.x, 0, _aim_point.z)
 		global_position = center
 		tele.visible = false
+		if zone == "virgo":
+			# TOHUM EKİCİ: indiği yere yavaşlatan tohumlar saçar
+			var H = load("res://scripts/hazards.gd")
+			var a0 := randf() * TAU
+			for i in 3:
+				var sd = H.Blast.new()
+				sd.hero = hero
+				sd.radius = 1.3
+				sd.delay = 1.3
+				sd.dmg = float(atk["dmg"]) * 0.5
+				sd.col = Color(0.5, 1.0, 0.6)
+				sd.eff = "slow"
+				get_parent().add_child(sd)
+				var ang := a0 + TAU * float(i) / 3.0
+				sd.global_position = H.clamp_arena(center + Vector3(cos(ang), 0, sin(ang)) * 2.2, 12.0)
 	# görsel
 	if String(atk["shape"]) == "fan":
 		var fx := SlashFx.make(-deg_to_rad(float(atk["arc"])) * 0.5, deg_to_rad(float(atk["arc"])) * 0.5, 0.4, reach, col, 0.2)
@@ -2069,6 +2243,9 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		return
 	if _burrowed():
 		return
+	if zone == "virgo" and kind == "brute":
+		_calm = 0.0
+		m_body.emission_energy_multiplier = 0.3
 	# NEMEA ASLANI: postu hasarın çoğunu emer (parry ile çatlat)
 	if zone == "leo" and kind == "brute" and _hide_crack <= 0.0 and state != "stun":
 		dmg *= 0.3
@@ -2301,6 +2478,16 @@ func _animate(delta: float) -> void:
 				"burrow":
 					# GÖMÜLME: kendi etrafında döner
 					twist = _t * 18.0 * k
+				"reap":
+					# ORAK: kolunu geriye çeker, döner
+					arm_rx = -1.2 * e
+					lean = -0.2 * e
+					glow = 3.0 + 20.0 * k
+					shake = 0.03 * k
+				"seals":
+					arm_lx = 2.4 * e
+					arm_rx = 2.4 * e
+					glow = 3.0 + 18.0 * k
 				"roar":
 					# KÜKREME: başını kaldırır, yelesi parlar
 					lean = -0.35 * e
@@ -2990,3 +3177,4 @@ class SunBeam extends Node3D:
 		scale.x = 1.0 - _t * 1.5
 		if _t >= 0.35:
 			queue_free()
+

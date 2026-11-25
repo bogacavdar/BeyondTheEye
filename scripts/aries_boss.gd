@@ -329,8 +329,7 @@ func _physics_process(delta: float) -> void:
 		"chase":
 			if hero_ok:
 				_face = _face.slerp(dir_to, minf(6.0 * delta, 1.0)).normalized()
-				if dist > 2.8:
-					want = dir_to * 3.0 * sm
+				want = _chase_vel(dist, dir_to, sm)
 				if _global_cd <= 0.0:
 					_pick(dist, dir_to)
 		"windup":
@@ -366,6 +365,13 @@ func _physics_process(delta: float) -> void:
 		global_position = Vector3(flat.x, 0.0, flat.y)
 	global_position.y = 0.0
 	_animate(delta)
+
+
+## Kovalama hızı (alt sınıflar değiştirebilir: ör. mesafe koruyan okçu)
+func _chase_vel(dist: float, dir_to: Vector3, sm: float) -> Vector3:
+	if dist > 2.8:
+		return dir_to * 3.0 * sm
+	return Vector3.ZERO
 
 
 func _windup_len() -> float:

@@ -55,6 +55,9 @@ var _slow_t := 0.0      # Diken Çalısı: yavaşlatma süresi
 var _slow_mult := 1.0
 var _pull_vel := Vector3.ZERO   # Denizanası çekimi / dalga itişi
 var _pull_t := 0.0
+var _poison_t := 0.0     # Akrep zehri: canı yavaşça eritir (öldürmez)
+var _poison_dps := 0.0
+var _poison_acc := 0.0
 var _ls_budget := 0.0     # can çalma bütçesi (saniyede dolar)
 var _regen_acc := 0.0
 var _first_strike := true
@@ -237,6 +240,13 @@ func _physics_process(delta: float) -> void:
 		_read_actions(move)
 
 	var spd_now := SPEED * (1.0 + float(st["move_speed"]) / 100.0) * (SPRINT_MULT if sprinting else 1.0)
+	if _poison_t > 0.0 and not dead:
+		_poison_t -= delta
+		_poison_acc += _poison_dps * delta
+		if _poison_acc >= 1.0:
+			var pd := floorf(_poison_acc)
+			_poison_acc -= pd
+			hp = maxf(hp - pd, 1.0)
 	if _slow_t > 0.0:
 		_slow_t -= delta
 		spd_now *= _slow_mult
@@ -997,6 +1007,12 @@ func _die() -> void:
 
 
 ## Dikenli alan gibi etkiler kahramanı kısa süre yavaşlatır
+## Zehir: saniyede dps kadar can eritir; üst üste binerse süre uzar, güç en yükseği alır
+func apply_poison(dps: float, dur: float) -> void:
+	_poison_dps = maxf(_poison_dps, dps) if _poison_t > 0.0 else dps
+	_poison_t = minf(_poison_t + dur, 8.0)
+
+
 ## Denizanası çeker, gelgit dalgası iter: hedefe doğru dış hız (atılma bunu yok sayar)
 func apply_pull(target: Vector3, strength: float, dur: float) -> void:
 	var v := target - global_position
