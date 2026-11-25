@@ -159,6 +159,11 @@ func _draw() -> void:
 
 ## Element bilgisi: senin elementin (lütuflardan) ve bölgenin elementi; üstünlük durumu
 func _draw_elements(p: Vector2) -> void:
+	if GameData.run_rising != "":
+		var r: Dictionary = load("res://scripts/risings.gd").get_rising(GameData.run_rising)
+		if not r.is_empty():
+			_text(tr(String(r["name"])), p, 17, r["col"], false)
+			p.y += 24.0
 	var he := GameData.hero_el
 	if zone_el != "":
 		var zi: Dictionary = Elements.INFO[zone_el]

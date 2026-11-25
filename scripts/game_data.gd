@@ -268,6 +268,7 @@ static var run_hp := -1.0
 static var run_dust := 0
 static var last_run_msg := ""
 static var run_boons: Array = []        # bu run'da alınan gezegen lütufları
+static var run_rising := ""             # bu run'ın yükselen burcu (risings.gd)
 static var hero_el := ""                 # kahramanın elementi (lütuflardan; hero.gd hesaplar)
 static var hero_el_n := 0
 static var run_reward := ""             # şu anki odanın ödülü: "boon:Mars", "dust", "rest", "boss"
@@ -285,6 +286,7 @@ static var virgo_defeated := false     # Başak en az bir kez yenildi mi
 
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
 static func start_run() -> void:
+	run_rising = ""
 	run_room = 0
 	run_hp = -1.0
 	run_dust = 0
@@ -464,7 +466,7 @@ static func go_save() -> void:
 static func snapshot_run() -> void:
 	saved_run = {"room": run_room, "hp": run_hp, "dust": run_dust, "boons": run_boons.duplicate(),
 		"reward": run_reward, "revives_used": run_revives_used, "unbroken_used": run_unbroken_used,
-		"weapon": chosen_weapon}
+		"weapon": chosen_weapon, "rising": run_rising}
 
 
 static func has_saved_run() -> bool:
@@ -477,6 +479,7 @@ static func resume_run() -> void:
 	run_hp = float(saved_run.get("hp", -1.0))
 	run_dust = int(saved_run.get("dust", 0))
 	run_boons = Array(saved_run.get("boons", [])).duplicate()
+	run_rising = String(saved_run.get("rising", ""))
 	run_reward = String(saved_run.get("reward", ""))
 	run_revives_used = int(saved_run.get("revives_used", 0))
 	run_unbroken_used = bool(saved_run.get("unbroken_used", false))

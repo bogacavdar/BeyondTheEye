@@ -646,8 +646,24 @@ func _close_ui() -> void:
 	_ui_open = false
 
 
+var rising_ui = null
+
+
 func _enter_portal() -> void:
+	# yükselen seçimi
+	if rising_ui == null:
+		rising_ui = load("res://scripts/rising_ui.gd").new()
+		ui_layer.add_child(rising_ui)
+		rising_ui.chosen.connect(_start_with_rising)
+		rising_ui.closed.connect(_close_ui)
+	_ui_open = true
+	player.frozen = true
+	rising_ui.open()
+
+
+func _start_with_rising(id: String) -> void:
 	GameData.start_run()
+	GameData.run_rising = id
 	Sfx.play("dash", -4.0, 0.0, 0, 0.6)
 	Fx.shake(0.3)
 	get_tree().change_scene_to_file(ROOM_SCENE)

@@ -104,6 +104,12 @@ func open(planet: String) -> void:
 	for c in _row.get_children():
 		c.queue_free()
 	var cards := Boons.offer(planet, GameData.run_boons)
+	if GameData.run_rising == "gemini":
+		# İkizler yükseleni: dördüncü kart
+		for b in Boons.BOONS:
+			if not GameData.run_boons.has(b["id"]) and not cards.has(b) and String(b["planet"]) == planet:
+				cards.append(b)
+				break
 	var i := 0
 	for b in cards:
 		var card := _card(b)

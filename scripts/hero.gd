@@ -121,6 +121,8 @@ func equip(id: String) -> void:
 
 func _compute_stats() -> void:
 	st = Stats.compute(GameData.chart, GameData.run_boons)
+	if GameData.run_rising != "":
+		load("res://scripts/risings.gd").apply(st, GameData.run_rising)
 	var el: Array = load("res://scripts/elements.gd").of_boons(GameData.run_boons)
 	GameData.hero_el = String(el[0])
 	GameData.hero_el_n = int(el[1])
