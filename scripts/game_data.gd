@@ -172,6 +172,17 @@ static func apply_settings() -> void:
 	Engine.max_fps = max_fps
 	Sfx.set_bus_volume("SFX", sfx_volume)
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+	if is_web():
+		# tarayıcı sürümü: 3D daha düşük çözünürlükte çizilir, kenar yumuşatma kapalı (akıcılık için)
+		var tree := Engine.get_main_loop() as SceneTree
+		if tree != null:
+			tree.root.scaling_3d_scale = 0.7
+			tree.root.msaa_3d = Viewport.MSAA_DISABLED
+
+
+## Oyun tarayıcıda mı çalışıyor? (Web sürümünde ağır efektler kapatılır)
+static func is_web() -> bool:
+	return OS.has_feature("web")
 
 
 ## Menü ve oyun aynı gece atmosferini kullanır.

@@ -212,7 +212,7 @@ func _environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(1.0, 0.62, 0.38)
 	sun.light_energy = 1.05
-	sun.shadow_enabled = true
+	sun.shadow_enabled = not GameData.is_web()
 	sun.rotation_degrees = Vector3(-32, 150, 0)
 	add_child(sun)
 	# aşağıdaki lavdan yükselen turuncu dolgu ışığı
@@ -361,7 +361,7 @@ func _environment_taurus() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(1.0, 0.82, 0.6)
 	sun.light_energy = 1.15
-	sun.shadow_enabled = true
+	sun.shadow_enabled = not GameData.is_web()
 	sun.rotation_degrees = Vector3(-28, 160, 0)
 	add_child(sun)
 	var fill := DirectionalLight3D.new()

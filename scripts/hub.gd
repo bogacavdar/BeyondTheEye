@@ -131,7 +131,7 @@ func _environment() -> void:
 	var moon := DirectionalLight3D.new()
 	moon.light_color = Color(0.75, 0.8, 1.0)
 	moon.light_energy = 0.9
-	moon.shadow_enabled = true
+	moon.shadow_enabled = not GameData.is_web()
 	moon.rotation_degrees = Vector3(-50, -135, 0)
 	add_child(moon)
 
