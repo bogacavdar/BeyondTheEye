@@ -81,7 +81,7 @@ jobs:
           cd build && zip -r -q ../BeyondTheEye-Windows.zip windows
           ls -la ..
 
-      - name: "Son Sürüm" sayfasına yükle
+      - name: Son Sürüm sayfasına yükle
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
