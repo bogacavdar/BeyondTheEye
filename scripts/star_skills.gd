@@ -7,6 +7,7 @@ extends RefCounted
 
 const SlashFx = preload("res://scripts/slash_fx.gd")
 const GOLD := Color(1.0, 0.85, 0.45)
+const SKFX := "res://scripts/skill_fx.gd"
 
 
 static func glow_mat(c: Color, e: float) -> StandardMaterial3D:
@@ -92,6 +93,7 @@ class Starfall extends Node3D:
 			s.set_meta("land", land)
 			s.set_meta("t0", randf() * 0.18)
 			add_child(s)
+			load(SKFX).trail(s, col, 18, star_r * 0.7, 0.3)
 			_stars.append(s)
 		Sfx.play("dash", -10.0, 0.05, 0, 0.6)
 
@@ -116,6 +118,7 @@ class Starfall extends Node3D:
 			var ex = load("res://scripts/slash_fx.gd").make(0.0, TAU, 0.2, radius, col, 0.35)
 			add_child(ex)
 			ex.position.y = 0.3
+			load(SKFX).impact(get_parent(), p, col, radius, true)
 			for s in _stars:
 				s.queue_free()
 			_stars.clear()
@@ -140,7 +143,10 @@ class LightWave extends Node3D:
 	func _ready() -> void:
 		_mesh = load("res://scripts/slash_fx.gd").make(-width, width, 0.5, 1.4, col, 10.0)
 		add_child(_mesh)
+		var core = load("res://scripts/slash_fx.gd").make(-width * 0.6, width * 0.6, 0.8, 1.15, col.lerp(Color.WHITE, 0.6), 10.0)
+		add_child(core)
 		look_at(global_position + dir, Vector3.UP)
+		load(SKFX).trail(self, col, 34, 0.12, 0.3)
 		Sfx.play("dash", -8.0, 0.05, 0, 1.9)
 
 	func _process(delta: float) -> void:
@@ -155,6 +161,7 @@ class LightWave extends Node3D:
 			if d.length() < 0.5 + width * 0.8 + float(e.radius):
 				_hit.append(e)
 				e.take_hit(dmg, dir, 6.0, false)
+				load(SKFX).sparks(e.global_position + Vector3(0, 1.2, 0), col, 10, 0.4)
 				Fx.hitstop(0.03)
 				Sfx.play("hit", -6.0, 0.1, 30)
 		var fade := 1.0 - clampf((_dist - max_dist * 0.7) / (max_dist * 0.3), 0.0, 1.0)
@@ -235,6 +242,8 @@ class ConstellationPath extends Node3D:
 				var ex = load("res://scripts/slash_fx.gd").make(0.0, TAU, 0.1, 1.2, Color(1.0, 0.9, 0.6), 0.3)
 				add_child(ex)
 				ex.global_position = p + Vector3(0, 0.6, 0)
+				load(SKFX).pillar(get_parent(), p, Color(1.0, 0.9, 0.6), 0.35, 7.0)
+				load(SKFX).sparks(p + Vector3(0, 1.0, 0), Color(1.0, 0.9, 0.6), 8, 0.9)
 		if _t > delay + 0.6:
 			queue_free()
 
@@ -287,6 +296,7 @@ class Burst extends Node3D:
 			var ex = load("res://scripts/slash_fx.gd").make(0.0, TAU, 0.2 if not pull else radius * 0.6, radius, col, 0.35)
 			add_child(ex)
 			ex.position.y = 0.4
+			load(SKFX).impact(get_parent(), p, col, radius, radius >= 3.0)
 			Fx.flash_light(p + Vector3(0, 1, 0), col, 5.0, radius * 2.5, 0.3)
 			Fx.shake(0.3)
 			if hit > 0:
@@ -330,6 +340,7 @@ class Aura extends Node3D:
 		_next -= delta
 		if _next <= 0.0 and dmg > 0.0:
 			_next = tick
+			load(SKFX).shockwave(get_parent(), global_position, col, radius, 0.4)
 			for e in get_tree().get_nodes_in_group("enemies"):
 				if not is_instance_valid(e) or e.dead:
 					continue
@@ -364,6 +375,7 @@ class Orbit extends Node3D:
 			r.mesh = sm
 			r.material_override = gm
 			add_child(r)
+			load(SKFX).trail(r, col, 22, 0.16, 0.3)
 			_rocks.append(r)
 
 	func _process(delta: float) -> void:
@@ -408,6 +420,7 @@ class Boomerang extends Node3D:
 	func _ready() -> void:
 		_mesh = load("res://scripts/slash_fx.gd").make(-1.3, 1.3, 0.35, 1.2, col, 99.0)
 		add_child(_mesh)
+		load(SKFX).trail(self, col, 30, 0.14, 0.3)
 		Sfx.play("dash", -6.0, 0.05, 0, 1.3)
 
 	func _process(delta: float) -> void:
@@ -466,6 +479,7 @@ class Vortex extends Node3D:
 			var arc = load("res://scripts/slash_fx.gd").make(0.0, 2.2, 0.3, radius, col, 99.0)
 			arc.rotation.y = TAU * float(i) / 3.0
 			_arms.add_child(arc)
+		load(SKFX).scorch(get_parent(), global_position, col, radius, duration)
 		Sfx.play("dash", -6.0, 0.0, 0, 0.5)
 
 	func _process(delta: float) -> void:
@@ -485,6 +499,7 @@ class Vortex extends Node3D:
 				if do_tick:
 					e.take_hit(dmg, -d.normalized() if d.length() > 0.05 else Vector3.FORWARD, 0.0, false)
 		if _t > duration:
+			load(SKFX).impact(get_parent(), global_position, col, radius * 0.7, false)
 			queue_free()
 
 
@@ -512,6 +527,8 @@ class FlameCone extends Node3D:
 		s.height = 0.24
 		Fx._burst(global_position, dir, 40, m, s, 6.0, 12.0, 30.0, 1.0, 0.45, 0.6, 1.6)
 		Fx.flash_light(global_position + dir * 2.0, Color(1.0, 0.55, 0.2), 6.0, 7.0, 0.3)
+		load(SKFX).scorch(get_parent(), global_position + dir * reach * 0.5, col, reach * 0.45)
+		load(SKFX).shockwave(get_parent(), global_position + dir * reach * 0.35, col, reach * 0.6)
 		Sfx.play("boom", -10.0, 0.1, 0, 2.2)
 		var hit := 0
 		for e in get_tree().get_nodes_in_group("enemies"):
@@ -563,6 +580,8 @@ class LineStrike extends Node3D:
 		get_parent().add_child(ex)
 		ex.global_transform = Transform3D(Basis.IDENTITY, p + Vector3(0, 0.3, 0))
 		Fx.flash_light(p + Vector3(0, 1, 0), col, 3.0, 3.5, 0.15)
+		load(SKFX).pillar(get_parent(), p, col, radius * 0.3, 6.0, 0.3)
+		load(SKFX).sparks(p + Vector3(0, 0.4, 0), col, 8, 0.9)
 		Sfx.play("boom", -18.0, 0.15, 20, 2.4)
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if not is_instance_valid(e) or e.dead or _hit.has(e):
@@ -598,6 +617,7 @@ class Hook extends Node3D:
 		_head.mesh = s
 		_head.material_override = lib.glow_mat(col, 5.0)
 		add_child(_head)
+		load(SKFX).trail(_head, col, 20, 0.12, 0.25)
 		_chain = MeshInstance3D.new()
 		var b := BoxMesh.new()
 		b.size = Vector3(0.06, 0.06, 1.0)
@@ -626,6 +646,7 @@ class Hook extends Node3D:
 					if not e.dead:
 						e.stun(1.2)
 						e.pull_to(origin, 40.0)
+					load(SKFX).sparks(global_position, col, 14, 0.5)
 					Sfx.play("heavyhit", -6.0, 0.05, 0)
 					Fx.shake(0.3)
 					_back = true
@@ -690,6 +711,7 @@ class Arrow extends Node3D:
 		l.light_energy = 0.8 if not heavy else 2.0
 		l.omni_range = 2.0
 		add_child(l)
+		load(SKFX).trail(self, col, 14 if not big else 36, 0.05 if not big else 0.16, 0.18 if not big else 0.35)
 		look_at(global_position + dir, Vector3.UP)
 
 	func _physics_process(delta: float) -> void:
