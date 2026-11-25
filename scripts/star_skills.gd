@@ -663,6 +663,9 @@ class Arrow extends Node3D:
 	var crit := false
 	var col := Color(0.78, 0.65, 1.0)
 	var owner_node = null
+	var explode_r := 0.0      # Avcı Yıldızı: uçuşun sonunda patlar
+	var big := false
+	var bounces := 0          # Seken Yıldız: isabetten sonra başka düşmana seker
 	var _dist := 0.0
 	var _hit: Array = []
 
@@ -670,13 +673,13 @@ class Arrow extends Node3D:
 		var lib = load("res://scripts/star_skills.gd")
 		var shaft := MeshInstance3D.new()
 		var b := BoxMesh.new()
-		b.size = Vector3(0.05, 0.05, 0.8 if not heavy else 1.2)
+		b.size = Vector3(0.05, 0.05, 0.8 if not heavy else 1.2) * (2.2 if big else 1.0)
 		shaft.mesh = b
 		shaft.material_override = lib.glow_mat(col.lerp(Color.WHITE, 0.3), 4.0 if not heavy else 7.0)
 		add_child(shaft)
 		var tip := MeshInstance3D.new()
 		var s := SphereMesh.new()
-		s.radius = 0.08 if not heavy else 0.14
+		s.radius = (0.08 if not heavy else 0.14) * (2.6 if big else 1.0)
 		s.height = s.radius * 2.0
 		tip.mesh = s
 		tip.material_override = lib.glow_mat(Color(1.0, 0.95, 0.8), 6.0)
@@ -705,9 +708,52 @@ class Arrow extends Node3D:
 					owner_node.on_ranged_hit(dmg, e)
 				Sfx.play("stab", -4.0, 0.12, 25, 1.1)
 				Sfx.play("hit", -10.0, 0.12, 25, 1.15)
+				if bounces > 0:
+					# en yakın başka düşmana yönel
+					var best = null
+					var bd := 7.0
+					for o in get_tree().get_nodes_in_group("enemies"):
+						if not is_instance_valid(o) or o.dead or _hit.has(o):
+							continue
+						var dd: float = o.global_position.distance_to(global_position)
+						if dd < bd:
+							bd = dd
+							best = o
+					if best != null:
+						bounces -= 1
+						var nd: Vector3 = best.global_position - global_position
+						nd.y = 0.0
+						dir = nd.normalized()
+						look_at(global_position + dir, Vector3.UP)
+						_dist = maxf(range_m - 8.0, 0.0)
+						return
 				if pierce <= 0:
+					_explode()
 					queue_free()
 					return
 				pierce -= 1
 		if _dist > range_m:
+			_explode()
 			queue_free()
+
+	func _explode() -> void:
+		if explode_r <= 0.0:
+			return
+		explode_r = -explode_r
+		var r := -explode_r
+		var lib = load("res://scripts/slash_fx.gd")
+		var ex = lib.make(0.0, TAU, 0.3, r, col.lerp(Color.WHITE, 0.4), 0.35)
+		get_parent().add_child(ex)
+		ex.global_transform = Transform3D(Basis.IDENTITY, Vector3(global_position.x, 0.4, global_position.z))
+		Fx.flash_light(global_position, col, 7.0, 7.0, 0.3)
+		Fx.shake(0.3)
+		Sfx.play("boom", -8.0, 0.1, 0, 1.6)
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if not is_instance_valid(e) or e.dead:
+				continue
+			var d: Vector3 = e.global_position - global_position
+			d.y = 0.0
+			if d.length() <= r + float(e.radius):
+				e.take_hit(dmg * 0.6, d.normalized() if d.length() > 0.05 else dir, 4.0, true, crit)
+				if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_ranged_hit"):
+					owner_node.on_ranged_hit(dmg * 0.6, e)

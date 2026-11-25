@@ -174,7 +174,7 @@ func _draw_slots() -> void:
 			frac_cd = float(hero.skill_cd[idx]) / float(hero.SKILL_CD[idx])
 			name_txt = tr(String(hero.kit["skills"][idx]["name"]))
 		elif idx == -3:
-			frac_cd = 0.0
+			frac_cd = clampf(hero.heavy_cd / hero.heavy_cd_max, 0.0, 1.0) if hero.heavy_cd_max > 0.0 else 0.0
 		elif idx == -1:
 			frac_cd = clampf(hero.dash_cd / hero.DASH_COOLDOWN, 0.0, 1.0)
 		else:
@@ -297,6 +297,9 @@ func _draw_reward_and_boons() -> void:
 			var col: Color = pl["color"]
 			_text(tr("REWARD"), Vector2(x - 120, y), 14, _a(UI.CREAM, 0.7))
 			_text(String(pl["glyph"]) + "\uFE0E", Vector2(x - 20, y + 6), 32, col, true, _sym)
+	elif reward == "weapon":
+		_text(tr("REWARD"), Vector2(x - 120, y), 14, _a(UI.CREAM, 0.7))
+		_text("\u2605\uFE0E", Vector2(x - 20, y + 6), 30, hero.kit["color"] if hero != null else gold, true, _sym)
 	elif reward == "dust":
 		_text(tr("REWARD"), Vector2(x - 120, y), 14, _a(UI.CREAM, 0.7))
 		_text("\u2726\uFE0E", Vector2(x - 20, y + 6), 30, gold, true, _sym)

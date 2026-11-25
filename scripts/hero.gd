@@ -17,6 +17,7 @@ const Kits = preload("res://scripts/weapon_kits.gd")
 const Stats = preload("res://scripts/hero_stats.gd")
 const GameData = preload("res://scripts/game_data.gd")
 const Retro = preload("res://scripts/retro.gd")
+const WBoons = preload("res://scripts/weapon_boons.gd")
 
 const BASE_HP := 100.0
 const SPRINT_MULT := 1.6
@@ -70,6 +71,17 @@ var _charge_hits: Array = []
 var blade_pivot: Node3D
 var sword: Node3D
 var _hit_this_swing: Array = []
+# ---- silah ustalıkları (weapon_boons.gd)
+var wb: Dictionary = {}
+var heavy_cd := 0.0          # ağır saldırı bekleme süresi (yay)
+var heavy_cd_max := 0.0
+var _frenzy := 0
+var _frenzy_t := 0.0
+var _emp_hits := 0
+var _echoing := false
+var _dash_extra := true
+var _dash_refill := 0.0
+var _dash_from := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -104,8 +116,15 @@ func equip(id: String) -> void:
 
 func _compute_stats() -> void:
 	st = Stats.compute(GameData.chart, GameData.run_boons)
+	wb = WBoons.effects(GameData.run_boons, weapon_id)
+	if wb.has("atk_rapid"):
+		st["atk_speed"] = float(st["atk_speed"]) + 40.0
+		st["combo_dmg"] = float(st["combo_dmg"]) - 15.0
+	if wb.has("ds_strike"):
+		st["dash_strike"] = true
+	heavy_cd_max = float(kit.get("heavy_cd", 0.0)) * (1.6 if wb.has("hv_star") else 1.0)
 	for i in 3:
-		SKILL_CD[i] = float(kit["skills"][i]["cd"]) * maxf(1.0 - float(st["haste"]) / 100.0, 0.35)
+		SKILL_CD[i] = float(kit["skills"][i]["cd"]) * maxf(1.0 - float(st["haste"]) / 100.0, 0.35) * (0.6 if wb.has("sk_haste") else 1.0)
 	var rt: Dictionary = GameData.retro
 	st["dust_gain"] = float(st["dust_gain"]) + 10.0 * float(Retro.heat(rt))
 	st["heal_mult"] = maxf(1.0 - 0.3 * float(Retro.rank(rt, "saturn")), 0.1)
@@ -175,6 +194,14 @@ func _physics_process(delta: float) -> void:
 	_invuln -= delta
 	_combo_reset -= delta
 	_crit_buff_t -= delta
+	heavy_cd = maxf(heavy_cd - delta, 0.0)
+	_frenzy_t -= delta
+	if _frenzy_t <= 0.0:
+		_frenzy = 0
+	if wb.has("ds_double") and not _dash_extra:
+		_dash_refill -= delta
+		if _dash_refill <= 0.0:
+			_dash_extra = true
 	for i in 3:
 		skill_cd[i] = maxf(float(skill_cd[i]) - delta, 0.0)
 	if _combo_reset <= 0.0 and state == "free":
@@ -306,6 +333,14 @@ func _read_actions(move: Vector3) -> void:
 			dash_dir = move.normalized() if move.length() > 0.1 else aim
 			dash_t = DASH_TIME
 			dash_cd = DASH_COOLDOWN * maxf(1.0 - float(st["dash_cdr"]) / 100.0, 0.3) * float(st.get("dash_mult", 1.0))
+			if wb.has("ds_double") and _dash_extra:
+				# ikinci atılma hemen hazır; harcanan hak tam süre sonra geri gelir
+				_dash_extra = false
+				_dash_refill = dash_cd
+				dash_cd = 0.3
+			_dash_from = global_position
+			if wb.has("ds_trail"):
+				get_tree().create_timer(DASH_TIME + 0.02).timeout.connect(_dash_trail)
 			_invuln = maxf(_invuln, DASH_TIME + 0.08)
 			_dash_hits.clear()
 			Sfx.play("dash", -10.0)
@@ -326,7 +361,7 @@ func _read_actions(move: Vector3) -> void:
 			_start_attack(kit["combo"][_combo_i])
 		elif state == "attack":
 			_queued = "fire"
-	if Input.is_action_just_pressed("heavy"):
+	if Input.is_action_just_pressed("heavy") and heavy_cd <= 0.0:
 		if state == "free" and dash_t <= 0.0:
 			_start_attack(kit["heavy"])
 		elif state == "attack":
@@ -344,6 +379,8 @@ func _is_heavy(a: Dictionary) -> bool:
 
 
 func _start_attack(a: Dictionary) -> void:
+	if a == kit["heavy"] and heavy_cd_max > 0.0:
+		heavy_cd = heavy_cd_max
 	state = "attack"
 	_atk = a
 	_atk_t = 0.0
@@ -391,8 +428,8 @@ func _advance_combo() -> void:
 
 
 ## Hasar hesabı: temel × hasar bonusları × kritik. Dönüş: [hasar, kritik mi]
-func calc_damage(base: float, kind_bonus := 0.0) -> Array:
-	var m := 1.0 + (float(st["damage"]) + kind_bonus) / 100.0
+func calc_damage(base: float, kind_bonus := 0.0, extra_mult := 1.0) -> Array:
+	var m := (1.0 + (float(st["damage"]) + kind_bonus) / 100.0) * extra_mult
 	if bool(st["death_door"]) and hp < max_hp * 0.3:
 		m += 0.3
 	if bool(st["warrior"]) and hp > max_hp * 0.8:
@@ -423,8 +460,13 @@ func _do_hit() -> void:
 		bonus = float(st["finisher_dmg"])
 	else:
 		bonus = float(st["combo_dmg"])
+	var xm := _attack_mult(heavy)
+	if heavy and wb.has("hv_pull"):
+		_heavy_pull()
+	if heavy and wb.has("hv_shock"):
+		_heavy_shock(bonus)
 	if bool(kit.get("ranged", false)):
-		_fire_arrows(bonus, finisher, heavy)
+		_fire_arrows(bonus, finisher, heavy, xm)
 		return
 	var fx_node := SlashFx.make(float(_atk["a0"]), float(_atk["a1"]), 0.45, rng, _col)
 	get_parent().add_child(fx_node)
@@ -443,7 +485,7 @@ func _do_hit() -> void:
 			continue
 		_hit_this_swing.append(e)
 		var dir := to.normalized() if dist > 0.1 else aim
-		var res: Array = calc_damage(float(_atk["dmg"]), bonus)
+		var res: Array = calc_damage(float(_atk["dmg"]), bonus, xm * _exec_mult(e, heavy))
 		var dmg: float = res[0]
 		if bool(res[1]):
 			any_crit = true
@@ -451,7 +493,10 @@ func _do_hit() -> void:
 		if bool(st["burn"]) and not e.dead and e.has_method("apply_burn"):
 			e.apply_burn(5.0 * (1.0 + float(st["damage"]) / 100.0), 3.0)
 		_on_dealt(dmg, e)
+		_after_hit(dmg, e, heavy)
 		hits += 1
+	if finisher and not heavy and wb.has("atk_wave"):
+		_finisher_wave(bonus)
 	if hits > 0:
 		Fx.hitstop(0.11 if finisher or any_crit else 0.065)
 		Fx.shake(0.38 if finisher or any_crit else 0.24)
@@ -496,13 +541,35 @@ func _impact_sound(big: bool) -> void:
 
 
 ## Yay: okları fırlat (yelpaze halinde birden fazla olabilir)
-func _fire_arrows(bonus: float, finisher: bool, heavy: bool) -> void:
+func _fire_arrows(bonus: float, finisher: bool, heavy: bool, xm := 1.0) -> void:
+	if heavy and wb.has("hv_rain"):
+		# GÖK AVI: ağır atış nişan noktasına ok yağdırır
+		var sf = Skills.Starfall.new()
+		sf.radius = 2.6
+		sf.count = 9
+		sf.dmg = float(calc_damage(float(_atk["dmg"]) * 0.55, bonus, xm)[0])
+		sf.delay = 0.45
+		sf.star_r = 0.08
+		sf.col = _col
+		var off := aim_point - global_position
+		off.y = 0.0
+		if off.length() > 11.0:
+			off = off.normalized() * 11.0
+		sf.position = global_position + off
+		get_parent().add_child(sf)
+		Sfx.play("bowshot", -2.0, 0.1, 0, 0.6)
+		return
 	var n := int(_atk.get("arrows", 1))
 	var spread := float(_atk.get("spread", 0.0))
+	var dmg_k := 1.0
+	if not heavy and wb.has("atk_multishot"):
+		n *= 3
+		spread = maxf(spread, 9.0)
+		dmg_k = 0.45
 	for i in n:
 		var ang := deg_to_rad(spread * (float(i) - float(n - 1) * 0.5))
 		var d := aim.rotated(Vector3.UP, ang)
-		var res: Array = calc_damage(float(_atk["dmg"]), bonus)
+		var res: Array = calc_damage(float(_atk["dmg"]) * dmg_k * (2.5 if heavy and wb.has("hv_star") else 1.0), bonus, xm)
 		var ar = Skills.Arrow.new()
 		ar.dir = d
 		ar.dmg = float(res[0])
@@ -513,6 +580,12 @@ func _fire_arrows(bonus: float, finisher: bool, heavy: bool) -> void:
 		ar.kb = float(_atk["kb"])
 		ar.heavy = heavy
 		ar.col = _col
+		if heavy and wb.has("hv_star"):
+			ar.pierce = 99
+			ar.explode_r = 2.4
+			ar.big = true
+		if not heavy and wb.has("atk_ricochet"):
+			ar.bounces = 1
 		ar.owner_node = self
 		ar.position = global_position + Vector3(0, 1.15, 0) + d * 0.7
 		get_parent().add_child(ar)
@@ -525,6 +598,7 @@ func on_ranged_hit(dmg: float, e) -> void:
 	if bool(st["burn"]) and not e.dead and e.has_method("apply_burn"):
 		e.apply_burn(5.0 * (1.0 + float(st["damage"]) / 100.0), 3.0)
 	_on_dealt(dmg, e)
+	_after_hit(dmg, e, false)
 
 
 ## Verilen hasarın yan etkileri: can çalma, şifacı eller, hasat
@@ -550,11 +624,24 @@ func _on_dealt(dmg: float, e) -> void:
 
 func _use_skill(i: int) -> void:
 	var sk: Dictionary = kit["skills"][i]
-	skill_cd[i] = SKILL_CD[i]
+	if wb.has("sk_big"):
+		sk = sk.duplicate()
+		for key in ["radius", "width"]:
+			if sk.has(key):
+				sk[key] = float(sk[key]) * 1.4
+		if sk.has("count"):
+			sk["count"] = int(sk["count"]) + 3
+	if not _echoing:
+		skill_cd[i] = SKILL_CD[i]
+		if wb.has("sk_empower"):
+			_emp_hits = 3
+		if wb.has("sk_echo") and String(sk["type"]) in ECHO_TYPES:
+			get_tree().create_timer(0.45).timeout.connect(_echo_skill.bind(i))
 	_queued = ""
 	pivot.rotation.y = atan2(-aim.x, -aim.z)
 	var thrown := float(st["thrown_dmg"]) if String(sk["type"]) == "wave" else 0.0
-	var dres: Array = calc_damage(float(sk.get("dmg", 0.0)), thrown + float(st["skill_dmg"]))
+	var sk_mult := (0.5 if _echoing else 1.0) * (1.25 if wb.has("sk_big") else 1.0)
+	var dres: Array = calc_damage(float(sk.get("dmg", 0.0)), thrown + float(st["skill_dmg"]), sk_mult)
 	var dmg: float = dres[0]
 	var off := aim_point - global_position
 	off.y = 0.0
@@ -864,6 +951,7 @@ func take_damage(amount: float, from_dir: Vector3, parryable := true) -> String:
 	hurt.emit()
 	if hp <= 0.0:
 		_die()
+	_frenzy = 0   # Yıldız Dansı: hasar alınca sıfırlanır
 	return "hit"
 
 
@@ -904,3 +992,151 @@ func _die() -> void:
 func apply_slow(mult: float, dur: float) -> void:
 	_slow_mult = minf(_slow_mult, mult) if _slow_t > 0.0 else mult
 	_slow_t = maxf(_slow_t, dur)
+
+
+
+# ================================================================ silah ustalıkları (dönüşüm etkileri)
+
+## Yankı yalnızca kahramanı yerinden oynatmayan yeteneklerde çalışır
+const ECHO_TYPES := ["starfall", "wave", "burst_self", "burst_aim", "aura", "boomerang", "vortex", "eclipse", "cone", "line", "orbit"]
+
+
+## Saldırı çarpanı: Yıldız Dansı (peş peşe vuruş) ve Güçlenmiş saldırılar
+func _attack_mult(heavy: bool) -> float:
+	var m := 1.0
+	if wb.has("atk_frenzy"):
+		m *= 1.0 + 0.06 * float(_frenzy)
+	if _emp_hits > 0 and not heavy:
+		_emp_hits -= 1
+		m *= 1.6
+	return m
+
+
+## Son Hüküm: ağır saldırı canı %40'ın altındaki düşmana üç kat
+func _exec_mult(e, heavy: bool) -> float:
+	if heavy and wb.has("hv_execute") and e.get("max_hp") != null and float(e.max_hp) > 0.0:
+		if float(e.hp) / float(e.max_hp) < 0.4:
+			return 3.0
+	return 1.0
+
+
+## Her isabetten sonra: zincir sıçrama, yanma, peş peşe vuruş sayacı
+func _after_hit(dmg: float, e, heavy: bool) -> void:
+	if wb.has("atk_frenzy"):
+		_frenzy = mini(_frenzy + 1, 10)
+		_frenzy_t = 1.6
+	if heavy:
+		return
+	if wb.has("atk_burn") and not e.dead and e.has_method("apply_burn"):
+		e.apply_burn(7.0 * (1.0 + float(st["damage"]) / 100.0), 3.0)
+	if wb.has("atk_chain"):
+		var best = null
+		var bd := 4.5
+		for o in get_tree().get_nodes_in_group("enemies"):
+			if o == e or not is_instance_valid(o) or o.dead:
+				continue
+			var d: float = o.global_position.distance_to(e.global_position)
+			if d < bd:
+				bd = d
+				best = o
+		if best != null:
+			var from: Vector3 = e.global_position + Vector3(0, 1.2, 0)
+			var to: Vector3 = best.global_position + Vector3(0, 1.2, 0)
+			_zap(from, to)
+			var dir: Vector3 = (to - from)
+			dir.y = 0.0
+			best.take_hit(dmg * 0.5, dir.normalized() if dir.length() > 0.05 else aim, 1.0, false)
+			_on_dealt(dmg * 0.5, best)
+
+
+## Kısa bir ışık şimşeği çizgisi
+func _zap(a: Vector3, b: Vector3) -> void:
+	var mi := MeshInstance3D.new()
+	var bx := BoxMesh.new()
+	var ln := a.distance_to(b)
+	bx.size = Vector3(0.07, 0.07, ln)
+	mi.mesh = bx
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(_col.r, _col.g, _col.b, 1.0)
+	mi.material_override = m
+	get_parent().add_child(mi)
+	if ln > 0.05:
+		mi.global_transform = Transform3D(Basis.looking_at(b - a, Vector3.UP), (a + b) * 0.5)
+	var tw := mi.create_tween()
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.18)
+	tw.tween_callback(mi.queue_free)
+	Sfx.play("parry", -16.0, 0.1, 30, 2.2)
+
+
+## Işık Kesiği: bitiriş vuruşu ileri bir ışık dalgası fırlatır
+func _finisher_wave(bonus: float) -> void:
+	var w = Skills.LightWave.new()
+	w.dir = aim
+	w.dmg = float(calc_damage(float(_atk["dmg"]) * 0.6, bonus)[0])
+	w.speed = 20.0
+	w.max_dist = 9.0
+	w.width = 1.1
+	w.col = _col
+	w.position = global_position + Vector3(0, 1.0, 0) + aim * 0.8
+	get_parent().add_child(w)
+
+
+## Şok dalgası: ağır saldırıda etrafa yayılan halka
+func _heavy_shock(bonus: float) -> void:
+	var r := 3.4
+	var ring := SlashFx.make(0.0, TAU, 0.4, r, _col.lerp(Color.WHITE, 0.3), 0.3)
+	get_parent().add_child(ring)
+	ring.global_transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, 0.4, 0))
+	Fx.flash_light(global_position + Vector3(0, 1, 0), _col, 6.0, 8.0, 0.25)
+	Fx.shake(0.35)
+	var res: Array = calc_damage(float(_atk["dmg"]) * 0.7, bonus)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(e) or e.dead:
+			continue
+		var d: Vector3 = e.global_position - global_position
+		d.y = 0.0
+		if d.length() <= r + float(e.radius):
+			e.take_hit(float(res[0]), d.normalized() if d.length() > 0.05 else aim, 6.0, true, bool(res[1]))
+			_on_dealt(float(res[0]), e)
+
+
+## Gelgit: ağır saldırıdan önce yakındaki düşmanları kendine çeker
+func _heavy_pull() -> void:
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(e) or e.dead:
+			continue
+		if e.global_position.distance_to(global_position) < 6.0 and e.has_method("pull_to"):
+			e.pull_to(global_position + aim * 1.2, 16.0)
+	var ring := SlashFx.make(0.0, TAU, 5.5, 6.0, _col, 0.25)
+	get_parent().add_child(ring)
+	ring.global_transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, 0.3, 0))
+
+
+## Yıldız İzi: atılmanın geçtiği yol patlar
+func _dash_trail() -> void:
+	var pts: Array = []
+	for k in 4:
+		pts.append(_dash_from.lerp(global_position, float(k) / 3.0))
+	var cp = Skills.ConstellationPath.new()
+	cp.points = pts
+	cp.dmg = float(calc_damage(14.0, float(st["skill_dmg"]))[0])
+	cp.delay = 0.35
+	get_parent().add_child(cp)
+
+
+## Yankı: yetenek yarım güçle bir kez daha (kahramanın o anki hâli bozulmaz)
+func _echo_skill(i: int) -> void:
+	if dead or not is_inside_tree():
+		return
+	var keep_state := state
+	var keep_cast := _cast_t
+	var keep_rot := pivot.rotation.y
+	_echoing = true
+	_use_skill(i)
+	_echoing = false
+	state = keep_state
+	_cast_t = keep_cast
+	pivot.rotation.y = keep_rot

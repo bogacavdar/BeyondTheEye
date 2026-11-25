@@ -8,6 +8,8 @@ const UI = preload("res://scripts/ui_style.gd")
 const Boons = preload("res://scripts/boons.gd")
 const GameData = preload("res://scripts/game_data.gd")
 const PlanetView = preload("res://scripts/planet_view.gd")
+const WBoons = preload("res://scripts/weapon_boons.gd")
+const Weapons = preload("res://scripts/celestial_weapons.gd")
 
 var _row: HBoxContainer
 var _title: Label
@@ -86,6 +88,7 @@ func open(planet: String) -> void:
 	_glow.modulate = _col
 	_sky.tint = _col
 	_title.text = tr("BLESSING OF %s") % tr(String(info["name"]))
+	_sub.text = "Choose a blessing"
 	_title.add_theme_color_override("font_color", _col.lerp(Color.WHITE, 0.25))
 	# dönen 3D gezegen
 	if _planet_view != null and is_instance_valid(_planet_view):
@@ -123,6 +126,51 @@ func open(planet: String) -> void:
 	Sfx.play("coin", -10.0, 0.0, 0, 0.6)
 
 
+## SİLAH USTALIĞI: silaha özel 3 dönüşüm (yuvası kartın üstünde yazar)
+func open_weapon(weapon: String) -> void:
+	var wi: Dictionary = GameData.weapon_info(weapon)
+	_col = wi["color"]
+	_glow.modulate = _col
+	_sky.tint = _col
+	_title.text = tr("MASTERY OF THE %s") % tr(weapon)
+	_title.add_theme_color_override("font_color", _col.lerp(Color.WHITE, 0.25))
+	_sub.text = tr("Choose a transformation. One per slot each run")
+	if _planet_view != null and is_instance_valid(_planet_view):
+		_planet_view.queue_free()
+	# dönen silah görseli yerine büyük parlak yıldız sembolü
+	var star := UI.label("\u2605\uFE0E", 150, _col, 8)
+	star.add_theme_font_override("font", UI.symbol_font())
+	star.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	star.pivot_offset = Vector2(75, 90)
+	_planet_view = star
+	_planet_slot.add_child(star)
+	star.scale = Vector2(0.4, 0.4)
+	star.modulate.a = 0.0
+	for c in _row.get_children():
+		c.queue_free()
+	var cards := WBoons.offer(weapon, GameData.run_boons)
+	var i := 0
+	for b in cards:
+		var card := _card(b)
+		_row.add_child(card)
+		card.modulate.a = 0.0
+		card.scale = Vector2(0.85, 0.85)
+		var ct := card.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS).set_parallel(true)
+		ct.tween_property(card, "modulate:a", 1.0, 0.35).set_delay(0.35 + 0.12 * float(i))
+		ct.tween_property(card, "scale", Vector2.ONE, 0.45).set_delay(0.35 + 0.12 * float(i)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		i += 1
+	visible = true
+	_choosing = true
+	modulate.a = 0.0
+	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS).set_parallel(true)
+	tw.tween_property(self, "modulate:a", 1.0, 0.3)
+	tw.tween_property(star, "scale", Vector2.ONE, 0.7).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(star, "modulate:a", 1.0, 0.5)
+	get_tree().paused = true
+	Sfx.play("parry", -8.0, 0.0, 0, 0.6)
+	Sfx.play("heavyhit", -12.0, 0.0, 0, 0.7)
+
+
 func _process(delta: float) -> void:
 	if not visible:
 		return
@@ -131,7 +179,8 @@ func _process(delta: float) -> void:
 
 
 func _card(b: Dictionary) -> Button:
-	var pinfo: Dictionary = Boons.PLANETS[b["planet"]]
+	var is_w := b.has("weapon")
+	var pinfo: Dictionary = Boons.PLANETS[b["planet"]] if not is_w else {"glyph": "\u2605", "color": _col}
 	var col: Color = pinfo["color"]
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(340, 280)
@@ -154,6 +203,13 @@ func _card(b: Dictionary) -> Button:
 	g.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(g)
+	if is_w:
+		# yuva etiketi: SALDIRI / AĞIR / YETENEKLER / ATILMA
+		var sl: Dictionary = WBoons.SLOTS[b["slot"]]
+		var tag := UI.label(tr(String(sl["name"])), 18, sl["col"], 4)
+		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vb.add_child(tag)
 	var n := UI.label(String(b["name"]), 28, col.lerp(Color.WHITE, 0.35), 5)
 	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

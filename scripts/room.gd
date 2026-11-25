@@ -21,6 +21,7 @@ const CombatHud = preload("res://scripts/combat_hud.gd")
 const Skills = preload("res://scripts/star_skills.gd")
 const Boons = preload("res://scripts/boons.gd")
 const Retro = preload("res://scripts/retro.gd")
+const WBoons = preload("res://scripts/weapon_boons.gd")
 const HUB_SCENE := "res://scenes/hub.tscn"
 const ROOM_SCENE := "res://scenes/room.tscn"
 
@@ -1012,6 +1013,11 @@ func _on_cleared() -> void:
 		if not ended:
 			boon_ui.open(reward.substr(5))
 		return
+	if reward == "weapon" and not is_boss and WBoons.can_offer(GameData.chosen_weapon, GameData.run_boons):
+		await get_tree().create_timer(1.2).timeout
+		if not ended:
+			boon_ui.open_weapon(GameData.chosen_weapon)
+		return
 	_spawn_doors()
 
 
@@ -1029,9 +1035,11 @@ func _spawn_doors() -> void:
 	var p1 := Boons.random_planet()
 	var t2 := "boon:" + Boons.random_planet(p1)
 	var r := randf()
-	if r < 0.3:
+	if r < 0.4 and WBoons.can_offer(GameData.chosen_weapon, GameData.run_boons):
+		t2 = "weapon"
+	elif r < 0.55:
 		t2 = "dust"
-	elif r < 0.5 and hero.hp < hero.max_hp * 0.75 and Retro.rank(GameData.retro, "venus") == 0:
+	elif r < 0.7 and hero.hp < hero.max_hp * 0.75 and Retro.rank(GameData.retro, "venus") == 0:
 		t2 = "rest"
 	var types := ["boon:" + p1, t2]
 	types.shuffle()
@@ -1048,6 +1056,9 @@ func _door_info(type: String) -> Dictionary:
 		var pl: Dictionary = Boons.PLANETS.get(type.substr(5), Boons.PLANETS["Sun"])
 		return {"glyph": pl["glyph"], "color": pl["color"], "label": pl["name"], "title": tr("BLESSING OF %s") % tr(String(pl["name"]))}
 	match type:
+		"weapon":
+			var wi: Dictionary = GameData.weapon_info(GameData.chosen_weapon)
+			return {"glyph": "\u2605", "color": wi["color"], "label": "MASTERY", "title": tr("WEAPON MASTERY")}
 		"dust":
 			return {"glyph": "\u2726", "color": Color(1.0, 0.9, 0.6), "label": "STARDUST", "title": tr("STARDUST")}
 		"rest":
