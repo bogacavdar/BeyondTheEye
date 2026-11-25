@@ -23,7 +23,7 @@ const SPRINT_MULT := 1.6
 const PARRY_WINDOW := 0.17
 const PARRY_RECOVER := 0.3
 const PARRY_COOLDOWN := 0.5
-const DASH_COOLDOWN := 0.6
+const DASH_COOLDOWN := 3.0   # atılma değerli: geliştirmeler (Doğum Haritası, lütuflar) kısaltır
 
 var weapon_id := "STAR SWORD"
 var kit: Dictionary = {}

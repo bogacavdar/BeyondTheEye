@@ -9,7 +9,7 @@ extends CharacterBody3D
 const SPEED := 6.0
 const ACCEL := 120.0      # hızlanma (eskiden 50: yön değiştirince ağır kalıyordu)
 const BRAKE := 260.0      # ters yöne basınca / bırakınca anında fren
-const DASH_SPEED := 20.0
+const DASH_SPEED := 14.0   # ~2.2 m
 const DASH_TIME := 0.16
 
 var camera = null

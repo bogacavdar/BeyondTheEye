@@ -64,6 +64,11 @@ var _burrow_locked := false
 var _dig_fx := 0.0
 var _halo: Node3D
 var bolt_col := Color(1.0, 0.2, 0.3)
+var _chain_left := 0        # seri saldırıda kalan tur
+var _wscale := 1.0          # serinin sonraki turları daha kısa hazırlanır
+var _claw_base := Color(1, 0.4, 0.1)
+var _eye_base := Color(1, 0.4, 0.1)
+var _twist := 0.0
 
 var body_root: Node3D
 var vis: Node3D
@@ -104,6 +109,17 @@ func _ready() -> void:
 		_base_body = Color(0.7, 0.45, 0.15)
 	max_hp *= hp_mult
 	speed *= 1.06
+	# SERİ SALDIRILAR: bazı saldırılar 2-3 tur ard arda gelir (parry seriyi keser)
+	for a in attacks:
+		var nm := String(a["name"])
+		var ch := 1
+		if nm == "claw":
+			ch = 3 if (kind == "shade" and not pebble) else 2
+		elif nm == "smash" or nm == "bolt" or nm == "ramcharge":
+			ch = 2
+		elif nm == "fireball":
+			ch = 3
+		a["chain"] = ch
 	for a in attacks:
 		a["dmg"] = float(a["dmg"]) * dmg_mult * em
 		a["windup"] = float(a["windup"]) * 0.92 * windup_mult
@@ -349,6 +365,8 @@ func _build() -> void:
 			_:
 				_build_shade()
 
+	_claw_base = m_claw.emission
+	_eye_base = m_eye.emission
 	# saldırı uyarısı (dünya koordinatında durur)
 	tele = MeshInstance3D.new()
 	tele_mat = StandardMaterial3D.new()
@@ -891,22 +909,22 @@ func _physics_process(delta: float) -> void:
 			var track := 0.6 if bool(atk["parry"]) else 0.9
 			if String(atk["shape"]) == "line":
 				track = 0.85
-			if hero_ok and _st < float(atk["windup"]) * track:
+			if hero_ok and _st < _wl() * track:
 				_aim_dir = _aim_dir.slerp(dir_to, minf(7.0 * delta, 1.0)).normalized()
 				_aim_point = hero.global_position
 			_face = _aim_dir
 			_place_tele()
-			var k := _st / float(atk["windup"])
+			var k := _st / _wl()
 			var pulse := 0.0 if bool(atk["parry"]) else 0.25 * (0.5 + 0.5 * sin(_t * 28.0))
 			tele_mat.albedo_color.a = 0.15 + 0.55 * k + pulse
-			if _st >= float(atk["windup"]):
+			if _st >= _wl():
 				_set_state("act")
 		"act":
 			want = _do_act(delta)
 			if _st >= float(atk["act"]):
 				if not _done:
 					_resolve()
-				_set_state("recover")
+				_end_act()
 		"recover":
 			if _st >= float(atk["recover"]):
 				_set_state("chase")
@@ -963,6 +981,30 @@ func _chase_move(dir_to: Vector3, dist: float) -> Vector3:
 	return Vector3.ZERO
 
 
+## Şu anki saldırının hazırlık süresi (serinin devam turlarında kısalır)
+func _wl() -> float:
+	return float(atk["windup"]) * _wscale
+
+
+## Saldırı anı bitti: seri devam ediyorsa yeniden nişan alıp hemen tekrar saldırır
+func _end_act() -> void:
+	if state != "act":
+		return
+	var hero_ok: bool = hero != null and is_instance_valid(hero) and not hero.dead
+	if _chain_left > 0 and hero_ok:
+		_chain_left -= 1
+		_wscale = 0.55
+		var to: Vector3 = hero.global_position - global_position
+		to.y = 0.0
+		if to.length() > 0.1:
+			_aim_dir = to.normalized()
+		_aim_point = hero.global_position
+		_set_state("windup")
+		return
+	_wscale = 1.0
+	_set_state("recover")
+
+
 func _pick_attack(dist: float, dir_to: Vector3) -> void:
 	var total := 0.0
 	var cands: Array = []
@@ -982,6 +1024,10 @@ func _pick_attack(dist: float, dir_to: Vector3) -> void:
 		atk = cands[0]
 	_aim_dir = dir_to
 	_aim_point = hero.global_position
+	_wscale = 1.0
+	_chain_left = int(atk.get("chain", 1)) - 1
+	if elite and _chain_left > 0 and String(atk["shape"]) == "fan":
+		_chain_left += 1
 	_set_state("windup")
 
 
@@ -1188,7 +1234,7 @@ func _ram_charge(delta: float) -> Vector3:
 	if _charge_traveled >= float(atk["reach"]) or _st >= float(atk["act"]) - 0.02:
 		_done = true
 		_move = Vector3.ZERO
-		if not _charge_hit:
+		if not _charge_hit and _chain_left <= 0:
 			Sfx.play("crush", -8.0, 0.1, 0, 0.8)
 			Fx.shake(0.2)
 			stun(1.1)
@@ -1275,6 +1321,8 @@ func _fire_bolts() -> void:
 
 
 func stun(sec: float, parried := false) -> void:
+	_chain_left = 0
+	_wscale = 1.0
 	_stun_len = sec
 	_parried = parried
 	if state == "act" and String(atk.get("name", "")) == "pounce":
@@ -1461,46 +1509,154 @@ func _die(dir: Vector3) -> void:
 func _animate(delta: float) -> void:
 	body_root.rotation.y = lerp_angle(body_root.rotation.y, atan2(-_face.x, -_face.z), minf(14.0 * delta, 1.0))
 	var hover := sin(_t * 2.2) * 0.08 + (0.35 if kind == "caster" else 0.0)
-	var lean := 0.0
-	var arms := 0.25
+	var lean := 0.0          # öne (+) / arkaya (-) eğilme
+	var arm_lx := 0.25       # kol öne kalkma (+) / geriye (-)
+	var arm_rx := 0.25
+	var arm_lz := 0.0        # kol yana açılma
+	var arm_rz := 0.0
+	var twist := 0.0         # gövde burulması
+	var py := 0.0            # zıplama / çömelme
+	var shake := 0.0         # titreme (hazırlanırken)
 	var glow := 3.0
 	var claw_glow := 0.3
+	var tint := Color(0, 0, 0, 0)   # hazırlık rengi (altın: parry, kızıl: kaç)
+	var nm := String(atk.get("name", ""))
 	match state:
 		"windup":
-			var k := _st / float(atk["windup"])
-			lean = 0.3 * k
-			arms = 0.25 + 1.6 * k
-			glow = 3.0 + 9.0 * k
-			claw_glow = 0.3 + 4.0 * k
-			if kind == "leaper":
-				lean = -0.25 * k    # çömelir
-			if String(atk["name"]) == "quake":
-				arms = 2.6 * k      # kollarını havaya kaldırır
+			var k := clampf(_st / maxf(_wl(), 0.01), 0.0, 1.0)
+			var e := k * k * (3.0 - 2.0 * k)
+			tint = PARRY_COL if bool(atk["parry"]) else DANGER_COL
+			glow = 3.0 + 12.0 * k
+			claw_glow = 0.5 + 6.0 * k
+			match nm:
+				"claw":
+					# PENÇE: sağ kolu arkaya-yukarı çeker, gövdesini yana burar
+					arm_rx = 2.7 * e
+					arm_lx = 0.6 * e
+					twist = 0.55 * e
+					lean = -0.12 * e
+					if kind == "leaper":
+						lean = -0.3 * e
+						py = -0.12 * e
+				"rend":
+					# GENİŞ SAVURMA: iki kolunu iki yana açar, geriye yaslanır
+					arm_lz = -1.5 * e
+					arm_rz = 1.5 * e
+					arm_lx = 0.8 * e
+					arm_rx = 0.8 * e
+					lean = -0.3 * e
+					py = -0.08 * e
+				"smash":
+					# EZME: iki yumruğu başının üstüne kaldırır, parmak ucuna yükselir
+					arm_lx = 2.9 * e
+					arm_rx = 2.9 * e
+					lean = -0.35 * e
+					py = 0.15 * e
+				"quake", "fissure":
+					# YERE VURMA: kollar havada, sıçrar; titreyerek güç toplar
+					arm_lx = 3.1 * e
+					arm_rx = 3.1 * e
+					arm_lz = -0.4 * e
+					arm_rz = 0.4 * e
+					lean = -0.25 * e
+					py = 0.55 * e
+					shake = 0.03 * k
+				"pounce":
+					# ATILMA: yere yapışacak kadar çömelir, titrer
+					lean = -0.4 * e
+					py = -0.3 * e
+					shake = 0.05 * k
+				"ramcharge":
+					# KOÇ TOSU: başını eğer, toynağıyla yeri eşeler (öne-arkaya sallanır)
+					lean = 0.5 * e
+					py = -0.1 * e
+					shake = 0.0
+					vis.position.z = sin(_t * 20.0) * 0.12 * k
+				"burrow":
+					# GÖMÜLME: kendi etrafında döner
+					twist = _t * 18.0 * k
+				"fireball", "bolt":
+					# BÜYÜ: kollarını göğe kaldırır, ışığı büyür, havaya yükselir
+					arm_lx = 2.8 * e
+					arm_rx = 2.8 * e
+					arm_lz = -0.5 * e
+					arm_rz = 0.5 * e
+					lean = -0.2 * e
+					py = 0.25 * e
+					glow = 3.0 + 22.0 * k
+				_:
+					arm_lx = 0.25 + 1.6 * e
+					arm_rx = arm_lx
+					lean = 0.3 * e
 		"act":
-			lean = -0.45 if kind != "leaper" else 0.3
-			arms = -1.2
 			glow = 10.0
 			claw_glow = 5.0
+			tint = PARRY_COL if bool(atk["parry"]) else DANGER_COL
+			match nm:
+				"claw":
+					arm_rx = -0.9
+					arm_lx = 0.2
+					twist = -0.6
+					lean = 0.35
+				"rend":
+					arm_lz = 0.4
+					arm_rz = -0.4
+					arm_lx = 1.3
+					arm_rx = 1.3
+					twist = -1.2
+					lean = 0.3
+				"smash", "quake", "fissure":
+					arm_lx = -0.3
+					arm_rx = -0.3
+					lean = 0.55
+					py = -0.12
+				"ramcharge":
+					lean = 0.55
+				"fireball", "bolt":
+					arm_lx = 1.5
+					arm_rx = 1.5
+					lean = 0.25
+				_:
+					lean = -0.45 if kind != "leaper" else 0.3
+					arm_lx = -1.2
+					arm_rx = -1.2
 		"recover":
 			var r := 1.0 - _st / float(atk["recover"])
 			lean = -0.2 * r
-			arms = -0.6 * r
+			arm_lx = -0.6 * r
+			arm_rx = -0.6 * r
 		"stun":
 			lean = 0.25
-			arms = 0.0
+			arm_lx = 0.0
+			arm_rx = 0.0
 			glow = 1.0
 			hover += sin(_t * 18.0) * 0.03
 	_flinch = maxf(_flinch - delta * 5.0, 0.0)
-	vis.rotation.x = lerpf(vis.rotation.x, lean - _flinch * 0.45, minf(20.0 * delta, 1.0))
+	var sp := minf(18.0 * delta, 1.0)
+	vis.rotation.x = lerpf(vis.rotation.x, lean - _flinch * 0.45, sp)
+	_twist = lerpf(_twist, twist, sp) if nm != "burrow" or state != "windup" else twist
+	vis.rotation.y = _twist
 	if state != "spawn":
-		vis.position.y = hover - _sink
+		vis.position.y = lerpf(vis.position.y, hover - _sink + py, minf(20.0 * delta, 1.0)) if _sink <= 0.0 else hover - _sink
+		vis.position.x = sin(_t * 55.0) * shake
+		if not (state == "windup" and nm == "ramcharge"):
+			vis.position.z = lerpf(vis.position.z, 0.0, sp)
 	if state != "act" and _sink > 0.0:
 		_sink = 0.0
 	hp_bar.visible = _sink < 0.5
 	if _halo != null:
 		_halo.rotation.y += delta * 1.4
-	arm_l.rotation.x = lerpf(arm_l.rotation.x, arms, minf(16.0 * delta, 1.0))
-	arm_r.rotation.x = lerpf(arm_r.rotation.x, arms, minf(16.0 * delta, 1.0))
+	arm_l.rotation.x = lerpf(arm_l.rotation.x, arm_lx, sp)
+	arm_r.rotation.x = lerpf(arm_r.rotation.x, arm_rx, sp)
+	arm_l.rotation.z = lerpf(arm_l.rotation.z, -0.25 + arm_lz, sp)
+	arm_r.rotation.z = lerpf(arm_r.rotation.z, 0.25 + arm_rz, sp)
+	# hazırlık rengi: pençeler ve gözler saldırının rengine bürünür
+	if tint.a > 0.0:
+		m_claw.emission = _claw_base.lerp(tint, 0.85)
+		m_eye.emission = _eye_base.lerp(tint, 0.7)
+	else:
+		m_claw.emission = _claw_base
+		m_eye.emission = _eye_base
 	m_eye.emission_energy_multiplier = glow
 	m_claw.emission_energy_multiplier = claw_glow
 	var base_b := _base_body.lerp(Color(1.0, 0.4, 0.1), 0.6) if _burn_t > 0.0 else _base_body
