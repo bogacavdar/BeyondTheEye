@@ -203,6 +203,15 @@ func _card(b: Dictionary) -> Button:
 	g.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(g)
+	if not is_w:
+		var Elm = load("res://scripts/elements.gd")
+		var el := String(Elm.PLANET_EL.get(String(b["planet"]), ""))
+		if el != "":
+			var ei: Dictionary = Elm.INFO[el]
+			var et := UI.label(tr("%s ELEMENT") % tr(String(ei["name"])), 16, ei["col"], 4)
+			et.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			et.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			vb.add_child(et)
 	if is_w:
 		# yuva etiketi: SALDIRI / AĞIR / YETENEKLER / ATILMA
 		var sl: Dictionary = WBoons.SLOTS[b["slot"]]

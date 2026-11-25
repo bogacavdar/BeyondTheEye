@@ -3,6 +3,7 @@ extends CharacterBody3D
 ## Kontrolcü (gemini_boss.gd) ikisini yönetir. Biri yere düşünce dokunulmaz olur ve bir süre sonra
 ## kardeşi onu ayağa kaldırır; ikisini birbirine yakın zamanda indirmek gerekir.
 
+const GameData = preload("res://scripts/game_data.gd")
 const SlashFx = preload("res://scripts/slash_fx.gd")
 const HitFx = preload("res://scripts/hit_fx.gd")
 const EnemyScript = preload("res://scripts/enemy.gd")
@@ -690,6 +691,11 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	last_dealt = 0.0
 	if dead or gone or state == "intro":
 		return
+	var Elm = load("res://scripts/elements.gd")
+	var elm: float = Elm.mult(GameData.hero_el, GameData.hero_el_n, "air")
+	dmg *= elm
+	if elm > 1.0:
+		crit = true
 	var mult := 2.0 if (state == "stun" and _parried) else 1.0
 	var final := dmg * mult
 	last_dealt = final

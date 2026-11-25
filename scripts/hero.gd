@@ -121,6 +121,9 @@ func equip(id: String) -> void:
 
 func _compute_stats() -> void:
 	st = Stats.compute(GameData.chart, GameData.run_boons)
+	var el: Array = load("res://scripts/elements.gd").of_boons(GameData.run_boons)
+	GameData.hero_el = String(el[0])
+	GameData.hero_el_n = int(el[1])
 	wb = WBoons.effects(GameData.run_boons, weapon_id)
 	if wb.has("atk_rapid"):
 		st["atk_speed"] = float(st["atk_speed"]) + 40.0

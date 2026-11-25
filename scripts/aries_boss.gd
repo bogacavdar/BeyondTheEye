@@ -11,6 +11,7 @@ signal killed(enemy)
 signal summon(kinds: Array)
 signal phase_changed(p: int)
 
+const GameData = preload("res://scripts/game_data.gd")
 const SlashFx = preload("res://scripts/slash_fx.gd")
 const Skills = preload("res://scripts/star_skills.gd")
 const HitFx = preload("res://scripts/hit_fx.gd")
@@ -612,6 +613,11 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	last_dealt = 0.0
 	if dead or state == "intro" or state == "roar":
 		return
+	var Elm = load("res://scripts/elements.gd")
+	var elm: float = Elm.mult(GameData.hero_el, GameData.hero_el_n, String(Elm.ZONE_EL.get(kind, "")))
+	dmg *= elm
+	if elm > 1.0:
+		crit = true
 	var mult := 2.0 if (state == "stun" and _parried) else 1.0
 	last_dealt = dmg * mult
 	_flash = 1.0

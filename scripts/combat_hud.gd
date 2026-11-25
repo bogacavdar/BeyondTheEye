@@ -7,6 +7,8 @@ extends Control
 const UI = preload("res://scripts/ui_style.gd")
 const Boons = preload("res://scripts/boons.gd")
 const GameData = preload("res://scripts/game_data.gd")
+const Elements = preload("res://scripts/elements.gd")
+var zone_el := ""          # bu bölgenin elementi (room.gd verir)
 
 var hero = null
 var dust := 0
@@ -112,6 +114,7 @@ func _draw() -> void:
 	draw_rect(Rect2(bx - Vector2(4, 4), Vector2(bw + 8, bh + 8)), gold, false, 2.0)
 	_text("%d / %d" % [int(ceil(hero.hp)), int(hero.max_hp)], bx + Vector2(bw * 0.5, bh - 3.0), 18, UI.CREAM)
 	_text(tr("%d stardust") % dust, bx + Vector2(0, bh + 38.0), 20, UI.CREAM, false)
+	_draw_elements(bx + Vector2(0, bh + 68.0))
 
 	# --- dalga
 	if boss != null and is_instance_valid(boss) and not boss.dead:
@@ -152,6 +155,27 @@ func _draw() -> void:
 			hint_txt = tr("X attack  ·  Y heavy  ·  B parry (gold warnings)  ·  A dash (red warnings)  ·  LT sprint  ·  LB RB RT skills")
 		if GameData.input_mode != "touch":
 			_text(hint_txt, Vector2(size.x * 0.5, size.y - 18.0), 16, _a(UI.CREAM, 0.75 * a))
+
+
+## Element bilgisi: senin elementin (lütuflardan) ve bölgenin elementi; üstünlük durumu
+func _draw_elements(p: Vector2) -> void:
+	var he := GameData.hero_el
+	if zone_el != "":
+		var zi: Dictionary = Elements.INFO[zone_el]
+		_text(tr("Foes: %s") % tr(String(zi["name"])), p, 19, zi["col"], false)
+		p.y += 24.0
+	if he == "":
+		_text(tr("Your element: none (take planet blessings)"), p, 16, _a(UI.CREAM, 0.6), false)
+		return
+	var hi: Dictionary = Elements.INFO[he]
+	var line := tr("Your element: %s ×%d") % [tr(String(hi["name"])), mini(GameData.hero_el_n, 3)]
+	_text(line, p, 19, hi["col"], false)
+	if zone_el != "":
+		var m: float = Elements.mult(he, GameData.hero_el_n, zone_el)
+		if m > 1.0:
+			_text(tr("STRONG  +%d%%") % int(round((m - 1.0) * 100.0)), p + Vector2(0, 24), 17, Color(0.6, 1.0, 0.5), false)
+		elif m < 1.0:
+			_text(tr("WEAK  -%d%%") % int(round((1.0 - m) * 100.0)), p + Vector2(0, 24), 17, Color(1.0, 0.5, 0.4), false)
 
 
 func _draw_slots() -> void:

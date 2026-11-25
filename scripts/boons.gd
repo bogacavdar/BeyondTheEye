@@ -14,6 +14,7 @@ const PLANETS := {
 	"Mars": {"glyph": "♂", "color": Color(1.0, 0.35, 0.25), "name": "MARS"},
 	"Jupiter": {"glyph": "♃", "color": Color(0.95, 0.7, 0.45), "name": "JUPITER"},
 	"Saturn": {"glyph": "♄", "color": Color(0.85, 0.8, 0.6), "name": "SATURN"},
+	"Neptune": {"glyph": "♆", "color": Color(0.35, 0.65, 1.0), "name": "NEPTUNE"},
 }
 
 ## id, gezegen, ad, açıklama, değer eklemeleri (hero_stats anahtarları), özel bayraklar
@@ -52,6 +53,11 @@ const BOONS := [
 	{"id": "sat_iron", "planet": "Saturn", "name": "Iron Discipline", "desc": "+15 Armor", "mods": {"armor": 15.0}},
 	{"id": "sat_keeper", "planet": "Saturn", "name": "Timekeeper", "desc": "+50% Parry Window", "mods": {"parry_window": 50.0}},
 	{"id": "sat_fate", "planet": "Saturn", "name": "Heavy Fate", "desc": "+50% Heavy Attack Damage", "mods": {"heavy_dmg": 50.0}},
+
+	{"id": "nep_mist", "planet": "Neptune", "name": "Sea Mist", "desc": "+30% Dash Distance and +6% Dodge Chance", "mods": {"dash_dist": 30.0, "dodge": 6.0}},
+	{"id": "nep_dream", "planet": "Neptune", "name": "Dreamtide", "desc": "+20% Skill Damage and -15% Skill Cooldowns", "mods": {"skill_dmg": 20.0, "haste": 15.0}},
+	{"id": "nep_depths", "planet": "Neptune", "name": "Drowning Depths", "desc": "+10% Critical Chance and +25% Critical Damage", "mods": {"crit_chance": 10.0, "crit_dmg": 25.0}},
+	{"id": "nep_veil", "planet": "Neptune", "name": "Sea Veil", "desc": "Take 10% less damage and +20 Max Health", "mods": {"dmg_reduction": 10.0, "max_hp": 20.0}},
 ]
 
 

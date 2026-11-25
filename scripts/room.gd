@@ -213,6 +213,7 @@ func _ready() -> void:
 	hud.room = local_i + 1
 	hud.room_total = BOSS_DEPTH + 1
 	hud.reward = reward
+	hud.zone_el = String(load("res://scripts/elements.gd").ZONE_EL.get(zone, ""))
 	layer.add_child(hud)
 	boon_ui = BoonUI.new()
 	boon_ui.picked.connect(_on_boon_picked)

@@ -9,6 +9,8 @@ extends CharacterBody3D
 
 signal killed(enemy)
 
+const Elements = preload("res://scripts/elements.gd")
+const GameData = preload("res://scripts/game_data.gd")
 const SlashFx = preload("res://scripts/slash_fx.gd")
 const HitFx = preload("res://scripts/hit_fx.gd")
 const PARRY_COL := Color(1.0, 0.72, 0.2)
@@ -2291,6 +2293,11 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	last_dealt = 0.0
 	if dead or state == "spawn":
 		return
+	# ELEMENT üstünlüğü
+	var elm: float = Elements.mult(GameData.hero_el, GameData.hero_el_n, String(Elements.ZONE_EL.get(zone, "")))
+	dmg *= elm
+	if elm > 1.0:
+		crit = true
 	if _burrowed():
 		return
 	if zone == "virgo" and kind == "brute":

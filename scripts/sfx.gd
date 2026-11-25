@@ -226,6 +226,9 @@ func _pad_focus(delta: float) -> void:
 	_focus_t = 0.2
 	if not _ui_mode():
 		return
+	# düğmeler fare için odaksız yapılmış; kontrolcüde odaklanabilir olsunlar
+	if get_tree().current_scene != null:
+		_enable_focus(get_tree().current_scene)
 	var vp := get_viewport()
 	var cur := vp.gui_get_focus_owner()
 	if cur != null and cur.is_visible_in_tree():
@@ -256,10 +259,17 @@ func _ui_mode() -> bool:
 	return true
 
 
+func _enable_focus(n: Node) -> void:
+	if n is BaseButton and (n as BaseButton).focus_mode == Control.FOCUS_NONE:
+		(n as BaseButton).focus_mode = Control.FOCUS_ALL
+	for c in n.get_children():
+		_enable_focus(c)
+
+
 func _first_button(n: Node) -> BaseButton:
 	if n is BaseButton:
 		var bb := n as BaseButton
-		if bb.is_visible_in_tree() and not bb.disabled and bb.focus_mode != Control.FOCUS_NONE:
+		if bb.is_visible_in_tree() and not bb.disabled:
 			return bb
 	for c in n.get_children():
 		var r := _first_button(c)
