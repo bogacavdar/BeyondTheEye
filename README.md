@@ -2,7 +2,9 @@
 
 Astroloji temalı, Hades tarzı bir aksiyon roguelite. Godot 4.7.2 ile yapılıyor (Steam / PC hedefli).
 
-**Tarayıcıda oyna:** https://bogacavdar.github.io/BeyondTheEye/
+**Windows için indir (kurulum yok):** https://github.com/bogacavdar/BeyondTheEye/releases/tag/son-surum
+
+**Tarayıcıda oyna (sade grafik):** https://bogacavdar.github.io/BeyondTheEye/
 
 ## Yolculuk
 - **Gözlemevi:** Doğum Haritası (12 ev), Silah Sunağı, Gök Kadranı (retro lanetleri), Kapı

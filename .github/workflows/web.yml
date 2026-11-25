@@ -1,5 +1,5 @@
 # Her main'e gönderimde oyunu tarayıcı için derler ve GitHub Pages'e yayınlar.
-name: Web derlemesi (GitHub Pages)
+name: Derleme (Web + Windows)
 
 on:
   push:
@@ -49,6 +49,46 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
+
+  windows:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot ve dışa aktarma şablonlarını indir
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          wget -q "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          wget -q "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          tdir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$tdir"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mv templates/* "$tdir/"
+          rm -rf templates *.zip *.tpz
+
+      - name: Varlıkları içe aktar
+        run: ./godot --headless --import || true
+
+      - name: Windows için dışa aktar
+        run: |
+          mkdir -p build/windows
+          ./godot --headless --export-release "Windows" build/windows/BeyondTheEye.exe
+          cp README.md build/windows/BENIOKU.md
+          cd build && zip -r -q ../BeyondTheEye-Windows.zip windows
+          ls -la ..
+
+      - name: "Son Sürüm" sayfasına yükle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete son-surum -y --cleanup-tag || true
+          gh release create son-surum BeyondTheEye-Windows.zip \
+            --title "Beyond The Eye · Son Sürüm (Windows)" \
+            --notes "İndir, zip'i aç, BeyondTheEye.exe'ye çift tıkla. Kurulum gerekmez. Windows 'bilinmeyen yayıncı' uyarısı verirse: Ek bilgi → Yine de çalıştır. Derleme: ${GITHUB_SHA::7}"
 
   deploy:
     needs: build

@@ -27,6 +27,7 @@ var _del_armed := 0
 
 
 func _ready() -> void:
+	get_window().title = "Beyond The Eye"
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
