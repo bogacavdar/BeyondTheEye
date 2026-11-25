@@ -11,6 +11,7 @@ signal killed(enemy)
 signal summon(kinds: Array)
 signal phase_changed(p: int)
 
+const JuiceS = preload("res://scripts/juice.gd")
 const GameData = preload("res://scripts/game_data.gd")
 const SlashFx = preload("res://scripts/slash_fx.gd")
 const Skills = preload("res://scripts/star_skills.gd")
@@ -261,6 +262,7 @@ func _show_tele(mesh: Mesh, col: Color) -> void:
 	tele.mesh = mesh
 	tele_mat.albedo_color = Color(col.r, col.g, col.b, 0.2)
 	tele.visible = true
+	JuiceS.tele_fill(tele, col)
 	_place_tele()
 
 
@@ -308,6 +310,9 @@ func _physics_process(delta: float) -> void:
 	_tick_burn(delta)
 	if dead:
 		return
+	# dolan uyarı
+	if state == "windup" and tele != null and tele.visible:
+		JuiceS.tele_progress(tele, _st / maxf(_windup_len(), 0.01))
 	var hero_ok: bool = hero != null and is_instance_valid(hero) and not hero.dead
 	var to := Vector3.ZERO
 	var dist := 99.0

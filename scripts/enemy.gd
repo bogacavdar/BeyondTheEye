@@ -9,6 +9,7 @@ extends CharacterBody3D
 
 signal killed(enemy)
 
+const Juice = preload("res://scripts/juice.gd")
 const Elements = preload("res://scripts/elements.gd")
 const GameData = preload("res://scripts/game_data.gd")
 const SlashFx = preload("res://scripts/slash_fx.gd")
@@ -51,6 +52,8 @@ var _strafe := 1.0
 var _burn_t := 0.0
 var _burn_dps := 0.0
 var _burn_acc := 0.0
+var _burn_fx: CPUParticles3D       # yanarken üstünden yükselen alev
+var _stun_fx: Node3D               # sersemken başının çevresinde dönen yıldızlar
 var _flinch := 0.0          # vurulunca geriye esneme
 var _charge_traveled := 0.0
 var _charge_hit := false
@@ -2409,6 +2412,7 @@ func _show_tele() -> void:
 		_:
 			tele.mesh = _fan_mesh(TAU, float(atk["reach"]))
 	tele.visible = true
+	Juice.tele_fill(tele, col)
 	_place_tele()
 
 
@@ -2433,6 +2437,7 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		return
 	_tick_burn(delta)
+	_status_fx(delta)
 	if dead:
 		return
 	if zone == "taurus" and kind == "caster" and not pebble:
@@ -2525,6 +2530,7 @@ func _physics_process(delta: float) -> void:
 			var k := _st / _wl()
 			var pulse := 0.0 if bool(atk["parry"]) else 0.25 * (0.5 + 0.5 * sin(_t * 28.0))
 			tele_mat.albedo_color.a = 0.15 + 0.55 * k + pulse
+			Juice.tele_progress(tele, k)
 			if _st >= _wl():
 				_set_state("act")
 		"act":
@@ -3276,6 +3282,56 @@ func apply_burn(dps: float, dur: float) -> void:
 	_burn_t = maxf(_burn_t, dur)
 
 
+func _status_fx(delta: float) -> void:
+	# yanma: alev parçacıkları
+	var burning := _burn_t > 0.0 and not dead
+	if burning and _burn_fx == null:
+		_burn_fx = CPUParticles3D.new()
+		_burn_fx.amount = 10 if GameData.is_mobile() else 18
+		_burn_fx.lifetime = 0.6
+		var s := SphereMesh.new()
+		s.radius = 0.06
+		s.height = 0.12
+		s.radial_segments = 6
+		s.rings = 3
+		_burn_fx.mesh = s
+		_burn_fx.material_override = Fx.emissive(Color(1.0, 0.5, 0.15), 4.0)
+		_burn_fx.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+		_burn_fx.emission_sphere_radius = 0.45 * size_k
+		_burn_fx.direction = Vector3.UP
+		_burn_fx.spread = 15.0
+		_burn_fx.gravity = Vector3(0, 3.0, 0)
+		_burn_fx.initial_velocity_min = 0.4
+		_burn_fx.initial_velocity_max = 1.2
+		_burn_fx.scale_amount_min = 0.5
+		_burn_fx.scale_amount_max = 1.3
+		_burn_fx.position = Vector3(0, 1.0 * size_k, 0)
+		add_child(_burn_fx)
+	if _burn_fx != null:
+		_burn_fx.emitting = burning
+	# sersemleme: başın üstünde dönen üç yıldız
+	var stunned := state == "stun" and not dead
+	if stunned and _stun_fx == null:
+		_stun_fx = Node3D.new()
+		_stun_fx.position = Vector3(0, 2.1 * size_k, 0)
+		add_child(_stun_fx)
+		var sm := Fx.emissive(Color(1.0, 0.9, 0.45), 5.0)
+		for i in 3:
+			var st := MeshInstance3D.new()
+			var sp := SphereMesh.new()
+			sp.radius = 0.08
+			sp.height = 0.16
+			st.mesh = sp
+			st.material_override = sm
+			var a := TAU * float(i) / 3.0
+			st.position = Vector3(cos(a) * 0.45, 0, sin(a) * 0.45)
+			_stun_fx.add_child(st)
+	if _stun_fx != null:
+		_stun_fx.visible = stunned
+		if stunned:
+			_stun_fx.rotation.y += delta * 6.0
+
+
 func _tick_burn(delta: float) -> void:
 	if _burn_t <= 0.0:
 		return
@@ -3451,7 +3507,13 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		pt.tween_property(vis, "scale", base, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var hp_pos := global_position + Vector3(0, 1.3 * size_k, 0) - dir * 0.3
 	HitFx.impact(get_parent(), hp_pos, dir, Color(1.0, 0.85, 0.5) if not stunned_by_parry else Color(1.0, 0.95, 0.6), heavy or crit or stunned_by_parry)
-	HitFx.number(get_parent(), global_position + Vector3(0, 2.2 * size_k, 0), final, crit or stunned_by_parry)
+	# element üstünlüğünde sayı elementin renginde, zayıflıkta gri
+	var ncol := Color(0, 0, 0, 0)
+	if elm > 1.0:
+		ncol = Color(Elements.INFO[GameData.hero_el]["col"]) if Elements.INFO.has(GameData.hero_el) else ncol
+	elif elm < 1.0:
+		ncol = Color(0.65, 0.65, 0.7)
+	HitFx.number(get_parent(), global_position + Vector3(0, 2.2 * size_k, 0), final, crit or stunned_by_parry, ncol)
 	if hp > 0.0:
 		Sfx.play("enemyhurt", -7.0, 0.1, 110, _voice_pitch())
 	if kind != "brute" or heavy:
@@ -3519,10 +3581,14 @@ func _die(dir: Vector3) -> void:
 		get_parent().add_child(eb)
 		eb.global_position = Vector3(global_position.x, 0.0, global_position.z)
 	Sfx.play("coin", -10.0, 0.1, 0, 0.9)
+	Fx.hitstop(0.045)
 	killed.emit(self)
+	# yıldız tozuna dönüşüp göğe yükselir: beden dönerek küçülür, yerinden ışık sütunu çıkar
+	Juice.ascend(get_parent(), global_position + Vector3(0, 0.8 * size_k, 0), Color(1.0, 0.85, 0.55) if not elite else Color(1.0, 0.6, 0.9), size_k)
 	var tw := create_tween().set_parallel(true)
-	tw.tween_property(vis, "scale", Vector3(1.3, 0.05, 1.3) * size_k, 0.25).set_ease(Tween.EASE_IN)
-	tw.tween_property(vis, "position:y", 0.6, 0.25)
+	tw.tween_property(vis, "scale", Vector3(0.05, 0.05, 0.05), 0.35).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(vis, "position:y", 1.6 * size_k, 0.35).set_ease(Tween.EASE_OUT)
+	tw.tween_property(vis, "rotation:y", vis.rotation.y + TAU, 0.35)
 	tw.chain().tween_callback(queue_free)
 
 

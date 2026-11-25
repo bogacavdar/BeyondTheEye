@@ -644,9 +644,13 @@ func _do_hit() -> void:
 	if bool(kit.get("ranged", false)):
 		_fire_arrows(bonus, finisher, heavy, xm)
 		return
-	var fx_node := SlashFx.make(float(_atk["a0"]), float(_atk["a1"]), 0.45, rng, _col)
+	var fx_node := SlashFx.make(float(_atk["a0"]), float(_atk["a1"]), 0.45, rng, _slash_col())
 	get_parent().add_child(fx_node)
 	fx_node.global_transform = Transform3D(pivot.global_transform.basis, global_position + Vector3(0, 1.05, 0))
+	# element izi: kılıç yayının ucunda elementin parçacıkları
+	if GameData.hero_el != "":
+		var fwd: Vector3 = -pivot.global_transform.basis.z
+		load("res://scripts/juice.gd").element_burst(get_parent(), global_position + Vector3(0, 1.0, 0) + fwd * rng * 0.7, fwd, GameData.hero_el, 6 + 3 * mini(GameData.hero_el_n, 3) + (6 if heavy else 0))
 	var hits := 0
 	var any_crit := false
 	for e in get_tree().get_nodes_in_group("enemies"):
@@ -1138,6 +1142,9 @@ func take_damage(amount: float, from_dir: Vector3, parryable := true) -> String:
 
 
 func _on_parry(from_dir: Vector3) -> void:
+	var J = load("res://scripts/juice.gd")
+	J.ring_wave(get_parent(), global_position + Vector3(0, 1.0, 0), Color(1.0, 0.85, 0.45), 3.2, 0.3)
+	J.zoom_punch(4.0, 0.3)
 	load("res://scripts/achievements.gd").bump("parries")
 	_parry_t = 0.0
 	_parry_cd = 0.0
@@ -1188,6 +1195,16 @@ func apply_pull(target: Vector3, strength: float, dur: float) -> void:
 		return
 	_pull_vel = v.normalized() * strength
 	_pull_t = maxf(_pull_t, dur)
+
+
+## Kılıç izinin rengi: silahın rengi, element lütfu aldıkça elementin rengine döner
+func _slash_col() -> Color:
+	var el := String(GameData.hero_el)
+	var E = load("res://scripts/elements.gd")
+	if el == "" or not E.INFO.has(el):
+		return _col
+	var k := 0.35 + 0.15 * float(mini(GameData.hero_el_n, 3))
+	return _col.lerp(Color(E.INFO[el]["col"]), k)
 
 
 func apply_slow(mult: float, dur: float) -> void:

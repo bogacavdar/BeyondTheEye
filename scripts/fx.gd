@@ -116,6 +116,13 @@ func hitstop(sec: float) -> void:
 	_hitstop_until = maxi(_hitstop_until, now + int(sec * 1000.0))
 
 
+## Ağır çekim: gerçek zamanla 'sec' saniye boyunca oyunu 'scale' hızında oynatır (son vuruş, boss ölümü)
+func slowmo(scale: float, sec: float) -> void:
+	Engine.time_scale = scale
+	_hitstop_until = maxi(_hitstop_until, Time.get_ticks_msec() + int(sec * 1000.0))
+	_last_hitstop = Time.get_ticks_msec()
+
+
 func shake(amount: float) -> void:
 	if camera != null and is_instance_valid(camera):
 		camera.add_trauma(amount)

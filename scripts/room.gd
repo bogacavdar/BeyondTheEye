@@ -26,6 +26,8 @@ const AqScript = preload("res://scripts/aquarius_boss.gd")
 const PiScript = preload("res://scripts/pisces_boss.gd")
 const SkyEcho = preload("res://scripts/sky_echo.gd")
 const Ach = preload("res://scripts/achievements.gd")
+const Juice = preload("res://scripts/juice.gd")
+const Elements = preload("res://scripts/elements.gd")
 var _boss_hurt := false   # boss odasında hasar alındı mı (Yıldızlar Dokunamadı başarımı)
 const PauseUI = preload("res://scripts/pause_ui.gd")
 const BoonUI = preload("res://scripts/boon_ui.gd")
@@ -342,6 +344,7 @@ func _ready() -> void:
 		comp.hero = hero
 		add_child(comp)
 	_aim_moon()
+	_grade()
 
 	if is_rest:
 		hero.heal(hero.max_hp * 0.4)
@@ -474,6 +477,47 @@ func _environment() -> void:
 	under.light_energy = 0.06
 	under.rotation_degrees = Vector3(60, -40, 0)
 	add_child(under)
+
+
+## BÖLGE RENK FİLTRESİ: her bölgeye kendi tonu (doygunluk/kontrast) ve renkli bir köşe gölgesi
+const GRADE := {
+	# bölge: [doygunluk, kontrast, köşe rengi, köşe gücü]
+	"aries": [1.12, 1.08, Color(0.25, 0.04, 0.02), 0.5],
+	"taurus": [1.08, 1.05, Color(0.04, 0.12, 0.04), 0.4],
+	"gemini": [1.0, 1.06, Color(0.08, 0.1, 0.2), 0.35],
+	"cancer": [1.08, 1.06, Color(0.01, 0.05, 0.14), 0.5],
+	"leo": [1.12, 1.08, Color(0.2, 0.1, 0.02), 0.45],
+	"virgo": [1.0, 1.05, Color(0.03, 0.1, 0.08), 0.4],
+	"libra": [1.05, 1.06, Color(0.02, 0.1, 0.1), 0.4],
+	"scorpio": [1.1, 1.1, Color(0.02, 0.08, 0.01), 0.6],
+	"sagittarius": [1.05, 1.06, Color(0.08, 0.04, 0.16), 0.4],
+	"capricorn": [0.95, 1.08, Color(0.06, 0.1, 0.16), 0.4],
+	"aquarius": [1.05, 1.1, Color(0.04, 0.02, 0.12), 0.55],
+	"pisces": [1.1, 1.06, Color(0.08, 0.03, 0.14), 0.55],
+}
+
+
+func _grade() -> void:
+	var g: Array = GRADE.get(zone, [1.0, 1.05, Color(0.02, 0.02, 0.08), 0.4])
+	for c in get_children():
+		if c is WorldEnvironment and c.environment != null:
+			var env: Environment = c.environment
+			env.adjustment_enabled = true
+			env.adjustment_saturation = float(g[0])
+			env.adjustment_contrast = float(g[1])
+			break
+	var layer := CanvasLayer.new()
+	layer.layer = -1
+	add_child(layer)
+	var r := ColorRect.new()
+	r.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://shaders/vignette.gdshader")
+	m.set_shader_parameter("tint", g[2])
+	m.set_shader_parameter("strength", float(g[3]))
+	r.material = m
+	layer.add_child(r)
 
 
 func _aim_moon() -> void:
@@ -2094,6 +2138,7 @@ func _spawn_marker(pos: Vector3, delay: float, kind: String) -> void:
 	add_child(ring)
 	var tw := ring.create_tween()
 	tw.tween_interval(delay)
+	tw.tween_callback(func(): Juice.constellation_spawn(self, pos, Color(0.75, 0.6, 1.0), 0.8))
 	tw.tween_property(ring, "scale", Vector3(1.0, 0.1, 1.0), 0.7).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(_spawn_enemy.bind(pos, kind))
 	tw.tween_property(ring, "scale", Vector3(1.4, 0.1, 1.4), 0.4)
@@ -2492,6 +2537,12 @@ func _on_cleared() -> void:
 	if cleared:
 		return
 	cleared = true
+	# son vuruş: kısa ağır çekim, kamera yakınlaşır, kahramanın çevresinde ışık halkası
+	if not is_boss:
+		Fx.slowmo(0.3, 0.45)
+		Juice.zoom_punch(3.0, 0.5)
+		if hero != null and is_instance_valid(hero):
+			Juice.ring_wave(self, hero.global_position, Color(1.0, 0.88, 0.6), 6.0, 0.6)
 	var bonus: int = ROOM_BONUS[mini(local_i, ROOM_BONUS.size() - 1)]
 	if reward == "dust":
 		bonus += DUST_REWARD[mini(local_i, DUST_REWARD.size() - 1)]
@@ -2764,6 +2815,31 @@ func _spawn_fountain() -> void:
 
 # ---------------------------------------------------------------- boss
 
+## Boss girişi: kamera boss'a döner, boss yıldızlardan belirir, isim kartı gelir; bu sürede kimse saldırmaz
+func _boss_intro() -> void:
+	var glyphs := {"aries": "♈", "taurus": "♉", "gemini": "♊", "cancer": "♋", "leo": "♌", "virgo": "♍",
+		"libra": "♎", "scorpio": "♏", "sagittarius": "♐", "capricorn": "♑", "aquarius": "♒", "pisces": "♓"}
+	var zc: Color = Color(Elements.INFO[String(Elements.ZONE_EL.get(zone, "fire"))]["col"]) if Elements.ZONE_EL.has(zone) else Color(1.0, 0.85, 0.5)
+	var bpos: Vector3 = boss.global_position
+	Juice.constellation_spawn(self, bpos, zc.lerp(Color.WHITE, 0.3), 1.2)
+	Juice.ring_wave(self, bpos, zc, 7.0, 0.8)
+	Fx.flash_light(bpos + Vector3(0, 3, 0), zc, 10.0, 16.0, 0.8)
+	var bt = boss.get("title")
+	hud.boss_card(String(glyphs.get(zone, "✦")), String(bt) if bt != null else zone.to_upper(), zc)
+	if boss.get("_global_cd") != null:
+		boss._global_cd = maxf(float(boss._global_cd), 2.4)
+	hero.frozen = true
+	var cam = Fx.camera
+	if cam != null and is_instance_valid(cam) and boss is Node3D:
+		cam.target = boss
+		Juice.zoom_punch(6.0, 2.2)
+	get_tree().create_timer(2.2).timeout.connect(func():
+		if hero != null and is_instance_valid(hero):
+			hero.frozen = false
+			if cam != null and is_instance_valid(cam):
+				cam.target = hero)
+
+
 func _spawn_boss() -> void:
 	if ended:
 		return
@@ -2819,6 +2895,7 @@ func _spawn_boss() -> void:
 	hud.boss = boss
 	Fx.shake(0.6)
 	Sfx.play("bossroar", 0.0, 0.0, 0, 0.6)
+	_boss_intro()
 
 
 ## Final: arenanın çevresinde on iki burç sembolü sırayla yanar ve göğe yükselir
@@ -2863,6 +2940,12 @@ func _on_summon(kinds: Array) -> void:
 func _on_boss_killed(_b) -> void:
 	victory = true
 	cleared = true
+	# boss ölümü: ağır çekim, sonra boss'un takımyıldızı göğe çizilir
+	Fx.slowmo(0.25, 1.1)
+	Juice.zoom_punch(5.0, 1.2)
+	var bpos: Vector3 = _b.global_position if _b != null and is_instance_valid(_b) else Vector3.ZERO
+	var zc: Color = Color(Elements.INFO[String(Elements.ZONE_EL.get(zone, "fire"))]["col"]) if Elements.ZONE_EL.has(zone) else Color(1.0, 0.85, 0.5)
+	get_tree().create_timer(1.4).timeout.connect(func(): Juice.boss_constellation(self, bpos, zone, zc.lerp(Color.WHITE, 0.35)))
 	# başarımlar
 	Ach.unlock("BOSS_" + zone.to_upper())
 	if not _boss_hurt:

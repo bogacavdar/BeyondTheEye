@@ -45,6 +45,17 @@ func hurt_flash() -> void:
 	_hurt = 1.0
 
 
+## Boss giriş kartı: dev sembol, ad ve unvan; altın çizgiler iki yana açılır
+var _card_t := -1.0
+var _card := {}
+
+
+func boss_card(glyph: String, title: String, col: Color) -> void:
+	_card = {"glyph": glyph, "title": title, "col": col}
+	_card_t = 0.0
+	_banner_t = 0.0
+
+
 func banner(a: String, b := "") -> void:
 	_banner_a = a
 	_banner_b = b
@@ -63,6 +74,10 @@ func _process(delta: float) -> void:
 	size = vs
 	_hurt = maxf(_hurt - delta * 2.2, 0.0)
 	_banner_t = maxf(_banner_t - delta, 0.0)
+	if _card_t >= 0.0:
+		_card_t += delta
+		if _card_t > 3.2:
+			_card_t = -1.0
 	if _dead_t >= 0.0:
 		_dead_t += delta
 	if hero != null and is_instance_valid(hero):
@@ -138,6 +153,21 @@ func _draw() -> void:
 		_text(tr(_banner_a), Vector2(size.x * 0.5, size.y * 0.32), 56, _a(gold, a))
 		if _banner_b != "":
 			_text(_banner_b, Vector2(size.x * 0.5, size.y * 0.32 + 48.0), 24, _a(UI.CREAM, a))
+
+	# --- boss giriş kartı
+	if _card_t >= 0.0 and not _card.is_empty():
+		var ca := clampf(_card_t * 3.0, 0.0, 1.0) * clampf((3.2 - _card_t) * 2.0, 0.0, 1.0)
+		var cc: Color = _card["col"]
+		var cy := size.y * 0.3
+		draw_rect(Rect2(0, cy - 120, size.x, 225), Color(0.01, 0.015, 0.05, 0.6 * ca))
+		var parts := String(_card["title"]).split("  ·  ")
+		var gf := UI.symbol_font()
+		_text(String(_card["glyph"]) + "︎", Vector2(size.x * 0.5, cy - 30.0), 84, _a(cc, ca), true, gf)
+		_text(tr(parts[0]) if parts.size() > 0 else "", Vector2(size.x * 0.5, cy + 34.0), 64, _a(gold, ca))
+		if parts.size() > 1:
+			_text(tr(parts[1]), Vector2(size.x * 0.5, cy + 74.0), 26, _a(UI.CREAM, ca))
+		var lw := minf(_card_t * 1.6, 1.0) * size.x * 0.32
+		draw_line(Vector2(size.x * 0.5 - lw, cy + 92.0), Vector2(size.x * 0.5 + lw, cy + 92.0), _a(gold, ca), 2.0)
 
 	# --- ölüm ekranı
 	if _dead_t >= 0.0:

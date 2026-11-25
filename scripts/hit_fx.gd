@@ -84,7 +84,7 @@ static func impact(world: Node3D, pos: Vector3, dir: Vector3, color: Color, big 
 
 
 ## Uçan hasar sayısı
-static func number(world: Node3D, pos: Vector3, value: float, crit := false) -> void:
+static func number(world: Node3D, pos: Vector3, value: float, crit := false, col := Color(0, 0, 0, 0)) -> void:
 	if world == null or not is_instance_valid(world) or not GameData.dmg_numbers:
 		return
 	var l := Label3D.new()
@@ -98,6 +98,8 @@ static func number(world: Node3D, pos: Vector3, value: float, crit := false) -> 
 	l.outline_size = 14
 	l.outline_modulate = Color(0.04, 0.03, 0.1, 1.0)
 	l.modulate = Color(1.0, 0.55, 0.2) if crit else Color(1.0, 0.92, 0.7)
+	if col.a > 0.0:
+		l.modulate = col
 	world.add_child(l)
 	l.global_position = pos + Vector3(randf_range(-0.3, 0.3), 0.2, randf_range(-0.3, 0.3))
 	l.scale = Vector3.ONE * (0.5 if crit else 0.7)
