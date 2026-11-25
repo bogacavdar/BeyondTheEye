@@ -76,10 +76,10 @@ func _build() -> void:
 	for i in 4:
 		var x := -0.62 if i % 2 == 0 else 0.62
 		var z := -0.75 if i < 2 else 1.05
-		_part(vis, _cone(0.26, 0.34, 1.2, 10), Vector3(x, 0.75, z), m_body)
-		_part(vis, _cone(0.3, 0.28, 0.22, 10), Vector3(x, 0.11, z), gold)
+		_part(vis, _cone(0.26, 0.34, 1.2), Vector3(x, 0.75, z), m_body)
+		_part(vis, _cone(0.3, 0.28, 0.22), Vector3(x, 0.11, z), gold)
 	# kuyruk
-	var tail := _part(vis, _cone(0.03, 0.07, 1.1, 6), Vector3(0, 1.75, 1.95), m_body)
+	var tail := _part(vis, _cone(0.03, 0.07, 1.1), Vector3(0, 1.75, 1.95), m_body)
 	tail.rotation.x = 0.4
 	_part(vis, _sph(0.12), Vector3(0, 1.25, 2.15), moss)
 	# baş: alçak, geniş alın, uzun ileri kıvrık boynuzlar
@@ -448,7 +448,7 @@ func _spawn_roses(n: int) -> void:
 		var r := Rose.new()
 		r.boss = self
 		r.max_hp = 140.0 * (max_hp / 2000.0)
-		r.heal_rate = max_hp * 0.012
+		r.heal_rate = max_hp * 0.006   # gül başına saniyede %0.6
 		get_parent().add_child(r)
 		r.global_position = Vector3(cos(a), 0, sin(a)) * minf(_bounds - 1.5, 7.5)
 

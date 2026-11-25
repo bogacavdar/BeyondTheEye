@@ -160,12 +160,12 @@ func _ready() -> void:
 			hud.banner("TAURUS", tr("The Immovable"))
 		else:
 			hud.banner("ARIES", tr("The Ram's Fury"))
+		get_tree().create_timer(1.6).timeout.connect(_spawn_boss)
 	elif local_i == 0:
 		if zone == "taurus":
 			hud.banner("THE BULL'S MEADOWS", tr("Venus guards the road to Taurus"))
 		else:
 			hud.banner("THE RAM'S PASS", tr("The road to Aries burns"))
-		get_tree().create_timer(1.6).timeout.connect(_spawn_boss)
 
 
 func _on_hero_hurt() -> void:
