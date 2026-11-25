@@ -24,6 +24,9 @@ const LIST := [
 	{"id": "libra", "glyph": "♎", "name": "LIBRA ASCENDANT", "col": Color(0.4, 1.0, 0.8),
 		"desc": "+15% Damage and take 10% less damage, but -30% Stardust",
 		"mods": {"damage": 15.0, "dmg_reduction": 10.0, "dust_gain": -30.0}},
+	{"id": "scorpio", "glyph": "♏", "name": "SCORPIO ASCENDANT", "col": Color(0.5, 1.0, 0.3),
+		"desc": "+12% Critical Chance and +50% Critical Damage, but -25 Max Health",
+		"mods": {"crit_chance": 12.0, "crit_dmg": 50.0, "max_hp": -25.0}},
 ]
 
 
@@ -51,6 +54,8 @@ static func unlocked(id: String) -> bool:
 			return GD.virgo_defeated
 		"libra":
 			return GD.libra_defeated
+		"scorpio":
+			return GD.scorpio_defeated
 	return false
 
 

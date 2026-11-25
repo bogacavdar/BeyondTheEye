@@ -331,7 +331,7 @@ func _draw_boss_bar() -> void:
 	for m in marks:
 		draw_line(Vector2(x + w * m, y - 4), Vector2(x + w * m, y + h + 4), gold, 2.0)
 	draw_rect(Rect2(x - 4, y - 4, w + 8, h + 8), gold, false, 2.0)
-	var bg := {"aries": "\u2648", "taurus": "\u2649", "gemini": "\u264A", "cancer": "\u264B", "leo": "\u264C", "virgo": "\u264D", "libra": "\u264E"}
+	var bg := {"aries": "\u2648", "taurus": "\u2649", "gemini": "\u264A", "cancer": "\u264B", "leo": "\u264C", "virgo": "\u264D", "libra": "\u264E", "scorpio": "\u264F"}
 	var bk = boss.get("kind")
 	_text(String(bg.get(String(bk) if bk != null else "aries", "\u2648")) + "\uFE0E", Vector2(x - 34, y + 18), 30, gold, true, _sym)
 	var btitle: String = String(boss.get("title")) if boss.get("title") != null else "ARIES  ·  THE RAM'S FURY"

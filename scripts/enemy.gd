@@ -91,6 +91,7 @@ var _dodge_cd := 0.0         # Tüy Dansçısı: bir sonraki kaçışa kalan sü
 var _stored := 0.0           # Karşı Ağırlık Golemi: biriktirilen hasar
 var _even_cd := 3.0          # Terazi Bekçisi: eşitleme bekleme süresi
 var _sharing := false
+var _feigned := false         # Ölü Taklitçi: taklidi bir kez yapar
 
 var body_root: Node3D
 var vis: Node3D
@@ -130,6 +131,8 @@ func _ready() -> void:
 		_virgo_variant()
 	elif zone == "libra":
 		_libra_variant()
+	elif zone == "scorpio":
+		_scorpio_variant()
 	if mini:
 		max_hp *= 0.35
 		size_k *= 0.7
@@ -343,6 +346,30 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## ZEHİR MAĞARALARI yaratıkları:
+##  shade  -> ZEHİRLİ İĞNE: vuruşları zehirler (zehir canı eritir ama öldürmez)
+##  caster -> ASİT TÜKÜRÜCÜ: yere zehirli asit gölcükleri fırlatır
+##  leaper -> ÖLÜ TAKLİTÇİ: canı azalınca ölü taklidi yapar; 2 sn içinde bitirmezsen canlanıp atılır
+##  brute  -> KISKAÇLI TİTAN: yakalama (kızıl): değerse kısa süre kıpırdayamaz ve zehirlenirsin
+func _scorpio_variant() -> void:
+	_base_body = Color(0.45, 1.0, 0.3)
+	_base_cloth = Color(0.3, 0.7, 0.25)
+	match kind:
+		"caster":
+			attacks = [
+				{"name": "acid", "shape": "circle", "min": 3.0, "max": 11.0, "windup": 0.8, "act": 0.15, "recover": 0.7,
+					"dmg": 12.0, "reach": 1.8, "arc": 360.0, "parry": false, "cd": 3.2, "weight": 1.0},
+			]
+		"brute":
+			max_hp = 240.0
+			attacks = [
+				{"name": "smash", "shape": "fan", "min": 0.0, "max": 2.7, "windup": 0.8, "act": 0.16, "recover": 0.9,
+					"dmg": 24.0, "reach": 3.0, "arc": 120.0, "parry": true, "cd": 1.6, "weight": 2.0},
+				{"name": "grab", "shape": "fan", "min": 0.0, "max": 2.6, "windup": 0.75, "act": 0.16, "recover": 0.9,
+					"dmg": 16.0, "reach": 2.8, "arc": 70.0, "parry": false, "cd": 5.0, "weight": 1.2},
+			]
+
+
 ## ŞAFAK TERAZİSİ yaratıkları:
 ##  shade  -> HAKEM: eşiyle bağlı; birine vurduğun hasar ikisine bölünür (ikisini birlikte erit)
 ##  caster -> TERAZİ BEKÇİSİ: hükmü (sırayla iki patlama) ve yakındaki dostlarının canını eşitler
@@ -673,6 +700,18 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "scorpio":
+		m_eye.emission = Color(0.5, 1.0, 0.3)
+		m_body.albedo_color = Color(0.12, 0.1, 0.16)
+		match kind:
+			"caster":
+				_build_spitter()
+			"leaper":
+				_build_mimic()
+			"brute":
+				_build_grabber()
+			_:
+				_build_stinger()
 	elif zone == "libra":
 		m_eye.emission = Color(1.0, 0.85, 0.6)
 		m_body.albedo_color = Color(0.3, 0.7, 0.58)
@@ -1572,6 +1611,87 @@ func _build_counterweight() -> void:
 		_part(a, _sph(0.3), Vector3(0, -1.0, 0), br, Vector3(1.0, 0.6, 1.0))
 
 
+# ---- Zehir Mağaraları görünüşleri (obsidyen kara kabuk, asit yeşili parıltı; zemin mavi-gri bazalt)
+
+func _chitin() -> StandardMaterial3D:
+	var m := _m(Color(0.12, 0.1, 0.16), 0.25)
+	m.metallic = 0.3
+	m.emission_enabled = true
+	m.emission = Color(0.4, 1.0, 0.3)
+	m.emission_energy_multiplier = 0.12
+	return m
+
+
+func _venom() -> StandardMaterial3D:
+	var m := _m(Color(0.5, 1.0, 0.3), 0.3)
+	m.emission_enabled = true
+	m.emission = Color(0.5, 1.0, 0.3)
+	m.emission_energy_multiplier = 1.6
+	return m
+
+
+func _scorp_tail(parent: Node3D, base: Vector3, sc: float) -> void:
+	var ch := _chitin()
+	for k in 5:
+		var a := float(k) * 0.42
+		_part(parent, _sph(0.12 * sc * (1.0 - float(k) * 0.1)), base + Vector3(0, sin(a) * 0.55 * sc + float(k) * 0.12 * sc, cos(a) * 0.3 * sc + float(k) * 0.1 * sc), ch)
+	_part(parent, _cone(0.08 * sc, 0.0, 0.3 * sc, 5), base + Vector3(0, 1.0 * sc, -0.05 * sc), _venom()).rotation.x = PI * 0.75
+
+
+func _build_stinger() -> void:
+	# ZEHİRLİ İĞNE: küçük, hızlı akrep; iğnesi zehirler
+	var ch := _chitin()
+	_part(vis, _sph(0.35, 0.5), Vector3(0, 0.45, 0), ch, Vector3(0.9, 0.5, 1.3))
+	_scorp_tail(vis, Vector3(0, 0.55, 0.4), 0.9)
+	_crab_legs(vis, 3, 0.35, 0.3, 0.5)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.04), Vector3(s * 0.1, 0.6, -0.42), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.3, 0.55, -0.35), 0.45)
+	arm_r = _arm(1.0, Vector3(0.3, 0.55, -0.35), 0.45)
+	for a in [arm_l, arm_r]:
+		_part(a, _sph(0.12), Vector3(0, -0.5, -0.05), ch, Vector3(0.8, 0.6, 1.4))
+
+
+func _build_spitter() -> void:
+	# ASİT TÜKÜRÜCÜ: kabuklu, şişkin asit keseli rahip-böcek
+	var ch := _chitin()
+	_part(vis, _cone(0.45, 0.18, 1.4, 10), Vector3(0, 0.85, 0), ch)
+	_part(vis, _sph(0.32), Vector3(0, 1.6, 0.15), _venom(), Vector3(1.0, 0.9, 1.0))
+	_part(vis, _sph(0.18), Vector3(0, 1.85, -0.15), ch)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.04), Vector3(s * 0.07, 1.88, -0.32), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.6, 0), 0.55)
+	arm_r = _arm(1.0, Vector3(0.3, 1.6, 0), 0.55)
+
+
+func _build_mimic() -> void:
+	# ÖLÜ TAKLİTÇİ: uzun bacaklı kara akrep; canı azalınca ölü taklidi yapar
+	var ch := _chitin()
+	_part(vis, _sph(0.4, 0.6), Vector3(0, 0.7, 0), ch, Vector3(0.9, 0.55, 1.5))
+	_scorp_tail(vis, Vector3(0, 0.8, 0.5), 1.1)
+	_crab_legs(vis, 4, 0.4, 0.5, 0.75)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.05), Vector3(s * 0.12, 0.85, -0.55), m_eye)
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_grabber() -> void:
+	# KISKAÇLI TİTAN: dev kıskaçlarıyla yakalar, zehirli iğnesiyle sokar
+	var ch := _chitin()
+	_part(vis, _sph(0.7, 1.0), Vector3(0, 1.1, 0), ch, Vector3(1.2, 0.8, 1.4))
+	_scorp_tail(vis, Vector3(0, 1.3, 0.8), 1.6)
+	_crab_legs(vis, 3, 0.7, 0.6, 1.0)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.07), Vector3(s * 0.2, 1.45, -0.8), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.85, 1.3, -0.5), 0.8)
+	arm_r = _arm(1.0, Vector3(0.85, 1.3, -0.5), 0.8)
+	for a in [arm_l, arm_r]:
+		_part(a, _sph(0.3), Vector3(0, -0.9, -0.1), ch, Vector3(1.0, 0.7, 1.6))
+
+
 func _build_shellguard() -> void:
 	# KABUK ASKERİ: dik duran mercan zırhlı yengeç-asker; vurulunca kabuğuna çekilir
 	var shell := _shell_mat()
@@ -1846,6 +1966,13 @@ func _physics_process(delta: float) -> void:
 		"stun":
 			if _st >= _stun_len:
 				_set_state("chase")
+		"feign":
+			# ÖLÜ TAKLİTÇİ: 2 sn yerde yatar; ölmezse canlanıp hemen saldırır
+			if _st >= 2.0:
+				hp = minf(hp + max_hp * 0.35, max_hp)
+				Sfx.play("enemyattack", -4.0, 0.0, 0, 0.8)
+				_set_state("chase")
+				_global_cd = 0.0
 		"shell":
 			# Kabuk Askeri kabukta: büyüyen kızıl halka, sonra etrafına kıskaç
 			var k := clampf(_st / 1.2, 0.0, 1.0)
@@ -1981,6 +2108,21 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "acid":
+			var H = load("res://scripts/hazards.gd")
+			if hero != null and is_instance_valid(hero):
+				var b = H.Blast.new()
+				b.hero = hero
+				b.radius = 1.8
+				b.delay = 0.9
+				b.dmg = float(atk["dmg"])
+				b.col = Color(0.5, 1.0, 0.3)
+				b.eff = "poison"
+				b.pool_life = 4.0
+				get_parent().add_child(b)
+				b.global_position = H.clamp_arena(hero.global_position, 12.0)
+			Sfx.play("parry", -12.0, 0.05, 0, 0.9)
 			_done = true
 		elif String(atk["name"]) == "verdict":
 			# hüküm: önce bulunduğun yere, sonra gideceğin yere
@@ -2271,7 +2413,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -2327,6 +2469,12 @@ func _resolve() -> void:
 			Sfx.play("crush", -2.0, 0.0, 0, 1.3)
 	elif res == "hit" and String(atk["name"]) == "roar" and hero.has_method("apply_slow"):
 		hero.apply_slow(0.45, 1.8)
+	if res == "hit" and zone == "scorpio":
+		if kind == "shade" and hero.has_method("apply_poison"):
+			hero.apply_poison(4.0 * dmg_mult, 3.0)
+		elif nm == "grab":
+			hero.apply_slow(0.05, 1.1)
+			hero.apply_poison(5.0 * dmg_mult, 3.0)
 
 
 func _fire_bolts() -> void:
@@ -2467,6 +2615,8 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		crit = true
 	if _burrowed():
 		return
+	if state == "feign":
+		dmg *= 1.5    # yerde yatarken bitirmek kolay
 	# TÜY DANSÇISI: arada bir ilk vuruştan kaçar
 	if zone == "libra" and kind == "leaper" and _dodge_cd <= 0.0 and state != "stun":
 		_dodge_cd = 4.0
@@ -2576,6 +2726,14 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	hp -= final
 	last_dealt = final
 	_flash = 1.0
+	# ÖLÜ TAKLİTÇİ: ölümcül vuruş yerine ölü taklidi (bir kez)
+	if zone == "scorpio" and kind == "leaper" and not _feigned and hp > 0.0 and hp < max_hp * 0.3:
+		_feigned = true
+		_chain_left = 0
+		tele.visible = false
+		state = "feign"
+		_st = 0.0
+		Sfx.play("enemydie", -10.0, 0.0, 0, 1.3)
 	# vuruş hissi: geriye esneme, ezilip toparlanma, vuruş noktasında patlama, hasar sayısı
 	_flinch = 1.0 if heavy or crit else 0.6
 	if vis != null:
@@ -2737,6 +2895,15 @@ func _animate(delta: float) -> void:
 					lean = -0.2 * e
 					glow = 3.0 + 20.0 * k
 					shake = 0.03 * k
+				"acid":
+					arm_lx = 2.4 * e
+					arm_rx = 2.4 * e
+					glow = 3.0 + 18.0 * k
+				"grab":
+					arm_lz = 1.0 * e
+					arm_rz = -1.0 * e
+					lean = 0.2 * e
+					glow = 3.0 + 18.0 * k
 				"verdict":
 					arm_lx = 2.4 * e
 					arm_rx = 2.4 * e
@@ -2829,6 +2996,11 @@ func _animate(delta: float) -> void:
 			arm_rx = 0.0
 			glow = 1.0
 			hover += sin(_t * 18.0) * 0.03
+		"feign":
+			# ölü taklidi: ters döner, kıpırdamaz
+			py = -0.25
+			lean = 0.9
+			glow = 0.2 + 6.0 * clampf((_st - 1.4) / 0.6, 0.0, 1.0)
 		"shell":
 			# kabuğuna çekilir: çömelir, kıskaçlar içeri
 			py = -0.35
