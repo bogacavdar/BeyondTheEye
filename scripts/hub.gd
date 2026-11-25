@@ -74,6 +74,8 @@ func _ready() -> void:
 	_ay_ana(Vector3(-7.6, 0, -7.6))
 	_saturn(Vector3(7.6, 0, -7.6))
 	_constellations()
+	_sync_achievements()
+	_almanac_lectern(Vector3(-7.6, 0, 7.6))
 
 	camera = CameraScript.new()
 	camera.offset = Vector3(10.0, 10.5, 10.0)
@@ -118,6 +120,29 @@ const SIGN_GLYPH := ["\u2648", "\u2649", "\u264A", "\u264B", "\u264C", "\u264D",
 const SIGN_COL := [Color(1.0, 0.45, 0.3), Color(0.55, 1.0, 0.45), Color(0.6, 0.8, 1.0), Color(0.5, 0.9, 1.0), Color(1.0, 0.8, 0.4), Color(0.5, 1.0, 0.85),
 	Color(0.4, 1.0, 0.8), Color(0.5, 1.0, 0.3), Color(0.7, 0.55, 1.0), Color(0.4, 1.0, 0.9), Color(0.6, 0.9, 1.0), Color(0.85, 0.65, 1.0)]
 const SIGN_NAME := ["ARIES", "TAURUS", "GEMINI", "CANCER", "LEO", "VIRGO", "LIBRA", "SCORPIO", "SAGITTARIUS", "CAPRICORN", "AQUARIUS", "PISCES"]
+
+
+## Eski kayıtlar için: zaten hak edilmiş başarımları sessizce aç
+func _sync_achievements() -> void:
+	var Ach = load("res://scripts/achievements.gd")
+	var d := _defeated_list()
+	var all := true
+	for i in 12:
+		if bool(d[i]):
+			Ach.unlock("BOSS_" + String(SIGNS[i]).to_upper(), true)
+		else:
+			all = false
+	if all:
+		Ach.unlock("ALL_TWELVE")
+	if GameData.ayana_bond >= 5:
+		Ach.unlock("MOON_BOND", true)
+	for k in GameData.aspect_lv:
+		if int(GameData.aspect_lv[k]) >= 3:
+			Ach.unlock("SEAL_MASTER", true)
+	if GameData.sky_best >= 2:
+		Ach.unlock("CYCLE_1", true)
+	if GameData.sky_best >= 4:
+		Ach.unlock("CYCLE_3", true)
 
 
 func _defeated_list() -> Array:
@@ -883,6 +908,51 @@ func _open_saturn() -> void:
 	saturn_ui.open()
 
 
+## ALMANAK kürsüsü: üstünde açık duran, sayfaları hafifçe parlayan bir kitap
+func _almanac_lectern(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation.y = PI * 0.25
+	add_child(root)
+	var wood := _mat(Color(0.12, 0.1, 0.25), 0.3, 0.5)
+	_mesh(_cyl(0.5, 0.15), Vector3(0, 0.075, 0), _gold(), root)
+	_mesh(_cyl(0.12, 1.0), Vector3(0, 0.65, 0), wood, root)
+	var top := BoxMesh.new()
+	top.size = Vector3(1.1, 0.08, 0.8)
+	var t := _mesh(top, Vector3(0, 1.2, 0), wood, root)
+	t.rotation.x = 0.35
+	var book := Node3D.new()
+	book.position = Vector3(0, 1.3, 0)
+	book.rotation.x = 0.35
+	root.add_child(book)
+	var cover := BoxMesh.new()
+	cover.size = Vector3(1.0, 0.04, 0.7)
+	_mesh(cover, Vector3.ZERO, _mat(Color(0.35, 0.12, 0.4), 0.2, 0.5), book)
+	var pages := BoxMesh.new()
+	pages.size = Vector3(0.46, 0.06, 0.64)
+	for s: float in [-1.0, 1.0]:
+		var pg := _mesh(pages, Vector3(s * 0.24, 0.04, 0), _glow(Color(1.0, 0.92, 0.75), 0.6), book)
+		pg.rotation.z = -s * 0.08
+	var pr: Vector2i = load("res://scripts/almanac.gd").progress()
+	var glow := 0.4 + 1.6 * float(pr.x) / float(maxi(pr.y, 1))
+	_mesh(_sphere(0.1), Vector3(0, 0.5, 0), _glow(Color(1.0, 0.85, 0.5), 2.0 + glow * 2.0), book)
+	_light(pos + Vector3(0, 2.0, 0), Color(1.0, 0.85, 0.6), glow, 4.0)
+	_station("ALMANAC", pos, _open_almanac)
+
+
+var almanac_ui = null
+
+
+func _open_almanac() -> void:
+	if almanac_ui == null:
+		almanac_ui = load("res://scripts/almanac_ui.gd").new()
+		almanac_ui.closed.connect(_close_ui)
+		ui_layer.add_child(almanac_ui)
+	_ui_open = true
+	player.frozen = true
+	almanac_ui.open()
+
+
 func _open_ayana() -> void:
 	_ui_open = true
 	player.frozen = true
@@ -899,6 +969,8 @@ func _close_ui() -> void:
 		saturn_ui.visible = false
 	if rising_ui != null:
 		rising_ui.visible = false
+	if almanac_ui != null:
+		almanac_ui.visible = false
 	player.frozen = false
 	# aynı Esc basışı menüye dönmesin diye bir kare bekle
 	await get_tree().process_frame

@@ -289,6 +289,8 @@ func _choose(id: String, btn: Control) -> void:
 		return
 	_choosing = false
 	GameData.run_boons.append(id)
+	if id.begins_with("cj_") or id.begins_with("op_"):
+		load("res://scripts/achievements.gd").unlock("DUO")
 	Sfx.play("parry", -6.0, 0.0, 0, 1.2)
 	Sfx.play("heavyhit", -12.0, 0.0, 0, 1.4)
 	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS).set_parallel(true)

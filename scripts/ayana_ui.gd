@@ -99,6 +99,8 @@ func _give() -> void:
 		return
 	GameData.moonstones -= 1
 	GameData.ayana_bond += 1
+	if GameData.ayana_bond >= Charms.MAX_BOND:
+		load("res://scripts/achievements.gd").unlock("MOON_BOND")
 	# yeni açılan tılsımı hemen tak (hiç takılı yoksa)
 	for c in Charms.LIST:
 		if int(c["bond"]) == GameData.ayana_bond and GameData.charm_eq == "":

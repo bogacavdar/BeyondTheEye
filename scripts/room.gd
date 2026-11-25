@@ -25,6 +25,8 @@ const CapScript = preload("res://scripts/capricorn_boss.gd")
 const AqScript = preload("res://scripts/aquarius_boss.gd")
 const PiScript = preload("res://scripts/pisces_boss.gd")
 const SkyEcho = preload("res://scripts/sky_echo.gd")
+const Ach = preload("res://scripts/achievements.gd")
+var _boss_hurt := false   # boss odasında hasar alındı mı (Yıldızlar Dokunamadı başarımı)
 const PauseUI = preload("res://scripts/pause_ui.gd")
 const BoonUI = preload("res://scripts/boon_ui.gd")
 const CombatHud = preload("res://scripts/combat_hud.gd")
@@ -253,6 +255,8 @@ func _ready() -> void:
 		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G, COMBAT_C, COMBAT_L, COMBAT_V, COMBAT_B, COMBAT_S, COMBAT_Y, COMBAT_K, COMBAT_Q, COMBAT_P)
 		waves = table[mini(local_i, table.size() - 1)]
 	Sfx.play_music(_music_path(), -9.0)
+	if not GameData.almanac.has("zone:" + zone):
+		GameData.almanac["zone:" + zone] = 1   # almanakta burcun sayfası açılır
 
 	if zone == "pisces":
 		_environment_pisces()
@@ -416,6 +420,8 @@ func _music_path() -> String:
 
 
 func _on_hero_hurt() -> void:
+	if is_boss:
+		_boss_hurt = true
 	hud.hurt_flash()
 
 
@@ -2184,6 +2190,11 @@ func _zt(a: Array, t: Array, g: Array, c: Array, l: Array, v: Array, b: Array, s
 
 func _on_killed(e) -> void:
 	alive -= 1
+	var ak := String(e.zone) + ":" + String(e.kind)
+	GameData.almanac[ak] = int(GameData.almanac.get(ak, 0)) + 1
+	Ach.bump("kills")
+	if GameData.almanac[ak] == 1:
+		Ach.check_almanac()
 	# Taş Golem ölünce 2 taşçığa bölünür
 	if String(e.zone) == "taurus" and String(e.kind) == "brute" and not bool(e.get("pebble")) and not ended and not victory:
 		for i in 2:
@@ -2852,6 +2863,18 @@ func _on_summon(kinds: Array) -> void:
 func _on_boss_killed(_b) -> void:
 	victory = true
 	cleared = true
+	# başarımlar
+	Ach.unlock("BOSS_" + zone.to_upper())
+	if not _boss_hurt:
+		Ach.unlock("FLAWLESS")
+	if GameData.run_rising != "":
+		Ach.unlock("RISING_WIN")
+	if Retro.heat(GameData.retro) >= 5:
+		Ach.unlock("RETRO_5")
+	if zone == "pisces" and GameData.run_cycle >= 1:
+		Ach.unlock("CYCLE_1")
+	if zone == "pisces" and GameData.run_cycle >= 3:
+		Ach.unlock("CYCLE_3")
 	GameData.moonstones += 2
 	# burç cevheri (Satürn Demirci için): ilk zaferde 2, sonra 1
 	var beaten := {"aries": GameData.aries_defeated, "taurus": GameData.taurus_defeated, "gemini": GameData.gemini_defeated,

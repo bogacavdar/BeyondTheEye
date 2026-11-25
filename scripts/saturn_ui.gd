@@ -102,6 +102,8 @@ func _row(a: Dictionary) -> Control:
 	fb.pressed.connect(func():
 		GameData.ores[id] = ore - cost
 		GameData.aspect_lv[id] = lv + 1
+		if lv + 1 >= 3:
+			load("res://scripts/achievements.gd").unlock("SEAL_MASTER")
 		if GameData.aspect_eq == "":
 			GameData.aspect_eq = id
 		GameData.go_save()

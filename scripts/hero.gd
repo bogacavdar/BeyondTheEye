@@ -1138,6 +1138,7 @@ func take_damage(amount: float, from_dir: Vector3, parryable := true) -> String:
 
 
 func _on_parry(from_dir: Vector3) -> void:
+	load("res://scripts/achievements.gd").bump("parries")
 	_parry_t = 0.0
 	_parry_cd = 0.0
 	_invuln = 0.35
