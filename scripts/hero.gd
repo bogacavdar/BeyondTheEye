@@ -55,6 +55,10 @@ var _slow_t := 0.0      # Diken Çalısı: yavaşlatma süresi
 var _slow_mult := 1.0
 var _pull_vel := Vector3.ZERO   # Denizanası çekimi / dalga itişi
 var _pull_t := 0.0
+var _asp_dash_t := 0.0    # Koç Mührü: atılmadan sonra güçlü vuruş süresi
+var _asp_hits := 0        # İkizler Mührü: vuruş sayacı
+var _asp_leo := 0         # Aslan Mührü: yığın
+var _asp_leo_t := 0.0
 var _poison_t := 0.0     # Akrep zehri: canı yavaşça eritir (öldürmez)
 var _poison_dps := 0.0
 var _poison_acc := 0.0
@@ -123,6 +127,13 @@ func _compute_stats() -> void:
 	st = Stats.compute(GameData.chart, GameData.run_boons)
 	if GameData.run_rising != "":
 		load("res://scripts/risings.gd").apply(st, GameData.run_rising)
+	if GameData.aspect_eq != "":
+		var Asp = load("res://scripts/aspects.gd")
+		var av: float = Asp.value(GameData.aspect_eq, int(GameData.aspect_lv.get(GameData.aspect_eq, 0)))
+		if GameData.aspect_eq == "virgo":
+			st["crit_chance"] = float(st["crit_chance"]) + av
+		elif GameData.aspect_eq == "taurus" and av > 0.0:
+			st["heavy_dmg"] = float(st["heavy_dmg"]) + 20.0
 	if GameData.companion == "owl":
 		var Cp = load("res://scripts/companion.gd")
 		st["dodge"] = float(st["dodge"]) + [0.0, 5.0, 10.0][Cp.lvl(int(GameData.comp_runs.get("owl", 0))) - 1]
@@ -305,6 +316,10 @@ func _physics_process(delta: float) -> void:
 			_regen_acc -= floorf(_regen_acc)
 
 	_aim_lock_t -= delta
+	_asp_dash_t -= delta
+	_asp_leo_t -= delta
+	if _asp_leo_t <= 0.0:
+		_asp_leo = 0
 	_update_aim()
 	var move := Vector3.ZERO
 	if not frozen and camera != null:
@@ -455,6 +470,7 @@ func _read_actions(move: Vector3) -> void:
 
 
 func _start_dash(dir: Vector3) -> void:
+	_asp_dash_t = DASH_TIME + 1.5
 	state = "free"
 	_queued = ""
 	dash_dir = dir
@@ -774,6 +790,9 @@ func _on_dealt(dmg: float, e) -> void:
 			heal(gain)
 	if e.dead:
 		_kills += 1
+		if _asp("leo") > 0.0:
+			_asp_leo = mini(_asp_leo + 1, 3)
+			_asp_leo_t = 4.0
 		if bool(st["healer"]):
 			heal(3.0)
 		if bool(st["harvest"]) and _kills % 10 == 0:
@@ -1129,6 +1148,8 @@ func _on_parry(from_dir: Vector3) -> void:
 	Sfx.play("heavyhit", -8.0, 0.05, 0, 1.2)
 	if bool(st["accord"]):
 		heal(2.0)
+	if _asp("cancer") > 0.0:
+		shield = minf(shield + _asp("cancer"), max_hp * 0.5)
 	if bool(st["parry_empower"]):
 		_empowered = true
 	var p := global_position + Vector3(0, 1.1, 0) - from_dir.normalized() * 0.6
@@ -1181,8 +1202,20 @@ const ECHO_TYPES := ["starfall", "wave", "burst_self", "burst_aim", "aura", "boo
 
 
 ## Saldırı çarpanı: Yıldız Dansı (peş peşe vuruş) ve Güçlenmiş saldırılar
+## Takılı burç mührünün değeri (0 = yok)
+func _asp(id: String) -> float:
+	if GameData.aspect_eq != id:
+		return 0.0
+	return load("res://scripts/aspects.gd").value(id, int(GameData.aspect_lv.get(id, 0)))
+
+
 func _attack_mult(heavy: bool) -> float:
 	var m := 1.0
+	if _asp_dash_t > 0.0 and _asp("aries") > 0.0:
+		m *= 1.0 + _asp("aries") / 100.0
+		_asp_dash_t = 0.0
+	if _asp_leo > 0 and _asp_leo_t > 0.0:
+		m *= 1.0 + _asp("leo") * float(_asp_leo) / 100.0
 	if wb.has("atk_frenzy"):
 		m *= 1.0 + 0.06 * float(_frenzy)
 	if _emp_hits > 0 and not heavy:
@@ -1201,6 +1234,16 @@ func _exec_mult(e, heavy: bool) -> float:
 
 ## Her isabetten sonra: zincir sıçrama, yanma, peş peşe vuruş sayacı
 func _after_hit(dmg: float, e, heavy: bool) -> void:
+	if heavy and _asp("taurus") > 0.0:
+		shield = minf(shield + _asp("taurus"), max_hp * 0.5)
+	if _asp("gemini") > 0.0:
+		_asp_hits += 1
+		if _asp_hits >= 4 and is_instance_valid(e) and not e.dead:
+			_asp_hits = 0
+			var ed: Vector3 = e.global_position - global_position
+			ed.y = 0.0
+			e.take_hit(dmg * _asp("gemini") / 100.0, ed.normalized() if ed.length() > 0.1 else aim, 0.5, false)
+			Fx.flash_light(e.global_position + Vector3(0, 1.2, 0), Color(0.6, 0.8, 1.0), 3.0, 3.0, 0.2)
 	if wb.has("atk_frenzy"):
 		_frenzy = mini(_frenzy + 1, 10)
 		_frenzy_t = 1.6

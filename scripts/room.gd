@@ -1910,6 +1910,11 @@ func _on_boss_killed(_b) -> void:
 	victory = true
 	cleared = true
 	GameData.moonstones += 2
+	# burç cevheri (Satürn Demirci için): ilk zaferde 2, sonra 1
+	var beaten := {"aries": GameData.aries_defeated, "taurus": GameData.taurus_defeated, "gemini": GameData.gemini_defeated,
+		"cancer": GameData.cancer_defeated, "leo": GameData.leo_defeated, "virgo": GameData.virgo_defeated}
+	var first_win := not bool(beaten.get(zone, false))
+	GameData.ores[zone] = int(GameData.ores.get(zone, 0)) + (2 if first_win else 1)
 	# kalan yardımcılar da dağılır
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e) and not e.dead:

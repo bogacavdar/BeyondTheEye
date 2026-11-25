@@ -272,6 +272,9 @@ static var moonstones := 0               # Ay Taşı (Ay Ana'ya hediye)
 static var ayana_bond := 0               # Ay Ana ile bağ seviyesi (0-5)
 static var charm_eq := ""                # takılı tılsım
 static var charm_runs := {}              # tılsım -> takılı girilen run sayısı
+static var ores := {}                    # burç cevherleri: burç -> adet (Satürn Demirci)
+static var aspect_lv := {}               # burç mührü -> seviye (0-3)
+static var aspect_eq := ""               # takılı burç mührü
 static var companion := "fox"            # gök yoldaşı (companion.gd)
 static var comp_runs := {}               # yoldaş -> birlikte girilen run sayısı
 static var run_rising := ""             # bu run'ın yükselen burcu (risings.gd)
@@ -414,6 +417,9 @@ static func _load_slot(n: int) -> void:
 	charm_eq = String(cfg.get_value("ay_ana", "charm", "")) if ok else ""
 	charm_runs = Dictionary(cfg.get_value("ay_ana", "charm_runs", {})) if ok else {}
 	companion = String(cfg.get_value("yoldas", "kind", "fox")) if ok else "fox"
+	ores = Dictionary(cfg.get_value("demirci", "ores", {})) if ok else {}
+	aspect_lv = Dictionary(cfg.get_value("demirci", "levels", {})) if ok else {}
+	aspect_eq = String(cfg.get_value("demirci", "seal", "")) if ok else ""
 	comp_runs = Dictionary(cfg.get_value("yoldas", "runs", {})) if ok else {}
 	weapons_open = cfg.get_value("yolculuk", "weapons_open", ["STAR SWORD"]) if ok else ["STAR SWORD"]
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
@@ -481,6 +487,9 @@ static func go_save() -> void:
 	cfg.set_value("ay_ana", "charm", charm_eq)
 	cfg.set_value("ay_ana", "charm_runs", charm_runs)
 	cfg.set_value("yoldas", "kind", companion)
+	cfg.set_value("demirci", "ores", ores)
+	cfg.set_value("demirci", "levels", aspect_lv)
+	cfg.set_value("demirci", "seal", aspect_eq)
 	cfg.set_value("yoldas", "runs", comp_runs)
 	cfg.set_value("yolculuk", "weapons_open", weapons_open)
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
@@ -533,6 +542,9 @@ static func reset_progress() -> void:
 	charm_runs = {}
 	companion = "fox"
 	comp_runs = {}
+	ores = {}
+	aspect_lv = {}
+	aspect_eq = ""
 	retro = {}
 	weapons_open = ["STAR SWORD"]
 	chosen_weapon = "STAR SWORD"

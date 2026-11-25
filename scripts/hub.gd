@@ -72,6 +72,7 @@ func _ready() -> void:
 	_altar(Vector3(10.6, 0, 1.0))
 	_sky_dial(Vector3(0, 0, 10.6))
 	_ay_ana(Vector3(-7.6, 0, -7.6))
+	_saturn(Vector3(7.6, 0, -7.6))
 
 	camera = CameraScript.new()
 	camera.offset = Vector3(10.0, 10.5, 10.0)
@@ -599,6 +600,9 @@ func _build_ui() -> void:
 	skill_ui.visible = false
 	skill_ui.closed.connect(_close_ui)
 	ui_layer.add_child(skill_ui)
+	saturn_ui = load("res://scripts/saturn_ui.gd").new()
+	saturn_ui.closed.connect(_close_ui)
+	ui_layer.add_child(saturn_ui)
 	ayana_ui = load("res://scripts/ayana_ui.gd").new()
 	ayana_ui.closed.connect(_close_ui)
 	ui_layer.add_child(ayana_ui)
@@ -695,6 +699,87 @@ func _ay_ana(pos: Vector3) -> void:
 	_station("MOTHER MOON", pos, _open_ayana)
 
 
+var saturn_ui = null
+
+
+## SATÜRN DEMİRCİ: halkalı örsün başında, kül grisi yaşlı demirci
+func _saturn(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	add_child(root)
+	root.look_at(Vector3(0, 0, 0.01), Vector3.UP)
+	root.rotate_y(PI)
+	var cloak := _mat(Color(0.32, 0.3, 0.36), 0.1, 0.8)
+	var skin := _mat(Color(0.75, 0.7, 0.65), 0.0, 0.6)
+	var iron := _mat(Color(0.25, 0.26, 0.3), 0.8, 0.35)
+	var gold := _glow(Color(1.0, 0.78, 0.45), 1.2)
+	var base := CylinderMesh.new()
+	base.top_radius = 1.0
+	base.bottom_radius = 1.2
+	base.height = 0.4
+	_mesh(base, Vector3(0, 0.2, 0), _mat(Color(0.22, 0.22, 0.28), 0.1, 0.8), root)
+	# geniş omuzlu, kambur demirci
+	var body := CylinderMesh.new()
+	body.top_radius = 0.5
+	body.bottom_radius = 0.7
+	body.height = 1.4
+	_mesh(body, Vector3(0.6, 1.1, 0.3), cloak, root)
+	var h := _mesh(_sphere(0.28), Vector3(0.6, 2.0, 0.15), skin, root)
+	h.scale = Vector3(1.0, 1.0, 1.1)
+	var beard := CylinderMesh.new()
+	beard.top_radius = 0.26
+	beard.bottom_radius = 0.06
+	beard.height = 0.6
+	_mesh(beard, Vector3(0.6, 1.65, -0.05), _mat(Color(0.85, 0.85, 0.85), 0.0, 0.9), root)
+	# halkalı örs
+	var anvil := BoxMesh.new()
+	anvil.size = Vector3(0.9, 0.45, 0.5)
+	_mesh(anvil, Vector3(-0.4, 0.95, -0.3), iron, root)
+	var leg := BoxMesh.new()
+	leg.size = Vector3(0.4, 0.5, 0.35)
+	_mesh(leg, Vector3(-0.4, 0.55, -0.3), iron, root)
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.75
+	ring.outer_radius = 0.85
+	var rm := _mesh(ring, Vector3(-0.4, 1.0, -0.3), gold, root)
+	rm.rotation.x = 0.35
+	spinners.append([rm, 0.6])
+	# çekiç
+	var hh := CylinderMesh.new()
+	hh.top_radius = 0.04
+	hh.bottom_radius = 0.04
+	hh.height = 0.8
+	var hm := _mesh(hh, Vector3(0.05, 1.45, -0.1), _mat(Color(0.4, 0.28, 0.2), 0.0, 0.8), root)
+	hm.rotation.z = 0.9
+	var head := BoxMesh.new()
+	head.size = Vector3(0.18, 0.18, 0.32)
+	_mesh(head, Vector3(-0.22, 1.7, -0.1), iron, root)
+	# örsten sıçrayan kıvılcımlar
+	var sp := CPUParticles3D.new()
+	sp.amount = 14
+	sp.lifetime = 0.8
+	var sm := SphereMesh.new()
+	sm.radius = 0.025
+	sm.height = 0.05
+	sp.mesh = sm
+	sp.material_override = _glow(Color(1.0, 0.7, 0.3), 4.0)
+	sp.direction = Vector3.UP
+	sp.spread = 60.0
+	sp.initial_velocity_min = 1.0
+	sp.initial_velocity_max = 2.5
+	sp.gravity = Vector3(0, -6, 0)
+	sp.position = Vector3(-0.4, 1.2, -0.3)
+	root.add_child(sp)
+	_light(Vector3(-0.4, 1.8, -0.3), Color(1.0, 0.7, 0.4), 1.8, 6.0, root)
+	_station("SATURN THE SMITH", pos, _open_saturn)
+
+
+func _open_saturn() -> void:
+	_ui_open = true
+	player.frozen = true
+	saturn_ui.open()
+
+
 func _open_ayana() -> void:
 	_ui_open = true
 	player.frozen = true
@@ -707,6 +792,8 @@ func _close_ui() -> void:
 	retro_ui.visible = false
 	if ayana_ui != null:
 		ayana_ui.visible = false
+	if saturn_ui != null:
+		saturn_ui.visible = false
 	if rising_ui != null:
 		rising_ui.visible = false
 	player.frozen = false
