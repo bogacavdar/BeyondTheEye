@@ -28,11 +28,13 @@ void vertex() {
 void fragment() {
 	vec2 p = wpos.xz;
 	float r = length(p);
-	float n = noise(p * 0.35) * 0.55 + noise(p * 1.6) * 0.3 + noise(p * 7.0) * 0.15;
-	vec3 c = mix(grass_dark, grass_light, smoothstep(0.25, 0.8, n));
-	// çimen tutamları (ince yön çizgileri)
-	float blades = noise(vec2(p.x * 22.0, p.y * 3.0)) * noise(vec2(p.x * 3.0, p.y * 22.0));
-	c *= 0.85 + blades * 0.35;
+	// yumuşak, katmanlı çimen dokusu (köşeli bloklar olmasın diye döndürülmüş katmanlar)
+	vec2 q = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * p;
+	float n = noise(p * 0.3) * 0.5 + noise(q * 1.1) * 0.3 + noise(q * 3.7 + 11.0) * 0.2;
+	vec3 c = mix(grass_dark, grass_light, smoothstep(0.3, 0.75, n));
+	// ince çimen ışıltısı: küçük, yuvarlak lekeler
+	float tuft = noise(q * 9.0) * 0.6 + noise(p * 17.0 + 3.0) * 0.4;
+	c *= 0.9 + (tuft - 0.5) * 0.25;
 	// çiçekler: hücre başına küçük bir nokta
 	vec2 cell = floor(p * 1.6);
 	vec2 f = fract(p * 1.6) - 0.5;
