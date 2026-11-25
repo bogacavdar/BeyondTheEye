@@ -171,6 +171,9 @@ func heal(v: float) -> void:
 func _update_aim() -> void:
 	if camera == null:
 		return
+	if GameData.input_mode != "mouse":
+		_pad_aim()
+		return
 	var mp := get_viewport().get_mouse_position()
 	var from: Vector3 = camera.project_ray_origin(mp)
 	var dir: Vector3 = camera.project_ray_normal(mp)
@@ -183,6 +186,48 @@ func _update_aim() -> void:
 	d.y = 0.0
 	if d.length() > 0.2:
 		aim = d.normalized()
+
+
+## Kontrolcü / dokunmatik nişanı: sağ çubuk varsa ona; yoksa en yakın düşmana (yumuşak otomatik nişan),
+## o da yoksa yürüdüğün yöne
+func _pad_aim() -> void:
+	var b: Basis = camera.global_transform.basis
+	var fwd := -b.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var right := b.x
+	right.y = 0.0
+	right = right.normalized()
+	var rs := Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
+	if rs.length() > 0.35:
+		aim = (right * rs.x - fwd * rs.y).normalized()
+		aim_point = global_position + aim * 5.0
+		return
+	var best = null
+	var bd := 9.0
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.dead:
+			continue
+		var d: float = e.global_position.distance_to(global_position)
+		# önündeki düşmanları biraz öne al
+		var to: Vector3 = e.global_position - global_position
+		to.y = 0.0
+		if to.length() > 0.1 and velocity.length() > 0.5:
+			d -= 1.5 * maxf(to.normalized().dot(velocity.normalized()), 0.0)
+		if d < bd:
+			bd = d
+			best = e
+	if best != null:
+		var to2: Vector3 = best.global_position - global_position
+		to2.y = 0.0
+		if to2.length() > 0.2:
+			aim = to2.normalized()
+		aim_point = Vector3(best.global_position.x, 0.0, best.global_position.z)
+		return
+	var mv := Vector3(velocity.x, 0, velocity.z)
+	if mv.length() > 0.5:
+		aim = mv.normalized()
+	aim_point = global_position + aim * 5.0
 
 
 func _face(dir: Vector3, delta: float, spd := 30.0) -> void:

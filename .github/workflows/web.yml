@@ -1,5 +1,5 @@
 # Her main'e gönderimde oyunu tarayıcı için derler ve GitHub Pages'e yayınlar.
-name: Derleme (Web + Windows)
+name: Derleme (Web + Windows + Android)
 
 on:
   push:
@@ -51,6 +51,7 @@ jobs:
           path: build/web
 
   windows:
+    # Windows .exe ve Android .apk aynı işte derlenir; ikisi de "son-surum" sayfasına yüklenir
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -70,6 +71,35 @@ jobs:
           mv templates/* "$tdir/"
           rm -rf templates *.zip *.tpz
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # imza anahtarı önbellekte saklanır: her sürüm aynı anahtarla imzalanır, telefonda güncelleme
+      # kaldırmadan üstüne kurulur (önbellek 7 gün kullanılmazsa silinir; o zaman bir kez kaldırıp kurmak gerekir)
+      - name: İmza anahtarını önbellekten al
+        uses: actions/cache@v4
+        with:
+          path: android-key
+          key: android-debug-keystore-v1
+
+      - name: Android ayarları
+        run: |
+          mkdir -p android-key
+          if [ ! -f android-key/debug.keystore ]; then
+            keytool -genkeypair -keystore android-key/debug.keystore -alias androiddebugkey \
+              -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Beyond The Eye, O=Bogac, C=TR"
+          fi
+          cfg="$HOME/.config/godot"
+          mkdir -p "$cfg"
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' \
+            "$ANDROID_SDK_ROOT" "$JAVA_HOME" "$PWD/android-key/debug.keystore" > "$cfg/editor_settings-4.7.tres"
+          cp "$cfg/editor_settings-4.7.tres" "$cfg/editor_settings-4.tres"
+          # her derlemede sürüm numarası artar (telefon yeni sürümü güncelleme olarak tanır)
+          sed -i "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/" export_presets.cfg
+
       - name: Varlıkları içe aktar
         run: ./godot --headless --import || true
 
@@ -79,16 +109,26 @@ jobs:
           ./godot --headless --export-release "Windows" build/windows/BeyondTheEye.exe
           cp README.md build/windows/BENIOKU.md
           cd build && zip -r -q ../BeyondTheEye-Windows.zip windows
-          ls -la ..
+
+      - name: Android için dışa aktar
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/android-key/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p build/android
+          ./godot --headless --export-debug "Android" build/android/BeyondTheEye.apk 2>&1 | tail -40
+          ls -la build/android
+          cp build/android/BeyondTheEye.apk BeyondTheEye.apk
 
       - name: Son Sürüm sayfasına yükle
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete son-surum -y --cleanup-tag || true
-          gh release create son-surum BeyondTheEye-Windows.zip \
-            --title "Beyond The Eye · Son Sürüm (Windows)" \
-            --notes "İndir, zip'i aç, BeyondTheEye.exe'ye çift tıkla. Kurulum gerekmez. Windows 'bilinmeyen yayıncı' uyarısı verirse: Ek bilgi → Yine de çalıştır. Derleme: ${GITHUB_SHA::7}"
+          gh release create son-surum BeyondTheEye-Windows.zip BeyondTheEye.apk \
+            --title "Beyond The Eye · Son Sürüm (Windows + Android)" \
+            --notes "Windows: zip'i aç, BeyondTheEye.exe'ye çift tıkla ('bilinmeyen yayıncı' uyarısında: Ek bilgi → Yine de çalıştır). Android: APK'yı telefona indir, aç, 'bilinmeyen kaynaklardan yüklemeye' izin ver. Kontrolcü desteklenir. Derleme: ${GITHUB_SHA::7}"
 
   deploy:
     needs: build

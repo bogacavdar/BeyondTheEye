@@ -28,6 +28,11 @@ window/size/window_width_override=1600
 window/size/window_height_override=900
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
 
 [layer_names]
 
@@ -41,6 +46,9 @@ window/stretch/aspect="expand"
 3d/physics_engine="Jolt Physics"
 
 [rendering]
+
+textures/vram_compression/import_etc2_astc=true
+rendering_device/fallback_to_opengl3=true
 
 rendering_device/driver.windows="d3d12"
 anti_aliasing/quality/msaa_3d=2

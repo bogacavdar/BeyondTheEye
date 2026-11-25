@@ -181,8 +181,22 @@ static func apply_settings() -> void:
 
 
 ## Oyun tarayıcıda mı çalışıyor? (Web sürümünde ağır efektler kapatılır)
+## Düşük ayar gereken platformlar: tarayıcı ve telefon (gölge yok, MSAA yok, çözünürlük ölçeği düşük)
 static func is_web() -> bool:
-	return OS.has_feature("web")
+	return OS.has_feature("web") or OS.has_feature("mobile")
+
+
+static func is_mobile() -> bool:
+	return OS.has_feature("mobile")
+
+
+## Ekrandaki dokunmatik kontroller gösterilsin mi (telefon; masaüstünde test için BTE_TOUCH=1)
+static func show_touch() -> bool:
+	return OS.has_feature("mobile") or OS.get_environment("BTE_TOUCH") == "1"
+
+
+## Son kullanılan giriş: "mouse" (klavye+fare), "pad" (kontrolcü), "touch" (dokunmatik)
+static var input_mode := "touch" if OS.has_feature("mobile") else "mouse"
 
 
 ## Menü ve oyun aynı gece atmosferini kullanır.
@@ -536,8 +550,53 @@ static func setup_input() -> void:
 	_keys("skill_2", [KEY_2])
 	_keys("skill_3", [KEY_3])
 	_keys("mute_music", [KEY_M])
-	_mouse("fire", MOUSE_BUTTON_LEFT)
-	_mouse("parry", MOUSE_BUTTON_RIGHT)
+	if not is_mobile():
+		# telefonda dokunuş fare tıklaması gibi de gelir; saldırı/parry'yi tetiklemesin
+		_mouse("fire", MOUSE_BUTTON_LEFT)
+		_mouse("parry", MOUSE_BUTTON_RIGHT)
+	# KONTROLCÜ (Xbox düzeni; PlayStation'da aynı yerdeki tuşlar):
+	#  sol çubuk/yön tuşları: yürü · sağ çubuk: nişan · X: saldırı · Y: ağır saldırı · A: atılma
+	#  B: parry · LB/RB/RT: 1-2-3 yetenekleri · LT ya da sol çubuğa basmak: koş · Start: duraklat
+	_axis("move_left", JOY_AXIS_LEFT_X, -1.0)
+	_axis("move_right", JOY_AXIS_LEFT_X, 1.0)
+	_axis("move_up", JOY_AXIS_LEFT_Y, -1.0)
+	_axis("move_down", JOY_AXIS_LEFT_Y, 1.0)
+	_pad("move_up", [JOY_BUTTON_DPAD_UP])
+	_pad("move_down", [JOY_BUTTON_DPAD_DOWN])
+	_pad("move_left", [JOY_BUTTON_DPAD_LEFT])
+	_pad("move_right", [JOY_BUTTON_DPAD_RIGHT])
+	_pad("fire", [JOY_BUTTON_X])
+	_pad("heavy", [JOY_BUTTON_Y])
+	_pad("dash", [JOY_BUTTON_A])
+	_pad("parry", [JOY_BUTTON_B])
+	_pad("interact", [JOY_BUTTON_X])
+	_pad("skill_1", [JOY_BUTTON_LEFT_SHOULDER])
+	_pad("skill_2", [JOY_BUTTON_RIGHT_SHOULDER])
+	_axis("skill_3", JOY_AXIS_TRIGGER_RIGHT, 1.0)
+	_axis("sprint", JOY_AXIS_TRIGGER_LEFT, 1.0)
+	_pad("sprint", [JOY_BUTTON_LEFT_STICK])
+	_pad("pause", [JOY_BUTTON_START, JOY_BUTTON_BACK])
+
+
+static func _pad(action: String, buttons: Array) -> void:
+	if not InputMap.has_action(action):
+		InputMap.add_action(action)
+	for b in buttons:
+		var ev := InputEventJoypadButton.new()
+		ev.button_index = b
+		if not InputMap.action_has_event(action, ev):
+			InputMap.action_add_event(action, ev)
+
+
+static func _axis(action: String, axis: JoyAxis, sign_v: float) -> void:
+	if not InputMap.has_action(action):
+		InputMap.add_action(action)
+	var ev := InputEventJoypadMotion.new()
+	ev.axis = axis
+	ev.axis_value = sign_v
+	if not InputMap.action_has_event(action, ev):
+		InputMap.action_add_event(action, ev)
+	InputMap.action_set_deadzone(action, 0.3)
 
 
 static func _keys(action: String, keys: Array) -> void:

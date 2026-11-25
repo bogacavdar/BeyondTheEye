@@ -221,6 +221,10 @@ func _ready() -> void:
 	pause_ui.leave_text = "RETURN TO OBSERVATORY"
 	pause_ui.leave.connect(_abandon)
 	layer.add_child(pause_ui)
+	if GameData.show_touch():
+		var tc = load("res://scripts/touch_controls.gd").new()
+		tc.hero = hero
+		add_child(tc)
 	_aim_moon()
 
 	if is_rest:

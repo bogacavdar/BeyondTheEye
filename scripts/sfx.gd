@@ -195,7 +195,81 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+# ---------------------------------------------------------------- giriş türü ve kontrolcüyle menü gezinme
+
+var _focus_t := 0.0
+
+
+func _input(event: InputEvent) -> void:
+	var mode := GameData.input_mode
+	if event is InputEventJoypadButton and event.pressed:
+		mode = "pad"
+	elif event is InputEventJoypadMotion and absf(event.axis_value) > 0.4:
+		mode = "pad"
+	elif event is InputEventScreenTouch:
+		mode = "touch"
+	elif event is InputEventMouseMotion and event.device != InputEvent.DEVICE_ID_EMULATION and event.relative.length() > 3.0:
+		mode = "mouse" if not GameData.is_mobile() else mode
+	elif event is InputEventKey and event.pressed:
+		mode = "mouse" if not GameData.is_mobile() else mode
+	if mode != GameData.input_mode:
+		GameData.input_mode = mode
+
+
+## Menü açıkken kontrolcü kullanılıyorsa ve hiçbir düğme seçili değilse ilk görünür düğmeyi seçer
+func _pad_focus(delta: float) -> void:
+	if GameData.input_mode != "pad":
+		return
+	_focus_t -= delta
+	if _focus_t > 0.0:
+		return
+	_focus_t = 0.2
+	if not _ui_mode():
+		return
+	var vp := get_viewport()
+	var cur := vp.gui_get_focus_owner()
+	if cur != null and cur.is_visible_in_tree():
+		return
+	var sc := get_tree().current_scene
+	if sc == null:
+		return
+	var b := _first_button(sc)
+	if b != null:
+		b.grab_focus()
+
+
+func _ui_mode() -> bool:
+	if get_tree().paused:
+		return true
+	var sc := get_tree().current_scene
+	if sc == null:
+		return false
+	if sc.get("hero") != null:
+		var h = sc.get("hud")
+		if h != null:
+			var ob = h.get("over_box")
+			var vb = h.get("victory_box")
+			return (ob != null and ob.visible) or (vb != null and vb.visible)
+		return false
+	if sc.get("player") != null:
+		return bool(sc.player.get("frozen"))
+	return true
+
+
+func _first_button(n: Node) -> BaseButton:
+	if n is BaseButton:
+		var bb := n as BaseButton
+		if bb.is_visible_in_tree() and not bb.disabled and bb.focus_mode != Control.FOCUS_NONE:
+			return bb
+	for c in n.get_children():
+		var r := _first_button(c)
+		if r != null:
+			return r
+	return null
+
+
 func _process(_d: float) -> void:
+	_pad_focus(_d)
 	if InputMap.has_action("mute_music") and Input.is_action_just_pressed("mute_music"):
 		GameData.music_muted = not GameData.music_muted
 		set_bus_volume("Music", 0.0 if GameData.music_muted else GameData.music_volume)

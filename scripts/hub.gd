@@ -81,6 +81,10 @@ func _ready() -> void:
 	player = PlayerScript.new()
 	player.camera = camera
 	add_child(player)
+	if GameData.show_touch():
+		var tc = load("res://scripts/touch_controls.gd").new()
+		tc.hub_mode = true
+		add_child(tc)
 	player.global_position = Vector3(0, 0, 6.0)
 	camera.target = player
 
@@ -554,7 +558,12 @@ func _build_ui() -> void:
 	dust_label = UI.label("", 22, UI.CREAM, 5)
 	dust_label.position = Vector2(42, 96)
 	root.add_child(dust_label)
-	var hint := UI.label("WASD move   ·   LMB / Q / 1 2 3 try your weapon   ·   E interact   ·   Esc pause", 16, Color(0.85, 0.8, 0.6), 4)
+	var hint_txt := "WASD move   ·   LMB / Q / 1 2 3 try your weapon   ·   E interact   ·   Esc pause"
+	if GameData.is_mobile():
+		hint_txt = "Left stick move   ·   USE interact   ·   II pause"
+	elif Input.get_connected_joypads().size() > 0:
+		hint_txt = "Left stick move   ·   X interact   ·   A dash   ·   Start pause"
+	var hint := UI.label(hint_txt, 16, Color(0.85, 0.8, 0.6), 4)
 	hint.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hint.offset_left = 40.0
 	hint.offset_top = 132.0

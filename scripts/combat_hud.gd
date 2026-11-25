@@ -84,7 +84,8 @@ func _draw() -> void:
 	if hero == null or not is_instance_valid(hero):
 		return
 	if hub_mode:
-		_draw_slots()
+		if GameData.input_mode != "touch":
+			_draw_slots()
 		return
 	var gold := UI.GOLD
 	# --- vurulma kenarı
@@ -121,7 +122,8 @@ func _draw() -> void:
 	if wave > 0 and boss == null:
 		_text(tr("WAVE %d / %d") % [mini(wave, wave_total), wave_total], Vector2(size.x * 0.5, 74), 18, _a(UI.CREAM, 0.85))
 
-	_draw_slots()
+	if GameData.input_mode != "touch":
+		_draw_slots()
 
 	# --- etkileşim ipucu
 	if prompt != "":
@@ -145,7 +147,11 @@ func _draw() -> void:
 	# --- kontroller (ilk saniyelerde)
 	if _t < 15.0:
 		var a := clampf(15.0 - _t, 0.0, 1.0)
-		_text(tr("LMB attack  ·  Q heavy  ·  RMB parry (gold warnings)  ·  Space dash (red warnings)  ·  Shift sprint  ·  1 2 3 skills"), Vector2(size.x * 0.5, size.y - 18.0), 16, _a(UI.CREAM, 0.75 * a))
+		var hint_txt := tr("LMB attack  ·  Q heavy  ·  RMB parry (gold warnings)  ·  Space dash (red warnings)  ·  Shift sprint  ·  1 2 3 skills")
+		if GameData.input_mode == "pad":
+			hint_txt = tr("X attack  ·  Y heavy  ·  B parry (gold warnings)  ·  A dash (red warnings)  ·  LT sprint  ·  LB RB RT skills")
+		if GameData.input_mode != "touch":
+			_text(hint_txt, Vector2(size.x * 0.5, size.y - 18.0), 16, _a(UI.CREAM, 0.75 * a))
 
 
 func _draw_slots() -> void:
@@ -155,6 +161,10 @@ func _draw_slots() -> void:
 		["1", 0, "starfall", ""], ["2", 1, "wave", ""], ["3", 2, "path", ""], ["Q", -3, "heavy", "HEAVY ATTACK"],
 		["SPACE", -1, "dash", "DASH"], ["RMB", -2, "parry", "PARRY"],
 	]
+	if GameData.input_mode == "pad":
+		var pk := ["LB", "RB", "RT", "Y", "A", "B"]
+		for i in slots.size():
+			slots[i][0] = pk[i]
 	var sw := 72.0
 	var gap := 80.0
 	var total := sw * slots.size() + gap * (slots.size() - 1) + 30.0

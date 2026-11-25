@@ -2,7 +2,14 @@
 
 Astroloji temalı, Hades tarzı bir aksiyon roguelite. Godot 4.7.2 ile yapılıyor (Steam / PC hedefli).
 
-**Windows için indir (kurulum yok):** https://github.com/bogacavdar/BeyondTheEye/releases/tag/son-surum
+**Windows için indir (kurulum yok):** https://github.com/bogacavdar/BeyondTheEye/releases/download/son-surum/BeyondTheEye-Windows.zip
+
+**Android için indir (APK):** https://github.com/bogacavdar/BeyondTheEye/releases/download/son-surum/BeyondTheEye.apk
+(Telefonda APK'yı aç; "bilinmeyen kaynaklardan yükleme" iznini ver.)
+
+**Kontrolcü:** Xbox / PlayStation kontrolcüsü takılıysa doğrudan çalışır.
+Sol çubuk yürü · sağ çubuk nişan (bırakınca en yakın düşmana kilitlenir) · X saldırı · Y ağır saldırı ·
+A atılma · B parry · LB / RB / RT yetenekler · LT koş · Start duraklat
 
 **Tarayıcıda oyna (sade grafik):** https://bogacavdar.github.io/BeyondTheEye/
 
