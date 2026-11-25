@@ -291,6 +291,7 @@ static var gemini_defeated := false     # İkizler en az bir kez yenildi mi
 static var cancer_defeated := false     # Yengeç en az bir kez yenildi mi
 static var leo_defeated := false     # Aslan en az bir kez yenildi mi
 static var virgo_defeated := false     # Başak en az bir kez yenildi mi
+static var libra_defeated := false     # Terazi en az bir kez yenildi mi
 
 
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
@@ -412,6 +413,7 @@ static func _load_slot(n: int) -> void:
 	cancer_defeated = bool(cfg.get_value("yolculuk", "cancer_defeated", false)) if ok else false
 	leo_defeated = bool(cfg.get_value("yolculuk", "leo_defeated", false)) if ok else false
 	virgo_defeated = bool(cfg.get_value("yolculuk", "virgo_defeated", false)) if ok else false
+	libra_defeated = bool(cfg.get_value("yolculuk", "libra_defeated", false)) if ok else false
 	moonstones = int(cfg.get_value("ay_ana", "moonstones", 0)) if ok else 0
 	ayana_bond = int(cfg.get_value("ay_ana", "bond", 0)) if ok else 0
 	charm_eq = String(cfg.get_value("ay_ana", "charm", "")) if ok else ""
@@ -456,6 +458,7 @@ static func slot_summary(n: int) -> Dictionary:
 		"cancer": bool(cfg.get_value("yolculuk", "cancer_defeated", false)),
 		"leo": bool(cfg.get_value("yolculuk", "leo_defeated", false)),
 		"virgo": bool(cfg.get_value("yolculuk", "virgo_defeated", false)),
+		"libra": bool(cfg.get_value("yolculuk", "libra_defeated", false)),
 		"run_room": int(sr.get("room", -1)) if not sr.is_empty() else -1,
 		"time": FileAccess.get_modified_time(slot_path(n))}
 
@@ -482,6 +485,7 @@ static func go_save() -> void:
 	cfg.set_value("yolculuk", "cancer_defeated", cancer_defeated)
 	cfg.set_value("yolculuk", "leo_defeated", leo_defeated)
 	cfg.set_value("yolculuk", "virgo_defeated", virgo_defeated)
+	cfg.set_value("yolculuk", "libra_defeated", libra_defeated)
 	cfg.set_value("ay_ana", "moonstones", moonstones)
 	cfg.set_value("ay_ana", "bond", ayana_bond)
 	cfg.set_value("ay_ana", "charm", charm_eq)
@@ -536,6 +540,7 @@ static func reset_progress() -> void:
 	cancer_defeated = false
 	leo_defeated = false
 	virgo_defeated = false
+	libra_defeated = false
 	moonstones = 0
 	ayana_bond = 0
 	charm_eq = ""

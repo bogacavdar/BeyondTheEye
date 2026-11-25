@@ -87,6 +87,10 @@ var _crown_cd := 2.5
 var _hide_crack := 0.0       # Nemea Aslanı: postu çatladı (tam hasar alır)
 var _reveal := 0.0           # Serap Avcısı: görünür kalma süresi
 var _calm := 0.0             # Hasır Dev: son vuruştan bu yana geçen süre (yenilenme)
+var _dodge_cd := 0.0         # Tüy Dansçısı: bir sonraki kaçışa kalan süre
+var _stored := 0.0           # Karşı Ağırlık Golemi: biriktirilen hasar
+var _even_cd := 3.0          # Terazi Bekçisi: eşitleme bekleme süresi
+var _sharing := false
 
 var body_root: Node3D
 var vis: Node3D
@@ -124,6 +128,8 @@ func _ready() -> void:
 		_leo_variant()
 	elif zone == "virgo":
 		_virgo_variant()
+	elif zone == "libra":
+		_libra_variant()
 	if mini:
 		max_hp *= 0.35
 		size_k *= 0.7
@@ -337,6 +343,49 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## ŞAFAK TERAZİSİ yaratıkları:
+##  shade  -> HAKEM: eşiyle bağlı; birine vurduğun hasar ikisine bölünür (ikisini birlikte erit)
+##  caster -> TERAZİ BEKÇİSİ: hükmü (sırayla iki patlama) ve yakındaki dostlarının canını eşitler
+##  leaper -> TÜY DANSÇISI: 4 saniyede bir ilk vuruştan zarifçe kaçar
+##  brute  -> KARŞI AĞIRLIK GOLEMİ: aldığı hasarı biriktirir; dolunca etrafını şok dalgasıyla döver
+func _libra_variant() -> void:
+	_base_body = Color(0.3, 0.9, 0.7)
+	_base_cloth = Color(0.25, 0.6, 0.5)
+	match kind:
+		"caster":
+			attacks = [
+				{"name": "verdict", "shape": "circle", "min": 2.5, "max": 12.0, "windup": 0.7, "act": 0.15, "recover": 0.8,
+					"dmg": 16.0, "reach": 1.6, "arc": 360.0, "parry": false, "cd": 3.4, "weight": 1.0},
+			]
+		"leaper":
+			max_hp = 80.0
+		"brute":
+			max_hp = 240.0
+
+
+func _tick_keeper(delta: float) -> void:
+	_even_cd -= delta
+	if _even_cd > 0.0 or state == "stun" or state == "spawn":
+		return
+	_even_cd = 6.0
+	var group: Array = [self]
+	for o in get_tree().get_nodes_in_group("enemies"):
+		if o != self and not o.dead and o.get("max_hp") != null and o.get("phase") == null and o.global_position.distance_to(global_position) < 7.0:
+			group.append(o)
+	if group.size() < 2:
+		return
+	var tot := 0.0
+	for o in group:
+		tot += float(o.hp) / float(o.max_hp)
+	var avg := tot / float(group.size())
+	for o in group:
+		o.hp = clampf(float(o.max_hp) * avg, 1.0, float(o.max_hp))
+	var r := SlashFx.make(0.0, TAU, 0.3, 7.0, Color(0.4, 1.0, 0.8), 0.4)
+	get_parent().add_child(r)
+	r.global_transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, 0.2, 0))
+	Sfx.play("parry", -10.0, 0.05, 0, 1.2)
+
+
 ## SESSİZ HASAT yaratıkları:
 ##  shade  -> ORAKÇI: altın pençe + etrafında 360° orak savuruşu (kızıl)
 ##  caster -> ARŞİVCİ: sana doğru sırayla patlayan üç mühür dizer (düzen!)
@@ -624,6 +673,19 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "libra":
+		m_eye.emission = Color(1.0, 0.85, 0.6)
+		m_body.albedo_color = Color(0.3, 0.7, 0.58)
+		m_cloth.albedo_color = Color(0.55, 0.42, 0.3)
+		match kind:
+			"caster":
+				_build_keeper()
+			"leaper":
+				_build_dancer()
+			"brute":
+				_build_counterweight()
+			_:
+				_build_arbiter()
 	elif zone == "virgo":
 		m_eye.emission = Color(0.4, 1.0, 0.85)
 		m_body.albedo_color = Color(0.9, 0.9, 0.95)
@@ -1425,6 +1487,91 @@ func _build_wicker() -> void:
 		_part(a, _sph(0.25), Vector3(0, -1.0, 0), straw, Vector3(1.0, 1.3, 1.0))
 
 
+# ---- Şafak Terazisi görünüşleri (yeşim-bronz yaratıklar; zemin gül pembesi / arduvaz)
+
+func _jade() -> StandardMaterial3D:
+	var m := _m(Color(0.35, 0.8, 0.65), 0.3)
+	m.emission_enabled = true
+	m.emission = Color(0.2, 0.9, 0.7)
+	m.emission_energy_multiplier = 0.35
+	return m
+
+
+func _bronze2() -> StandardMaterial3D:
+	var m := _m(Color(0.75, 0.55, 0.35), 0.35)
+	m.metallic = 0.6
+	return m
+
+
+func _build_arbiter() -> void:
+	# HAKEM: maskeli, iki kılıçlı yeşim yargıç; eşiyle bağlı (hasar ikisine bölünür)
+	var jade := _jade()
+	var br := _bronze2()
+	_part(vis, _cone(0.36, 0.2, 1.1, 10), Vector3(0, 0.75, 0), m_cloth)
+	_part(vis, _sph(0.28, 0.5), Vector3(0, 1.45, 0), jade, Vector3(1.1, 1.0, 0.8))
+	var hp := Vector3(0, 1.88, 0)
+	_part(vis, _sph(0.16), hp, br)
+	_part(vis, _sph(0.04), hp + Vector3(-0.06, 0.0, -0.15), m_eye, Vector3(1.5, 0.6, 1.0))
+	_part(vis, _sph(0.04), hp + Vector3(0.06, 0.0, -0.15), m_eye, Vector3(1.5, 0.6, 1.0))
+	_part(vis, BoxMesh.new(), hp + Vector3(0, 0.2, 0), br, Vector3(0.36, 0.05, 0.05))
+	arm_l = _arm(-1.0, Vector3(-0.33, 1.55, 0), 0.55)
+	arm_r = _arm(1.0, Vector3(0.33, 1.55, 0), 0.55)
+	for a in [arm_l, arm_r]:
+		_part(a, BoxMesh.new(), Vector3(0, -0.85, -0.15), br, Vector3(0.05, 0.7, 0.08))
+
+
+func _build_keeper() -> void:
+	# TERAZİ BEKÇİSİ: elinde küçük terazi taşıyan cüppeli bilge; dostlarının canını eşitler
+	var jade := _jade()
+	var br := _bronze2()
+	_part(vis, _cone(0.48, 0.18, 1.55, 12), Vector3(0, 0.92, 0), m_cloth)
+	_part(vis, _sph(0.24, 0.44), Vector3(0, 1.78, 0), jade)
+	var hp := Vector3(0, 2.1, 0)
+	_part(vis, _sph(0.17), hp, br)
+	_part(vis, _sph(0.04), hp + Vector3(-0.06, 0.0, -0.16), m_eye)
+	_part(vis, _sph(0.04), hp + Vector3(0.06, 0.0, -0.16), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.85, 0), 0.6)
+	arm_r = _arm(1.0, Vector3(0.3, 1.85, 0), 0.6)
+	# başının üstünde süzülen terazi
+	_part(vis, BoxMesh.new(), Vector3(0, 2.6, 0), br, Vector3(0.9, 0.04, 0.04))
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.12), Vector3(s * 0.45, 2.42, 0), jade, Vector3(1.0, 0.4, 1.0))
+
+
+func _build_dancer() -> void:
+	# TÜY DANSÇISI: uzun bacaklı, tüylü yeşim kuş-insan; ilk vuruştan zarifçe kaçar
+	var jade := _jade()
+	_part(vis, _sph(0.26, 0.5), Vector3(0, 1.1, 0), jade, Vector3(0.9, 1.2, 0.8))
+	_part(vis, _sph(0.15), Vector3(0, 1.62, -0.05), jade)
+	_part(vis, _cone(0.05, 0.0, 0.25, 4), Vector3(0, 1.6, -0.24), _bronze2()).rotation.x = -PI * 0.5
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.035), Vector3(s * 0.06, 1.66, -0.16), m_eye)
+		_part(vis, _cone(0.04, 0.03, 0.85, 5), Vector3(s * 0.12, 0.42, 0), m_cloth)
+		for k in 3:
+			var f := _part(vis, _sph(0.28), Vector3(s * (0.3 + float(k) * 0.12), 1.15 - float(k) * 0.08, 0.1), m_cloth, Vector3(0.5, 0.12, 0.25))
+			f.rotation.z = s * (0.4 + float(k) * 0.25)
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_counterweight() -> void:
+	# KARŞI AĞIRLIK GOLEMİ: göğsünde terazi kefesi olan bronz dev; aldığı hasarı biriktirip patlatır
+	var br := _bronze2()
+	var jade := _jade()
+	_part(vis, _sph(0.6, 0.9), Vector3(0, 1.35, 0), br, Vector3(1.2, 1.0, 0.9))
+	_part(vis, _sph(0.3), Vector3(0, 1.4, -0.45), jade, Vector3(1.2, 0.5, 0.5))
+	_part(vis, _sph(0.26), Vector3(0, 2.15, -0.05), br)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.055), Vector3(s * 0.09, 2.18, -0.28), m_eye)
+		_part(vis, _cone(0.16, 0.2, 0.9, 6), Vector3(s * 0.3, 0.45, 0), br)
+	arm_l = _arm(-1.0, Vector3(-0.75, 1.75, 0), 0.9)
+	arm_r = _arm(1.0, Vector3(0.75, 1.75, 0), 0.9)
+	for a in [arm_l, arm_r]:
+		_part(a, _sph(0.3), Vector3(0, -1.0, 0), br, Vector3(1.0, 0.6, 1.0))
+
+
 func _build_shellguard() -> void:
 	# KABUK ASKERİ: dik duran mercan zırhlı yengeç-asker; vurulunca kabuğuna çekilir
 	var shell := _shell_mat()
@@ -1601,6 +1748,10 @@ func _physics_process(delta: float) -> void:
 		_tick_ward_caster(delta)
 	if zone == "virgo" and kind == "brute":
 		_tick_wicker(delta)
+	if zone == "libra" and kind == "caster":
+		_tick_keeper(delta)
+	if _dodge_cd > 0.0:
+		_dodge_cd -= delta
 	if zone == "leo" and kind == "caster":
 		_tick_crown_caster(delta)
 	if crowned > 0.0:
@@ -1629,7 +1780,7 @@ func _physics_process(delta: float) -> void:
 			_heal_t = 1.0
 			var healed := false
 			for o in get_tree().get_nodes_in_group("enemies"):
-				if o == self or o.dead or o.get("max_hp") == null:
+				if o == self or o.dead or o.get("max_hp") == null or o.get("phase") != null:
 					continue
 				if o.global_position.distance_to(global_position) < 5.5 and float(o.hp) < float(o.max_hp):
 					o.hp = minf(float(o.hp) + float(o.max_hp) * 0.04, float(o.max_hp))
@@ -1830,6 +1981,22 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "verdict":
+			# hüküm: önce bulunduğun yere, sonra gideceğin yere
+			var H = load("res://scripts/hazards.gd")
+			if hero != null and is_instance_valid(hero):
+				for i in 2:
+					var b = H.Blast.new()
+					b.hero = hero
+					b.radius = 1.6
+					b.delay = 0.8 + float(i) * 0.45
+					b.dmg = float(atk["dmg"])
+					b.col = Color(0.4, 1.0, 0.8)
+					get_parent().add_child(b)
+					var p: Vector3 = hero.global_position + (hero.velocity * 0.6 if i == 1 else Vector3.ZERO)
+					b.global_position = H.clamp_arena(p, 12.0)
+			Sfx.play("parry", -10.0, 0.05, 0, 1.4)
 			_done = true
 		elif String(atk["name"]) == "seals":
 			# üç mühür: kahramana doğru sırayla
@@ -2104,7 +2271,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -2300,6 +2467,35 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		crit = true
 	if _burrowed():
 		return
+	# TÜY DANSÇISI: arada bir ilk vuruştan kaçar
+	if zone == "libra" and kind == "leaper" and _dodge_cd <= 0.0 and state != "stun":
+		_dodge_cd = 4.0
+		var side := Vector3(-dir.z, 0, dir.x) * (1.0 if randf() < 0.5 else -1.0)
+		_knock = side * 9.0
+		HitFx.number(get_parent(), global_position + Vector3(0, 2.0, 0), 0.0, false)
+		Sfx.play("dash", -10.0, 0.05, 0, 1.8)
+		return
+	# HAKEM: hasar eşiyle bölünür
+	if zone == "libra" and kind == "shade" and not _sharing and partner != null and is_instance_valid(partner) and not partner.dead:
+		dmg *= 0.5
+		partner._sharing = true
+		partner.take_hit(dmg, dir, 0.0, false, false)
+		partner._sharing = false
+	# KARŞI AĞIRLIK: hasarı biriktirir
+	if zone == "libra" and kind == "brute" and not dead:
+		_stored += dmg
+		if _stored >= max_hp * 0.25:
+			_stored = 0.0
+			var H2 = load("res://scripts/hazards.gd")
+			var bw = H2.Blast.new()
+			bw.hero = hero
+			bw.radius = 4.0
+			bw.delay = 0.7
+			bw.dmg = 22.0 * dmg_mult
+			bw.col = Color(1.0, 0.7, 0.4)
+			bw.eff = "knock"
+			get_parent().add_child(bw)
+			bw.global_position = Vector3(global_position.x, 0.0, global_position.z)
 	if zone == "virgo" and kind == "brute":
 		_calm = 0.0
 		m_body.emission_energy_multiplier = 0.3
@@ -2541,6 +2737,10 @@ func _animate(delta: float) -> void:
 					lean = -0.2 * e
 					glow = 3.0 + 20.0 * k
 					shake = 0.03 * k
+				"verdict":
+					arm_lx = 2.4 * e
+					arm_rx = 2.4 * e
+					glow = 3.0 + 18.0 * k
 				"seals":
 					arm_lx = 2.4 * e
 					arm_rx = 2.4 * e
