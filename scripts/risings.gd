@@ -30,6 +30,9 @@ const LIST := [
 	{"id": "sagittarius", "glyph": "♐", "name": "SAGITTARIUS ASCENDANT", "col": Color(0.7, 0.55, 1.0),
 		"desc": "+20% Move Speed and +20% Attack Reach, but take 10% more damage",
 		"mods": {"move_speed": 20.0, "reach": 20.0, "dmg_reduction": -10.0}},
+	{"id": "capricorn", "glyph": "♑", "name": "CAPRICORN ASCENDANT", "col": Color(0.4, 1.0, 0.9),
+		"desc": "+40 Max Health and take 12% less damage, but -12% Move Speed",
+		"mods": {"max_hp": 40.0, "dmg_reduction": 12.0, "move_speed": -12.0}},
 ]
 
 
@@ -61,6 +64,8 @@ static func unlocked(id: String) -> bool:
 			return GD.scorpio_defeated
 		"sagittarius":
 			return GD.sagittarius_defeated
+		"capricorn":
+			return GD.capricorn_defeated
 	return false
 
 

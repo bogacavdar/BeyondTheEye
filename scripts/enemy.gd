@@ -92,6 +92,9 @@ var _stored := 0.0           # Karşı Ağırlık Golemi: biriktirilen hasar
 var _even_cd := 3.0          # Terazi Bekçisi: eşitleme bekleme süresi
 var _sharing := false
 var _feigned := false         # Ölü Taklitçi: taklidi bir kez yapar
+var _armor_st := 0             # Sabırlı Dev: buz zırh katmanı (0-5)
+var _armor_t := 0.0
+var _ice_plates: Node3D
 
 var body_root: Node3D
 var vis: Node3D
@@ -135,6 +138,8 @@ func _ready() -> void:
 		_scorpio_variant()
 	elif zone == "sagittarius":
 		_sag_variant()
+	elif zone == "capricorn":
+		_cap_variant()
 	if mini:
 		max_hp *= 0.35
 		size_k *= 0.7
@@ -348,6 +353,49 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## DONMUŞ ZİRVE yaratıkları:
+##  shade  -> DAĞ KEÇİSİ: pençe yerine tos (kızıl): değerse seni savurur
+##  caster -> BUZ ERMİŞİ: sana doğru sırayla fışkıran buz dikenleri; değerse kısa süre donarsın
+##  leaper -> ÇIĞ YUVARLAĞI: düz hatta yuvarlanıp ezer
+##  brute  -> SABIRLI DEV: 3 sn vurulmazsa bir buz zırh kuşanır (en çok 5, her biri %12 hasar keser); her vuruş birini kırar
+func _cap_variant() -> void:
+	_base_body = Color(0.3, 0.9, 0.85)
+	_base_cloth = Color(0.25, 0.6, 0.65)
+	match kind:
+		"shade":
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 2.1, "windup": 0.55, "act": 0.14, "recover": 0.55,
+					"dmg": 16.0, "reach": 2.4, "arc": 110.0, "parry": true, "cd": 1.1, "weight": 2.0},
+				{"name": "butt", "shape": "fan", "min": 0.0, "max": 2.4, "windup": 0.7, "act": 0.16, "recover": 0.7,
+					"dmg": 20.0, "reach": 2.6, "arc": 80.0, "parry": false, "cd": 3.5, "weight": 1.5},
+			]
+		"caster":
+			attacks = [
+				{"name": "icespikes", "shape": "line", "min": 3.0, "max": 11.0, "windup": 0.8, "act": 0.15, "recover": 0.7,
+					"dmg": 14.0, "reach": 10.0, "arc": 0.0, "parry": false, "cd": 3.2, "weight": 1.0},
+			]
+		"leaper":
+			max_hp = 90.0
+			attacks = [
+				{"name": "ramcharge", "shape": "line", "min": 3.0, "max": 9.5, "windup": 0.8, "act": 0.75, "recover": 0.45,
+					"dmg": 20.0, "reach": 8.5, "arc": 0.0, "parry": false, "cd": 3.0, "weight": 1.0},
+			]
+		"brute":
+			max_hp = 240.0
+
+
+func _tick_elder(delta: float) -> void:
+	_armor_t += delta
+	if _armor_t >= 3.0 and _armor_st < 5:
+		_armor_t = 0.0
+		_armor_st += 1
+		Sfx.play("parry", -14.0, 0.05, 0, 2.2)
+	if _ice_plates != null:
+		for i in _ice_plates.get_child_count():
+			(_ice_plates.get_child(i) as Node3D).visible = i < _armor_st
+		_ice_plates.rotation.y += delta * 0.6
+
+
 ## KENTAUR BOZKIRI yaratıkları:
 ##  shade  -> KENTAUR MIZRAKÇISI: vurur ve hemen geri sıçrar (vur-kaç)
 ##  caster -> OKÇU: senin çevrene ok yağmuru indirir
@@ -737,6 +785,18 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "capricorn":
+		m_eye.emission = Color(0.4, 1.0, 0.9)
+		m_body.albedo_color = Color(0.2, 0.26, 0.3)
+		match kind:
+			"caster":
+				_build_hermit_ice()
+			"leaper":
+				_build_roller()
+			"brute":
+				_build_elder()
+			_:
+				_build_goat()
 	elif zone == "sagittarius":
 		m_eye.emission = Color(1.0, 0.85, 0.45)
 		m_body.albedo_color = Color(0.42, 0.3, 0.72)
@@ -1815,6 +1875,104 @@ func _build_siege() -> void:
 	bar.rotation.y = 0.0
 
 
+# ---- Donmuş Zirve görünüşleri (koyu arduvaz-camgöbeği deniz keçileri; zemin kar beyazı)
+
+func _slate() -> StandardMaterial3D:
+	var m := _m(Color(0.2, 0.26, 0.3), 0.6)
+	m.emission_enabled = true
+	m.emission = Color(0.2, 0.9, 0.8)
+	m.emission_energy_multiplier = 0.15
+	return m
+
+
+func _ice() -> StandardMaterial3D:
+	var m := _m(Color(0.6, 0.9, 1.0), 0.15)
+	m.emission_enabled = true
+	m.emission = Color(0.4, 0.85, 1.0)
+	m.emission_energy_multiplier = 0.8
+	return m
+
+
+func _build_goat() -> void:
+	# DAĞ KEÇİSİ: kıvrık boynuzlu, toslayan arduvaz keçi
+	var sl := _slate()
+	_part(vis, _sph(0.38, 0.55), Vector3(0, 0.75, 0), sl, Vector3(0.8, 0.75, 1.4))
+	for i in 4:
+		var x := -0.2 if i % 2 == 0 else 0.2
+		var z := -0.35 if i < 2 else 0.4
+		_part(vis, _cone(0.05, 0.06, 0.6, 6), Vector3(x, 0.3, z), sl)
+	var hd := Node3D.new()
+	hd.position = Vector3(0, 1.0, -0.6)
+	vis.add_child(hd)
+	_part(hd, _sph(0.18), Vector3.ZERO, sl, Vector3(0.9, 1.0, 1.3))
+	for s in [-1.0, 1.0]:
+		_part(hd, _sph(0.035), Vector3(s * 0.1, 0.05, -0.15), m_eye, Vector3(1.3, 0.7, 1.0))
+		var h := _part(hd, _cone(0.06, 0.0, 0.5, 6), Vector3(s * 0.12, 0.25, 0.1), _ice())
+		h.rotation = Vector3(0.9, 0, s * 0.5)
+	_part(hd, _cone(0.05, 0.0, 0.2, 5), Vector3(0, -0.2, -0.1), sl)
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_hermit_ice() -> void:
+	# BUZ ERMİŞİ: buz kristalli asası olan yaşlı keçi-adam
+	var sl := _slate()
+	_part(vis, _cone(0.46, 0.18, 1.5, 12), Vector3(0, 0.9, 0), sl)
+	_part(vis, _sph(0.23, 0.44), Vector3(0, 1.75, 0), sl)
+	var hp := Vector3(0, 2.08, 0)
+	_part(vis, _sph(0.17), hp, _m(Color(0.75, 0.78, 0.82)))
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.035), hp + Vector3(s * 0.06, 0.0, -0.16), m_eye)
+		var h := _part(vis, _cone(0.05, 0.0, 0.4, 6), hp + Vector3(s * 0.12, 0.18, 0.05), _ice())
+		h.rotation = Vector3(0.7, 0, s * 0.6)
+	_part(vis, _cone(0.12, 0.0, 0.35, 5), hp + Vector3(0, -0.25, -0.08), _m(Color(0.9, 0.92, 0.95)))
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.82, 0), 0.6)
+	arm_r = _arm(1.0, Vector3(0.3, 1.82, 0), 0.6)
+	_part(arm_r, _cone(0.03, 0.03, 1.5, 5), Vector3(0, -0.5, -0.1), _m(Color(0.35, 0.32, 0.3)))
+	_part(arm_r, _cone(0.14, 0.0, 0.4, 5), Vector3(0, -1.3, -0.1), _ice())
+
+
+func _build_roller() -> void:
+	# ÇIĞ YUVARLAĞI: kar ve buzdan topak; yuvarlanarak ezer
+	var snow := _m(Color(0.55, 0.66, 0.78), 0.8)
+	_part(vis, _sph(0.6), Vector3(0, 0.65, 0), snow)
+	for i in 6:
+		var a := TAU * float(i) / 6.0
+		var sp := _part(vis, _cone(0.1, 0.0, 0.4, 5), Vector3(cos(a) * 0.55, 0.65 + sin(a) * 0.55, 0), _ice())
+		sp.rotation.z = a - PI * 0.5
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.06), Vector3(s * 0.15, 0.8, -0.55), m_eye)
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_elder() -> void:
+	# SABIRLI DEV: kayadan yontulmuş dev keçi-adam; zamanla buz zırh kuşanır
+	var sl := _slate()
+	_part(vis, _sph(0.65, 0.95), Vector3(0, 1.35, 0), sl, Vector3(1.2, 1.0, 0.95))
+	_part(vis, _sph(0.27), Vector3(0, 2.2, -0.05), sl)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.06), Vector3(s * 0.1, 2.25, -0.27), m_eye)
+		var h := _part(vis, _cone(0.1, 0.0, 0.7, 6), Vector3(s * 0.2, 2.45, 0.1), _ice())
+		h.rotation = Vector3(0.8, 0, s * 0.6)
+		_part(vis, _cone(0.15, 0.2, 0.9, 6), Vector3(s * 0.3, 0.45, 0), sl)
+	arm_l = _arm(-1.0, Vector3(-0.75, 1.8, 0), 0.9)
+	arm_r = _arm(1.0, Vector3(0.75, 1.8, 0), 0.9)
+	for a in [arm_l, arm_r]:
+		_part(a, _sph(0.28), Vector3(0, -1.0, 0), sl, Vector3(1.0, 1.2, 1.0))
+	_ice_plates = Node3D.new()
+	vis.add_child(_ice_plates)
+	for i in 5:
+		var a2 := TAU * float(i) / 5.0
+		var pl := _part(_ice_plates, BoxMesh.new(), Vector3(cos(a2) * 0.75, 1.35, sin(a2) * 0.65), _ice(), Vector3(0.35, 0.55, 0.06))
+		pl.rotation.y = -a2 + PI * 0.5
+		pl.visible = false
+
+
 func _build_shellguard() -> void:
 	# KABUK ASKERİ: dik duran mercan zırhlı yengeç-asker; vurulunca kabuğuna çekilir
 	var shell := _shell_mat()
@@ -1993,6 +2151,8 @@ func _physics_process(delta: float) -> void:
 		_tick_wicker(delta)
 	if zone == "libra" and kind == "caster":
 		_tick_keeper(delta)
+	if zone == "capricorn" and kind == "brute":
+		_tick_elder(delta)
 	if _dodge_cd > 0.0:
 		_dodge_cd -= delta
 	if zone == "leo" and kind == "caster":
@@ -2234,6 +2394,20 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "icespikes":
+			var H3 = load("res://scripts/hazards.gd")
+			for i in 4:
+				var b3 = H3.Blast.new()
+				b3.hero = hero
+				b3.radius = 1.3
+				b3.delay = 0.45 + float(i) * 0.18
+				b3.dmg = float(atk["dmg"])
+				b3.col = Color(0.5, 0.9, 1.0)
+				b3.eff = "freeze"
+				get_parent().add_child(b3)
+				b3.global_position = H3.clamp_arena(global_position + _aim_dir * (1.8 + float(i) * 2.3), 12.0)
+			Sfx.play("parry", -10.0, 0.05, 0, 2.4)
 			_done = true
 		elif String(atk["name"]) == "volley":
 			var H = load("res://scripts/hazards.gd")
@@ -2569,7 +2743,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid" or nm == "volley" or nm == "ballista":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid" or nm == "volley" or nm == "ballista" or nm == "icespikes":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -2625,6 +2799,8 @@ func _resolve() -> void:
 			Sfx.play("crush", -2.0, 0.0, 0, 1.3)
 	elif res == "hit" and String(atk["name"]) == "roar" and hero.has_method("apply_slow"):
 		hero.apply_slow(0.45, 1.8)
+	if res == "hit" and nm == "butt":
+		hero.velocity = dir * 15.0
 	if res == "hit" and zone == "scorpio":
 		if kind == "shade" and hero.has_method("apply_poison"):
 			hero.apply_poison(4.0 * dmg_mult, 3.0)
@@ -2773,6 +2949,13 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		return
 	if state == "feign":
 		dmg *= 1.5    # yerde yatarken bitirmek kolay
+	# SABIRLI DEV: buz zırh katmanları hasarı keser; her vuruş birini kırar
+	if zone == "capricorn" and kind == "brute":
+		_armor_t = 0.0
+		if _armor_st > 0:
+			dmg *= 1.0 - 0.12 * float(_armor_st)
+			_armor_st -= 1
+			HitFx.impact(get_parent(), global_position + Vector3(0, 1.4, 0) - dir * 0.8, -dir, Color(0.6, 0.9, 1.0), false)
 	# TÜY DANSÇISI: arada bir ilk vuruştan kaçar
 	if zone == "libra" and kind == "leaper" and _dodge_cd <= 0.0 and state != "stun":
 		_dodge_cd = 4.0
@@ -3051,6 +3234,13 @@ func _animate(delta: float) -> void:
 					lean = -0.2 * e
 					glow = 3.0 + 20.0 * k
 					shake = 0.03 * k
+				"butt":
+					lean = 0.4 * e
+					glow = 3.0 + 18.0 * k
+					shake = 0.03 * k
+				"icespikes":
+					arm_rx = 2.6 * e
+					glow = 3.0 + 18.0 * k
 				"volley", "ballista":
 					arm_lx = 2.2 * e
 					arm_rx = 1.6 * e
