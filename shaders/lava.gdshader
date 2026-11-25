@@ -2,8 +2,8 @@
 shader_type spatial;
 render_mode unshaded;
 
-uniform vec3 hot : source_color = vec3(1.0, 0.55, 0.12);
-uniform vec3 cool : source_color = vec3(0.35, 0.05, 0.02);
+uniform vec3 hot : source_color = vec3(0.28, 0.06, 0.05);
+uniform vec3 cool : source_color = vec3(0.05, 0.045, 0.06);
 
 varying vec3 wpos;
 
@@ -38,8 +38,8 @@ void fragment() {
 	float t = TIME * 0.05;
 	float q = fbm(p + vec2(t, -t * 0.7));
 	float f = fbm(p * 1.7 + q * 2.0 + vec2(-t * 0.6, t));
-	float crust = smoothstep(0.42, 0.62, f);
-	vec3 c = mix(hot * 1.8, cool, crust);
+	float crust = smoothstep(0.22, 0.34, f);   // çoğu soğumuş kabuk, aralarda ince damarlar
+	vec3 c = mix(hot, cool, crust);
 	// adadan uzaklaştıkça karar
 	float far = smoothstep(25.0, 70.0, length(wpos.xz));
 	ALBEDO = mix(c, cool * 0.4, far * 0.7);

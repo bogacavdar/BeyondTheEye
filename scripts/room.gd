@@ -202,8 +202,8 @@ func _on_hero_hurt() -> void:
 func _environment() -> void:
 	# KOÇ BÖLGESİ: kızıl alacakaranlık, duman ve kül; uzay değil, volkanik bir dağ geçidi
 	var psky := ProceduralSkyMaterial.new()
-	psky.sky_top_color = Color(0.09, 0.03, 0.04)
-	psky.sky_horizon_color = Color(0.62, 0.2, 0.07)
+	psky.sky_top_color = Color(0.05, 0.05, 0.1)
+	psky.sky_horizon_color = Color(0.42, 0.2, 0.14)
 	psky.sky_curve = 0.12
 	psky.ground_horizon_color = Color(0.5, 0.15, 0.05)
 	psky.ground_bottom_color = Color(0.12, 0.03, 0.02)
@@ -215,7 +215,7 @@ func _environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.6, 0.32, 0.24)
+	env.ambient_light_color = Color(0.42, 0.44, 0.55)   # soğuk ortam ışığı: kızıl canavarlar zeminden ayrılsın
 	env.ambient_light_energy = 0.75
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 1.0
@@ -226,7 +226,7 @@ func _environment() -> void:
 	env.glow_hdr_threshold = 1.2
 	env.ssao_enabled = true
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.42, 0.16, 0.08)
+	env.fog_light_color = Color(0.22, 0.2, 0.25)
 	env.fog_light_energy = 0.8
 	env.fog_density = 0.008
 	env.fog_sky_affect = 0.35
@@ -235,7 +235,7 @@ func _environment() -> void:
 	add_child(we)
 	# alçak, kızıl bir akşam güneşi (gölgeler uzun ve sıcak)
 	var sun := DirectionalLight3D.new()
-	sun.light_color = Color(1.0, 0.62, 0.38)
+	sun.light_color = Color(1.0, 0.88, 0.8)
 	sun.light_energy = 1.05
 	sun.shadow_enabled = not GameData.is_web()
 	sun.rotation_degrees = Vector3(-32, 150, 0)
@@ -243,7 +243,7 @@ func _environment() -> void:
 	# aşağıdaki lavdan yükselen turuncu dolgu ışığı
 	var under := DirectionalLight3D.new()
 	under.light_color = Color(1.0, 0.4, 0.12)
-	under.light_energy = 0.25
+	under.light_energy = 0.06
 	under.rotation_degrees = Vector3(60, -40, 0)
 	add_child(under)
 
@@ -755,7 +755,7 @@ func _horn(base: Vector3, sgn: float, k: float) -> void:
 ## Havada süzülen kül ve yukarı uçan kıvılcımlar
 func _embers(heat: float) -> void:
 	var em := CPUParticles3D.new()
-	em.amount = int(70 * heat)
+	em.amount = int(25 * heat)
 	em.lifetime = 5.0
 	em.preprocess = 5.0
 	em.position = Vector3(0, -1.0, 0)
@@ -846,7 +846,7 @@ func _spawn_wave(kinds: Array) -> void:
 
 ## Doğuştan önce yerde mor-kızıl bir halka belirir (nereden geleceğini gösterir)
 func _spawn_marker(pos: Vector3, delay: float, kind: String) -> void:
-	var ring := Skills.ring(0.9, Color(1.0, 0.35, 0.08, 0.9))
+	var ring := Skills.ring(0.9, Color(0.75, 0.55, 1.0, 0.9))   # mor-beyaz: kızıl canavar ve uyarılardan ayrı
 	ring.position = pos + Vector3(0, 0.05, 0)
 	ring.scale = Vector3(0.2, 0.1, 0.2)
 	add_child(ring)
