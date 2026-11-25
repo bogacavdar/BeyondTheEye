@@ -76,6 +76,11 @@ var _blink_cd := 2.0        # Merkür Habercisi ışınlanma
 var _mirror_node: MeshInstance3D
 var _shell_hits := 0         # Kabuk Askeri: kısa sürede alınan vuruş sayısı
 var _shell_win := 0.0
+var crowned := 0.0           # Güneş Rahibi'nin tacı: süre (hasar +%50)
+var _crown_node: Node3D
+var _crown_cd := 2.5
+var _hide_crack := 0.0       # Nemea Aslanı: postu çatladı (tam hasar alır)
+var _reveal := 0.0           # Serap Avcısı: görünür kalma süresi
 
 var body_root: Node3D
 var vis: Node3D
@@ -109,6 +114,8 @@ func _ready() -> void:
 		_gemini_variant()
 	elif zone == "cancer":
 		_cancer_variant()
+	elif zone == "leo":
+		_leo_variant()
 	# zorluk: derinlik çarpanları, daha kısa hazırlık ve daha sık saldırı
 	var em := 1.0
 	if elite:
@@ -311,6 +318,112 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## GÜNEŞ SARAYI yaratıkları:
+##  shade  -> SÜRÜ YAVRUSU: yakınındaki her kardeşi için +%20 hasar (en çok +%60); sürüyü dağıt
+##  caster -> GÜNEŞ RAHİBİ: hatta güneş ışını indirir ve bir dostuna taç giydirir (taçlı: +%50 hasar)
+##  leaper -> SERAP AVCISI: kovalarken görünmez olur, sadece titreşir; vurulunca ya da saldırırken görünür
+##  brute  -> NEMEA ASLANI: postu hasarın %70'ini emer; saldırısını parry'lersen post çatlar (6 sn tam hasar)
+##            + KÜKREME: etrafındakileri yavaşlatır
+func _leo_variant() -> void:
+	_base_body = Color(1.0, 0.74, 0.36)
+	_base_cloth = Color(0.95, 0.6, 0.25)
+	match kind:
+		"caster":
+			attacks = [
+				{"name": "sunbeam", "shape": "line", "min": 3.0, "max": 13.0, "windup": 0.9, "act": 0.15, "recover": 0.7,
+					"dmg": 16.0, "reach": 13.0, "arc": 0.0, "parry": false, "cd": 3.0, "weight": 1.0},
+			]
+		"shade":
+			speed = 4.0
+			max_hp = 80.0
+		"leaper":
+			max_hp = 85.0
+			speed = 4.6
+		"brute":
+			max_hp = 240.0
+			attacks = [
+				{"name": "smash", "shape": "fan", "min": 0.0, "max": 2.7, "windup": 0.8, "act": 0.16, "recover": 0.9,
+					"dmg": 26.0, "reach": 3.1, "arc": 120.0, "parry": true, "cd": 1.5, "weight": 2.0},
+				{"name": "roar", "shape": "circle", "min": 0.0, "max": 4.5, "windup": 0.9, "act": 0.2, "recover": 0.9,
+					"dmg": 12.0, "reach": 4.6, "arc": 360.0, "parry": false, "cd": 7.0, "weight": 1.0},
+			]
+
+
+## Sürü ve taç güçlendirmeleri
+func _buff() -> float:
+	var b := 1.0
+	if crowned > 0.0:
+		b += 0.5
+	if zone == "leo" and kind == "shade":
+		var n := 0
+		for o in get_tree().get_nodes_in_group("enemies"):
+			if o != self and not o.dead and o.get("zone") == "leo" and o.get("kind") == "shade" and o.global_position.distance_to(global_position) < 6.0:
+				n += 1
+		b += 0.2 * float(mini(n, 3))
+	return b
+
+
+func _tick_crown_caster(delta: float) -> void:
+	_crown_cd -= delta
+	if _crown_cd > 0.0 or state == "stun" or state == "spawn":
+		return
+	var best = null
+	var bd := 12.0
+	for o in get_tree().get_nodes_in_group("enemies"):
+		if o == self or o.dead or o.get("crowned") == null or float(o.crowned) > 0.0:
+			continue
+		var d: float = o.global_position.distance_to(global_position)
+		if o.kind == "brute":
+			d -= 3.0
+		if d < bd:
+			bd = d
+			best = o
+	if best == null:
+		_crown_cd = 1.0
+		return
+	_crown_cd = 8.0
+	best.give_crown(8.0)
+	var ln := SlashFx.make(0.0, TAU, 0.2, 1.2, Color(1.0, 0.8, 0.3), 0.3)
+	get_parent().add_child(ln)
+	ln.global_transform = Transform3D(Basis.IDENTITY, best.global_position + Vector3(0, 2.2 * float(best.size_k), 0))
+	Fx.flash_light(global_position + Vector3(0, 2.2, 0), Color(1.0, 0.8, 0.35), 4.0, 4.0, 0.3)
+	Sfx.play("parry", -10.0, 0.05, 0, 1.4)
+
+
+func give_crown(dur: float) -> void:
+	crowned = dur
+	if _crown_node == null:
+		_crown_node = Node3D.new()
+		var gm := StandardMaterial3D.new()
+		gm.albedo_color = Color(1.0, 0.8, 0.3)
+		gm.metallic = 0.9
+		gm.roughness = 0.25
+		gm.emission_enabled = true
+		gm.emission = Color(1.0, 0.7, 0.2)
+		gm.emission_energy_multiplier = 1.5
+		for i in 6:
+			var a := TAU * float(i) / 6.0
+			var sp := MeshInstance3D.new()
+			var c := CylinderMesh.new()
+			c.top_radius = 0.0
+			c.bottom_radius = 0.06
+			c.height = 0.22
+			sp.mesh = c
+			sp.material_override = gm
+			sp.position = Vector3(cos(a) * 0.2, 0.1, sin(a) * 0.2)
+			_crown_node.add_child(sp)
+		var band := MeshInstance3D.new()
+		var t := TorusMesh.new()
+		t.inner_radius = 0.17
+		t.outer_radius = 0.24
+		band.mesh = t
+		band.material_override = gm
+		_crown_node.add_child(band)
+		add_child(_crown_node)
+	_crown_node.position.y = 2.0 * size_k
+	_crown_node.visible = true
+
+
 func _cancer_variant() -> void:
 	_base_body = Color(1.0, 0.45, 0.32)
 	_base_cloth = Color(0.85, 0.35, 0.3)
@@ -458,6 +571,20 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "leo":
+		m_eye.emission = Color(1.0, 0.85, 0.3)
+		# altın post: koyu silüet yerine açık altın (mor zeminde kahverengi görünmesin)
+		m_body.albedo_color = Color(0.95, 0.72, 0.38)
+		m_cloth.albedo_color = Color(0.9, 0.62, 0.3)
+		match kind:
+			"caster":
+				_build_sunpriest()
+			"leaper":
+				_build_stalker()
+			"brute":
+				_build_nemean()
+			_:
+				_build_cub()
 	elif zone == "cancer":
 		m_eye.emission = Color(0.4, 0.95, 1.0)
 		m_claw.emission = Color(1.0, 0.5, 0.35)
@@ -1050,6 +1177,97 @@ func _crab_legs(parent: Node3D, n: int, spread: float, y: float, ln: float) -> v
 			leg.rotation.y = (float(k) - 1.0) * 0.3 * s
 
 
+# ---- Güneş Sarayı görünüşleri (altın-amber yaratıklar; zemin mor-beyaz mermer)
+
+func _mane_mat() -> StandardMaterial3D:
+	var m := _m(Color(0.95, 0.55, 0.15), 0.8)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.5, 0.1)
+	m.emission_energy_multiplier = 0.45
+	return m
+
+
+func _lion(sc: float, mane_n: int) -> Node3D:
+	# dört ayaklı aslan gövdesi; yele halkası; kuyruk
+	var mane := _mane_mat()
+	_part(vis, _sph(0.42 * sc, 0.62 * sc), Vector3(0, 0.75 * sc, 0.1 * sc), m_body, Vector3(0.85, 0.8, 1.6))
+	for i in 4:
+		var x := (-0.22 if i % 2 == 0 else 0.22) * sc
+		var z := (-0.4 if i < 2 else 0.5) * sc
+		_part(vis, _cone(0.07 * sc, 0.09 * sc, 0.6 * sc, 6), Vector3(x, 0.3 * sc, z), m_body)
+		_part(vis, _sph(0.09 * sc), Vector3(x, 0.04 * sc, z - 0.04 * sc), m_claw, Vector3(1.0, 0.6, 1.3))
+	var hd := Node3D.new()
+	hd.position = Vector3(0, 1.0 * sc, -0.62 * sc)
+	vis.add_child(hd)
+	for i in mane_n:
+		var a := TAU * float(i) / float(mane_n)
+		var sp := _part(hd, _cone(0.12 * sc, 0.0, 0.42 * sc, 5), Vector3(cos(a) * 0.24 * sc, sin(a) * 0.24 * sc, 0.08 * sc), mane)
+		sp.rotation = Vector3(0, 0, a - PI * 0.5)
+		sp.rotate_object_local(Vector3.RIGHT, -0.3)
+	_part(hd, _sph(0.26 * sc), Vector3.ZERO, mane, Vector3(1.1, 1.1, 0.9))
+	_part(hd, _sph(0.19 * sc), Vector3(0, -0.02 * sc, -0.14 * sc), m_body, Vector3(1.0, 0.95, 1.1))
+	_part(hd, _sph(0.1 * sc), Vector3(0, -0.08 * sc, -0.3 * sc), m_body, Vector3(1.0, 0.8, 1.0))
+	var eye := _sph(0.035 * sc)
+	_part(hd, eye, Vector3(-0.08 * sc, 0.04 * sc, -0.29 * sc), m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(hd, eye, Vector3(0.08 * sc, 0.04 * sc, -0.29 * sc), m_eye, Vector3(1.4, 0.7, 1.0))
+	var tail := _part(vis, _cone(0.03 * sc, 0.02 * sc, 0.7 * sc, 5), Vector3(0, 0.95 * sc, 0.95 * sc), m_body)
+	tail.rotation.x = 0.9
+	_part(vis, _sph(0.08 * sc), Vector3(0, 1.2 * sc, 1.2 * sc), mane)
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	hd.add_child(arm_l)
+	hd.add_child(arm_r)
+	return hd
+
+
+func _build_cub() -> void:
+	# SÜRÜ YAVRUSU: küçük, çevik aslan; yanında kardeşleri varsa güçlenir
+	_lion(0.8, 9)
+
+
+func _build_sunpriest() -> void:
+	# GÜNEŞ RAHİBİ: beyaz-altın cüppe, arkasında güneş halesi; dostlarına taç giydirir
+	var robe := _m(Color(0.95, 0.92, 0.85), 0.6)
+	var gold := _m(Color(1.0, 0.8, 0.35), 0.3)
+	_part(vis, _cone(0.5, 0.15, 1.6, 12), Vector3(0, 0.95, 0), robe)
+	_part(vis, _cone(0.52, 0.5, 0.12, 12), Vector3(0, 0.5, 0), gold)
+	_part(vis, _sph(0.24, 0.46), Vector3(0, 1.8, 0), robe)
+	var hp := Vector3(0, 2.12, 0)
+	_part(vis, _sph(0.17), hp, m_body)
+	_part(vis, _sph(0.035), hp + Vector3(-0.06, 0.0, -0.16), m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(vis, _sph(0.035), hp + Vector3(0.06, 0.0, -0.16), m_eye, Vector3(1.4, 0.7, 1.0))
+	# güneş halesi: arkada ışın saçan disk
+	var halo := _m(Color(1.0, 0.8, 0.35), 0.3)
+	halo.emission_enabled = true
+	halo.emission = Color(1.0, 0.7, 0.25)
+	halo.emission_energy_multiplier = 1.6
+	var disc := _part(vis, _cone(0.34, 0.34, 0.04, 16), hp + Vector3(0, 0.05, 0.2), halo)
+	disc.rotation.x = PI * 0.5
+	for i in 12:
+		var a := TAU * float(i) / 12.0
+		var r := _part(vis, _cone(0.05, 0.0, 0.32, 4), hp + Vector3(cos(a) * 0.48, sin(a) * 0.48 + 0.05, 0.22), halo)
+		r.rotation.z = a - PI * 0.5
+	arm_l = _arm(-1.0, Vector3(-0.3, 1.85, 0), 0.6)
+	arm_r = _arm(1.0, Vector3(0.3, 1.85, 0), 0.6)
+	_part(arm_r, _cone(0.03, 0.03, 1.4, 6), Vector3(0, -0.5, -0.1), gold)
+	_part(arm_r, _sph(0.12), Vector3(0, -1.2, -0.1), halo)
+
+
+func _build_stalker() -> void:
+	# SERAP AVCISI: ince, uzun bacaklı dişi aslan; kovalarken serap gibi görünmez olur
+	_lion(0.9, 0)
+
+
+func _build_nemean() -> void:
+	# NEMEA ASLANI: dev, altın yeleli; postu neredeyse delinmez (parry ile çatlat)
+	_lion(1.55, 16)
+	var plate := _m(Color(1.0, 0.88, 0.55), 0.35)
+	plate.emission_enabled = true
+	plate.emission = Color(1.0, 0.75, 0.35)
+	plate.emission_energy_multiplier = 0.35
+	_part(vis, _sph(0.5), Vector3(0, 1.35, 0.15), plate, Vector3(1.3, 0.35, 1.9))
+
+
 func _build_shellguard() -> void:
 	# KABUK ASKERİ: dik duran mercan zırhlı yengeç-asker; vurulunca kabuğuna çekilir
 	var shell := _shell_mat()
@@ -1224,6 +1442,24 @@ func _physics_process(delta: float) -> void:
 		return
 	if zone == "taurus" and kind == "caster" and not pebble:
 		_tick_ward_caster(delta)
+	if zone == "leo" and kind == "caster":
+		_tick_crown_caster(delta)
+	if crowned > 0.0:
+		crowned -= delta
+		if _crown_node != null:
+			_crown_node.rotation.y += delta * 2.0
+			if crowned <= 0.0:
+				_crown_node.visible = false
+	if _hide_crack > 0.0:
+		_hide_crack -= delta
+	if _reveal > 0.0:
+		_reveal -= delta
+	if zone == "leo" and kind == "leaper":
+		# serap: kovalarken görünmez, arada titreşir
+		var hidden := state == "chase" and _reveal <= 0.0
+		vis.visible = not hidden or fmod(_t, 0.9) < 0.1
+		if hp_bar != null:
+			hp_bar.visible = not hidden
 	if _shell_win > 0.0:
 		_shell_win -= delta
 		if _shell_win <= 0.0:
@@ -1420,6 +1656,14 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "sunbeam":
+			var sb := SunBeam.new()
+			sb.hero = hero
+			sb.dir = _aim_dir
+			sb.dmg = float(atk["dmg"]) * _buff()
+			get_parent().add_child(sb)
+			sb.global_position = Vector3(global_position.x, 0.0, global_position.z) + _aim_dir * 0.6
 			_done = true
 		elif String(atk["name"]) == "tidewave":
 			var tw := TideWave.new()
@@ -1670,7 +1914,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -1701,10 +1945,16 @@ func _resolve() -> void:
 	if String(atk["shape"]) == "fan" and dist > 0.3 and _aim_dir.angle_to(to / dist) > deg_to_rad(float(atk["arc"])) * 0.5:
 		return
 	var dir := to.normalized() if dist > 0.05 else _aim_dir
-	var res: String = hero.take_damage(float(atk["dmg"]), dir, bool(atk["parry"]))
+	var res: String = hero.take_damage(float(atk["dmg"]) * _buff(), dir, bool(atk["parry"]))
 	if res == "parried":
 		stun(2.0 if kind == "brute" else 1.5, true)
 		_knock = -_aim_dir * 7.0
+		if zone == "leo" and kind == "brute":
+			_hide_crack = 6.0
+			HitFx.impact(get_parent(), global_position + Vector3(0, 1.8, 0), -dir, Color(1.0, 0.85, 0.5), true)
+			Sfx.play("crush", -2.0, 0.0, 0, 1.3)
+	elif res == "hit" and String(atk["name"]) == "roar" and hero.has_method("apply_slow"):
+		hero.apply_slow(0.45, 1.8)
 
 
 func _fire_bolts() -> void:
@@ -1819,6 +2069,14 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		return
 	if _burrowed():
 		return
+	# NEMEA ASLANI: postu hasarın çoğunu emer (parry ile çatlat)
+	if zone == "leo" and kind == "brute" and _hide_crack <= 0.0 and state != "stun":
+		dmg *= 0.3
+		HitFx.impact(get_parent(), global_position + Vector3(0, 1.5, 0) - dir * 0.8, -dir, Color(1.0, 0.85, 0.5), false)
+	elif zone == "leo" and kind == "brute":
+		crit = true
+	if zone == "leo" and kind == "leaper":
+		_reveal = 1.6
 	# KABUK ASKERİ: kabuktayken dokunulmaz; kısa sürede 3 vuruş alırsa kabuğuna çekilir
 	if zone == "cancer" and kind == "shade":
 		if state == "shell":
@@ -2043,6 +2301,15 @@ func _animate(delta: float) -> void:
 				"burrow":
 					# GÖMÜLME: kendi etrafında döner
 					twist = _t * 18.0 * k
+				"roar":
+					# KÜKREME: başını kaldırır, yelesi parlar
+					lean = -0.35 * e
+					py = 0.1 * e
+					glow = 3.0 + 25.0 * k
+					shake = 0.04 * k
+				"sunbeam":
+					arm_rx = 2.8 * e
+					glow = 3.0 + 18.0 * k
 				"pulse":
 					# DENİZANASI: çanı kasılır, içi parlar
 					py = 0.25 * e
@@ -2678,3 +2945,48 @@ class Bubble extends Node3D:
 		ex.global_transform = Transform3D(Basis.IDENTITY, global_position)
 		Sfx.play("parry", -14.0, 0.1, 30, 2.4)
 		queue_free()
+
+
+# ---------------------------------------------------------------- Güneş Rahibi ışını
+
+class SunBeam extends Node3D:
+	var hero = null
+	var dir := Vector3.FORWARD
+	var length := 13.0
+	var width := 1.1
+	var dmg := 14.0
+	var _t := 0.0
+	var _mat: StandardMaterial3D
+
+	func _ready() -> void:
+		top_level = true
+		var bm := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(width, 2.4, length)
+		bm.mesh = b
+		_mat = StandardMaterial3D.new()
+		_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_mat.albedo_color = Color(1.0, 0.85, 0.45, 0.9)
+		bm.material_override = _mat
+		bm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		bm.position = Vector3(0, 1.2, -length * 0.5)
+		add_child(bm)
+		look_at(global_position + dir, Vector3.UP)
+		Sfx.play("boom", -12.0, 0.1, 0, 2.4)
+		Fx.flash_light(global_position + dir * length * 0.5 + Vector3(0, 1, 0), Color(1.0, 0.8, 0.4), 6.0, 8.0, 0.25)
+		if hero != null and is_instance_valid(hero) and not hero.dead:
+			var v: Vector3 = hero.global_position - global_position
+			v.y = 0.0
+			var along := v.dot(dir)
+			var side := absf(v.dot(Vector3(-dir.z, 0, dir.x)))
+			if along > -0.3 and along < length and side < width * 0.5 + 0.35:
+				hero.take_damage(dmg, Vector3(-dir.z, 0, dir.x) * signf(v.dot(Vector3(-dir.z, 0, dir.x)) + 0.01), false)
+
+	func _process(delta: float) -> void:
+		_t += delta
+		_mat.albedo_color.a = 0.9 * (1.0 - _t / 0.35)
+		scale.x = 1.0 - _t * 1.5
+		if _t >= 0.35:
+			queue_free()

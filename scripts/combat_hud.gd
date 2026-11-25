@@ -279,11 +279,11 @@ func _draw_boss_bar() -> void:
 	draw_rect(Rect2(x, y, w * f, h), Color(0.85, 0.2, 0.12) if boss.phase < 3 else Color(1.0, 0.1 + 0.15 * sin(_t * 10.0), 0.08))
 	# evre işaretleri (%60, %25)
 	var bkind := String(boss.get("kind")) if boss.get("kind") != null else "aries"
-	var marks: Array = [0.65, 0.3] if bkind in ["taurus", "cancer"] else ([0.6, 0.3] if bkind == "gemini" else [0.6, 0.25])
+	var marks: Array = [0.65, 0.3] if bkind in ["taurus", "cancer", "leo"] else ([0.6, 0.3] if bkind == "gemini" else [0.6, 0.25])
 	for m in marks:
 		draw_line(Vector2(x + w * m, y - 4), Vector2(x + w * m, y + h + 4), gold, 2.0)
 	draw_rect(Rect2(x - 4, y - 4, w + 8, h + 8), gold, false, 2.0)
-	var bg := {"aries": "\u2648", "taurus": "\u2649", "gemini": "\u264A", "cancer": "\u264B"}
+	var bg := {"aries": "\u2648", "taurus": "\u2649", "gemini": "\u264A", "cancer": "\u264B", "leo": "\u264C"}
 	var bk = boss.get("kind")
 	_text(String(bg.get(String(bk) if bk != null else "aries", "\u2648")) + "\uFE0E", Vector2(x - 34, y + 18), 30, gold, true, _sym)
 	var btitle: String = String(boss.get("title")) if boss.get("title") != null else "ARIES  ·  THE RAM'S FURY"
