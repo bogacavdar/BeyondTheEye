@@ -182,6 +182,8 @@ func _card(b: Dictionary) -> Button:
 	var is_w := b.has("weapon")
 	var pinfo: Dictionary = Boons.PLANETS[b["planet"]] if not is_w else {"glyph": "\u2605", "color": _col}
 	var col: Color = pinfo["color"]
+	if b.has("type"):
+		col = Color(1.0, 0.85, 0.45) if b["type"] == "conj" else Color(1.0, 0.5, 0.6)
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(340, 280)
 	btn.focus_mode = Control.FOCUS_NONE
@@ -198,12 +200,22 @@ func _card(b: Dictionary) -> Button:
 	vb.add_theme_constant_override("separation", 10)
 	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(vb)
-	var g := UI.label(String(pinfo["glyph"]) + "︎", 56, col, 6)
+	var gtxt := String(pinfo["glyph"]) + "︎"
+	if b.has("type"):
+		# kavuşum ☌ / karşıtlık ☍: iki gezegen simgesi
+		var p2: Dictionary = Boons.PLANETS[b["planet2"]]
+		gtxt = String(pinfo["glyph"]) + ("☌" if b["type"] == "conj" else "☍") + String(p2["glyph"]) + "︎"
+	var g := UI.label(gtxt, 56, col, 6)
 	g.add_theme_font_override("font", UI.symbol_font())
 	g.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(g)
-	if not is_w:
+	if b.has("type"):
+		var dt := UI.label(tr("CONJUNCTION") if b["type"] == "conj" else tr("OPPOSITION"), 18, Color(1.0, 0.9, 0.55) if b["type"] == "conj" else Color(1.0, 0.55, 0.6), 4)
+		dt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		dt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vb.add_child(dt)
+	elif not is_w:
 		var Elm = load("res://scripts/elements.gd")
 		var el := String(Elm.PLANET_EL.get(String(b["planet"]), ""))
 		if el != "":

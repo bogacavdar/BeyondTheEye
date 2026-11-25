@@ -61,11 +61,55 @@ const BOONS := [
 ]
 
 
+## KAVUŞUM (☌) ve KARŞITLIK (☍) LÜTUFLARI
+## Kavuşum: iki gezegen gökte buluşur, güçleri birleşir. İkisinden de en az bir lütfun varsa
+## o gezegenlerden birinin lütuf seçiminde ara sıra karşına çıkar.
+## Karşıtlık: karşıt gezegenlerin gerilimi; çok güçlü ama bir bedeli var.
+const DUOS := [
+	{"id": "cj_passion", "type": "conj", "planet": "Mars", "planet2": "Venus", "name": "Passion", "desc": "+25% Damage and +3% Life Steal", "mods": {"damage": 25.0, "lifesteal": 3.0}},
+	{"id": "cj_eclipse", "type": "conj", "planet": "Sun", "planet2": "Moon", "name": "Eclipse", "desc": "+15% Critical Chance and +60% Critical Damage", "mods": {"crit_chance": 15.0, "crit_dmg": 60.0}},
+	{"id": "cj_thunder", "type": "conj", "planet": "Jupiter", "planet2": "Mercury", "name": "Thunderbolt", "desc": "Dashing through enemies deals damage, -30% Dash Cooldown, +25% Skill Damage", "mods": {"dash_cdr": 30.0, "skill_dmg": 25.0}, "flags": ["dash_strike"]},
+	{"id": "cj_fortress", "type": "conj", "planet": "Saturn", "planet2": "Venus", "name": "Golden Fortress", "desc": "Begin every chamber with a 40 point shield, +15 Armor", "mods": {"room_shield": 40.0, "armor": 15.0}},
+	{"id": "cj_nova", "type": "conj", "planet": "Sun", "planet2": "Mars", "name": "Supernova", "desc": "+30% Damage and +60% Finisher Damage", "mods": {"damage": 30.0, "finisher_dmg": 60.0}},
+	{"id": "cj_deepdream", "type": "conj", "planet": "Moon", "planet2": "Neptune", "name": "Deep Dream", "desc": "+15% Dodge Chance and regenerate 1.5 health per second", "mods": {"dodge": 15.0, "regen": 1.5}},
+	{"id": "cj_crown", "type": "conj", "planet": "Jupiter", "planet2": "Sun", "name": "Royal Fortune", "desc": "+15% Critical Chance, +50% Stardust, +30 Max Health", "mods": {"crit_chance": 15.0, "dust_gain": 50.0, "max_hp": 30.0}},
+	{"id": "cj_riptide", "type": "conj", "planet": "Mercury", "planet2": "Neptune", "name": "Riptide", "desc": "+25% Move Speed, +40% Dash Distance, -20% Skill Cooldowns", "mods": {"move_speed": 25.0, "dash_dist": 40.0, "haste": 20.0}},
+	{"id": "op_lightshadow", "type": "opp", "planet": "Sun", "planet2": "Saturn", "name": "Light and Shadow", "desc": "+50% Damage, but -30 Max Health", "mods": {"damage": 50.0, "max_hp": -30.0}},
+	{"id": "op_warcalm", "type": "opp", "planet": "Mars", "planet2": "Moon", "name": "War and Calm", "desc": "+40% Attack Speed, but take 15% more damage", "mods": {"atk_speed": 40.0, "dmg_reduction": -15.0}},
+	{"id": "op_mindmight", "type": "opp", "planet": "Jupiter", "planet2": "Saturn", "name": "Hope and Limit", "desc": "+60% Skill Damage, but +40% Dash Cooldown", "mods": {"skill_dmg": 60.0, "dash_cdr": -40.0}},
+	{"id": "op_dreamwake", "type": "opp", "planet": "Neptune", "planet2": "Sun", "name": "Dream and Waking", "desc": "+25% Critical Chance, but -20% Move Speed", "mods": {"crit_chance": 25.0, "move_speed": -20.0}},
+]
+
+
 static func get_boon(id: String) -> Dictionary:
 	for b in BOONS:
 		if b["id"] == id:
 			return b
+	for d in DUOS:
+		if d["id"] == id:
+			return d
 	return {}
+
+
+static func has_planet(owned: Array, planet: String) -> bool:
+	for id in owned:
+		var b: Dictionary = get_boon(String(id))
+		if not b.is_empty() and not b.has("type") and String(b["planet"]) == planet:
+			return true
+	return false
+
+
+## Bu gezegenin seçiminde çıkabilecek kavuşum/karşıtlık lütufları (iki gezegenden de lütfun olmalı)
+static func duos_for(planet: String, owned: Array) -> Array:
+	var out: Array = []
+	for d in DUOS:
+		if owned.has(d["id"]):
+			continue
+		if String(d["planet"]) != planet and String(d["planet2"]) != planet:
+			continue
+		if has_planet(owned, String(d["planet"])) and has_planet(owned, String(d["planet2"])):
+			out.append(d)
+	return out
 
 
 ## Bir gezegenden sahip olunmayan 3 lütuf seçer (yetmezse başka gezegenlerden tamamlar)
@@ -76,6 +120,14 @@ static func offer(planet: String, owned: Array) -> Array:
 			pool.append(b)
 	pool.shuffle()
 	var out: Array = pool.slice(0, 3)
+	# kavuşum/karşıtlık: koşullar sağlanıyorsa %45 ihtimalle kartlardan biri onunla değişir
+	var duos := duos_for(planet, owned)
+	if not duos.is_empty() and randf() < 0.45:
+		duos.shuffle()
+		if out.size() >= 3:
+			out[2] = duos[0]
+		else:
+			out.append(duos[0])
 	if out.size() < 3:
 		var rest: Array = []
 		for b in BOONS:
