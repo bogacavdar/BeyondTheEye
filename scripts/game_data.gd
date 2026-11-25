@@ -296,6 +296,7 @@ static var scorpio_defeated := false     # Akrep en az bir kez yenildi mi
 static var sagittarius_defeated := false     # Yay en az bir kez yenildi mi
 static var capricorn_defeated := false     # Oğlak en az bir kez yenildi mi
 static var aquarius_defeated := false     # Kova en az bir kez yenildi mi
+static var pisces_defeated := false     # Balık en az bir kez yenildi mi
 
 
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
@@ -422,6 +423,7 @@ static func _load_slot(n: int) -> void:
 	sagittarius_defeated = bool(cfg.get_value("yolculuk", "sagittarius_defeated", false)) if ok else false
 	capricorn_defeated = bool(cfg.get_value("yolculuk", "capricorn_defeated", false)) if ok else false
 	aquarius_defeated = bool(cfg.get_value("yolculuk", "aquarius_defeated", false)) if ok else false
+	pisces_defeated = bool(cfg.get_value("yolculuk", "pisces_defeated", false)) if ok else false
 	moonstones = int(cfg.get_value("ay_ana", "moonstones", 0)) if ok else 0
 	ayana_bond = int(cfg.get_value("ay_ana", "bond", 0)) if ok else 0
 	charm_eq = String(cfg.get_value("ay_ana", "charm", "")) if ok else ""
@@ -471,6 +473,7 @@ static func slot_summary(n: int) -> Dictionary:
 		"sagittarius": bool(cfg.get_value("yolculuk", "sagittarius_defeated", false)),
 		"capricorn": bool(cfg.get_value("yolculuk", "capricorn_defeated", false)),
 		"aquarius": bool(cfg.get_value("yolculuk", "aquarius_defeated", false)),
+		"pisces": bool(cfg.get_value("yolculuk", "pisces_defeated", false)),
 		"run_room": int(sr.get("room", -1)) if not sr.is_empty() else -1,
 		"time": FileAccess.get_modified_time(slot_path(n))}
 
@@ -502,6 +505,7 @@ static func go_save() -> void:
 	cfg.set_value("yolculuk", "sagittarius_defeated", sagittarius_defeated)
 	cfg.set_value("yolculuk", "capricorn_defeated", capricorn_defeated)
 	cfg.set_value("yolculuk", "aquarius_defeated", aquarius_defeated)
+	cfg.set_value("yolculuk", "pisces_defeated", pisces_defeated)
 	cfg.set_value("ay_ana", "moonstones", moonstones)
 	cfg.set_value("ay_ana", "bond", ayana_bond)
 	cfg.set_value("ay_ana", "charm", charm_eq)
@@ -561,6 +565,7 @@ static func reset_progress() -> void:
 	sagittarius_defeated = false
 	capricorn_defeated = false
 	aquarius_defeated = false
+	pisces_defeated = false
 	moonstones = 0
 	ayana_bond = 0
 	charm_eq = ""

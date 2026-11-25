@@ -36,6 +36,9 @@ const LIST := [
 	{"id": "aquarius", "glyph": "♒", "name": "AQUARIUS ASCENDANT", "col": Color(0.6, 0.9, 1.0),
 		"desc": "+20% Skill Damage and -20% Skill Cooldown, but -15% Attack Damage",
 		"mods": {"skill_dmg": 20.0, "sk_cdr": 20.0, "damage": -15.0}},
+	{"id": "pisces", "glyph": "♓", "name": "PISCES ASCENDANT", "col": Color(0.85, 0.65, 1.0),
+		"desc": "Once per run, rise again with half health; slowly regenerate health in combat, but -20 Max Health",
+		"mods": {"revives": 1.0, "regen": 1.0, "max_hp": -20.0}},
 ]
 
 
@@ -71,6 +74,8 @@ static func unlocked(id: String) -> bool:
 			return GD.capricorn_defeated
 		"aquarius":
 			return GD.aquarius_defeated
+		"pisces":
+			return GD.pisces_defeated
 	return false
 
 

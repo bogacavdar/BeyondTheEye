@@ -142,6 +142,8 @@ func _ready() -> void:
 		_cap_variant()
 	elif zone == "aquarius":
 		_aq_variant()
+	elif zone == "pisces":
+		_pi_variant()
 	if mini:
 		max_hp *= 0.35
 		size_k *= 0.7
@@ -355,6 +357,46 @@ func _gemini_variant() -> void:
 ##  caster -> GELGİT KÂHİNİ: arenayı süpüren bir dalga duvarı gönderir; değerse seni geri iter
 ##  leaper -> AY DENİZANASI: yakınındayken seni kendine çeker; etrafına elektrik halkası yayar
 ##  brute  -> DEV KEŞİŞ YENGECİ: kabarcık yağdırır (yavaşlatır); sırtı yumuşak, arkadan vuruşlar iki kat
+## RÜYALAR DENİZİ yaratıkları:
+##  shade  -> RÜYA BALIĞI: pençe ve ok gibi düz bir atılış
+##  caster -> DENİZ KIZI: şarkısıyla seni kendine çeker; ayağının dibinde bir köpük patlar (çekilirken kaç!)
+##  leaper -> DENİZ ATI: köpük baloncukları üfler
+##  brute  -> LEVİATAN YAVRUSU: ağır pençe ve kuyruğuyla dalga
+func _pi_variant() -> void:
+	_base_body = Color(0.85, 0.6, 1.0)
+	_base_cloth = Color(0.55, 0.45, 0.95)
+	match kind:
+		"shade":
+			speed = 4.4
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 2.0, "windup": 0.45, "act": 0.12, "recover": 0.5,
+					"dmg": 15.0, "reach": 2.2, "arc": 110.0, "parry": true, "cd": 0.9, "weight": 2.0},
+				{"name": "ramcharge", "shape": "line", "min": 3.0, "max": 8.0, "windup": 0.65, "act": 0.55, "recover": 0.45,
+					"dmg": 16.0, "reach": 7.0, "arc": 0.0, "parry": false, "cd": 3.5, "weight": 1.5},
+			]
+		"caster":
+			attacks = [
+				{"name": "lure", "shape": "circle", "min": 3.0, "max": 11.0, "windup": 0.7, "act": 1.3, "recover": 0.8,
+					"dmg": 18.0, "reach": 2.2, "arc": 360.0, "parry": false, "cd": 5.0, "weight": 1.0},
+			]
+		"leaper":
+			max_hp = 85.0
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 1.9, "windup": 0.5, "act": 0.12, "recover": 0.5,
+					"dmg": 13.0, "reach": 2.1, "arc": 100.0, "parry": true, "cd": 1.0, "weight": 1.0},
+				{"name": "bubbles", "shape": "circle", "min": 2.0, "max": 10.0, "windup": 0.8, "act": 0.15, "recover": 0.8,
+					"dmg": 13.0, "reach": 1.2, "arc": 360.0, "parry": false, "cd": 4.5, "weight": 2.0},
+			]
+		"brute":
+			max_hp = 250.0
+			attacks = [
+				{"name": "smash", "shape": "fan", "min": 0.0, "max": 2.7, "windup": 0.8, "act": 0.16, "recover": 0.9,
+					"dmg": 25.0, "reach": 3.0, "arc": 120.0, "parry": true, "cd": 1.6, "weight": 1.5},
+				{"name": "tidewave", "shape": "line", "min": 3.0, "max": 12.0, "windup": 0.9, "act": 0.15, "recover": 0.7,
+					"dmg": 18.0, "reach": 12.0, "arc": 0.0, "parry": false, "cd": 4.0, "weight": 1.2},
+			]
+
+
 ## FIRTINA GÖZLEMEVİ yaratıkları:
 ##  shade  -> FIRTINA PERİSİ: uzaktaysan bir şimşekle yanına (arkana) ışınlanır, hemen ardından pençe
 ##  caster -> ŞİMŞEK BİLGESİ: seni yavaşça kovalayan fırtına küresi fırlatır (değerse yavaşlatır)
@@ -826,6 +868,18 @@ func _build() -> void:
 				_build_mguard()
 			_:
 				_build_wraith()
+	elif zone == "pisces":
+		m_eye.emission = Color(0.55, 1.0, 1.0)
+		m_body.albedo_color = Color(0.92, 0.82, 1.0)
+		match kind:
+			"caster":
+				_build_siren()
+			"leaper":
+				_build_seahorse()
+			"brute":
+				_build_leviathan()
+			_:
+				_build_koi()
 	elif zone == "aquarius":
 		m_eye.emission = Color(0.6, 1.0, 1.0)
 		m_body.albedo_color = Color(0.78, 0.74, 1.0)
@@ -1928,6 +1982,102 @@ func _build_siege() -> void:
 	bar.rotation.y = 0.0
 
 
+# ---- Rüyalar Denizi görünüşleri (inci-lila parlak rüya varlıkları; zemin koyu çivit)
+
+func _pearl() -> StandardMaterial3D:
+	var m := _m(Color(0.92, 0.82, 1.0), 0.25)
+	m.emission_enabled = true
+	m.emission = Color(0.85, 0.55, 1.0)
+	m.emission_energy_multiplier = 0.35
+	return m
+
+
+func _dreamfin() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.6, 0.95, 1.0, 0.6)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.emission_enabled = true
+	m.emission = Color(0.45, 0.9, 1.0)
+	m.emission_energy_multiplier = 1.0
+	m.roughness = 0.2
+	return m
+
+
+func _build_koi() -> void:
+	# RÜYA BALIĞI: havada yüzen inci rengi balık; ok gibi atılır
+	var pe := _pearl()
+	var fin := _dreamfin()
+	_part(vis, _sph(0.35), Vector3(0, 1.0, 0), pe, Vector3(0.7, 0.8, 1.5))
+	_part(vis, _sph(0.28), Vector3(0, 1.0, 0.7), fin, Vector3(0.15, 0.9, 0.8))
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.05), Vector3(s * 0.17, 1.1, -0.38), m_eye)
+		var f := _part(vis, _sph(0.2), Vector3(s * 0.28, 0.85, -0.05), fin, Vector3(0.6, 0.1, 0.9))
+		f.rotation.z = s * 0.5
+	_part(vis, _sph(0.15), Vector3(0, 1.35, 0.05), fin, Vector3(0.12, 0.8, 1.2))
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_siren() -> void:
+	# DENİZ KIZI: balık kuyruklu, uzun saçlı şarkıcı; şarkısıyla seni kendine çeker
+	var pe := _pearl()
+	var fin := _dreamfin()
+	for k in 4:
+		_part(vis, _sph(0.28 - float(k) * 0.05), Vector3(0, 0.3 + float(k) * 0.28, 0.1 + float(k) * 0.03), fin, Vector3(1.0, 0.8, 1.0))
+	_part(vis, _sph(0.35), Vector3(0, 0.15, 0.35), fin, Vector3(1.4, 0.15, 0.6))
+	_part(vis, _sph(0.25, 0.55), Vector3(0, 1.45, 0), pe)
+	_part(vis, _sph(0.18), Vector3(0, 1.95, 0), pe)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.035), Vector3(s * 0.07, 1.97, -0.16), m_eye)
+	var hair := _m(Color(0.55, 0.4, 0.95), 0.4)
+	hair.emission_enabled = true
+	hair.emission = Color(0.5, 0.3, 1.0)
+	hair.emission_energy_multiplier = 0.4
+	_part(vis, _sph(0.22), Vector3(0, 1.85, 0.12), hair, Vector3(1.1, 1.6, 1.0))
+	arm_l = _arm(-1.0, Vector3(-0.28, 1.65, 0), 0.55)
+	arm_r = _arm(1.0, Vector3(0.28, 1.65, 0), 0.55)
+
+
+func _build_seahorse() -> void:
+	# DENİZ ATI: kıvrık kuyruklu, köpük baloncukları üfler
+	var pe := _pearl()
+	var fin := _dreamfin()
+	_part(vis, _sph(0.3), Vector3(0, 1.2, 0), pe, Vector3(0.8, 1.3, 0.8))
+	_part(vis, _sph(0.2), Vector3(0, 1.75, -0.12), pe)
+	_part(vis, _cone(0.07, 0.04, 0.35), Vector3(0, 1.72, -0.38), pe).rotation.x = PI * 0.5
+	for k in 4:
+		_part(vis, _sph(0.16 - float(k) * 0.03), Vector3(0, 0.75 - float(k) * 0.15, 0.08 + float(k) * 0.08), pe)
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.04), Vector3(s * 0.12, 1.8, -0.18), m_eye)
+	_part(vis, _sph(0.25), Vector3(0, 1.3, 0.25), fin, Vector3(0.12, 1.0, 0.7))
+	arm_l = Node3D.new()
+	arm_r = Node3D.new()
+	vis.add_child(arm_l)
+	vis.add_child(arm_r)
+
+
+func _build_leviathan() -> void:
+	# LEVİATAN YAVRUSU: iri, yüzgeçli deniz canavarı; kuyruğuyla dalga kaldırır
+	var hide := _m(Color(0.45, 0.4, 0.75), 0.4)
+	hide.emission_enabled = true
+	hide.emission = Color(0.4, 0.3, 0.9)
+	hide.emission_energy_multiplier = 0.25
+	var fin := _dreamfin()
+	_part(vis, _sph(0.75), Vector3(0, 1.3, 0), hide, Vector3(1.1, 1.0, 1.3))
+	_part(vis, _sph(0.45), Vector3(0, 1.75, -0.8), hide, Vector3(1.0, 0.85, 1.1))
+	for s in [-1.0, 1.0]:
+		_part(vis, _sph(0.08), Vector3(s * 0.25, 1.9, -1.2), m_eye)
+		var f := _part(vis, _sph(0.4), Vector3(s * 0.85, 1.1, 0), fin, Vector3(1.0, 0.12, 0.6))
+		f.rotation.z = s * 0.5
+		_part(vis, _cone(0.18, 0.22, 0.8), Vector3(s * 0.45, 0.4, 0.2), hide)
+	for k in 4:
+		_part(vis, _cone(0.1, 0.0, 0.5), Vector3(0, 2.2 - float(k) * 0.12, -0.3 + float(k) * 0.35), fin)
+	arm_l = _arm(-1.0, Vector3(-0.9, 1.6, -0.3), 0.8)
+	arm_r = _arm(1.0, Vector3(0.9, 1.6, -0.3), 0.8)
+
+
 # ---- Fırtına Gözlemevi görünüşleri (parlak menekşe-beyaz fırtına varlıkları; zemin koyu lacivert)
 
 func _storm() -> StandardMaterial3D:
@@ -2535,6 +2685,21 @@ func _set_state(s: String) -> void:
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
 			_done = true
+		elif String(atk["name"]) == "lure":
+			# şarkı: kahramanı kendine çeker, ayağının dibinde köpük patlar
+			var H8 = load("res://scripts/hazards.gd")
+			if H8.hero_ok(hero):
+				hero.apply_pull(global_position, 4.2, 1.1)
+				var b8 = H8.Blast.new()
+				b8.hero = hero
+				b8.radius = float(atk["reach"])
+				b8.delay = 1.2
+				b8.dmg = float(atk["dmg"])
+				b8.col = Color(0.85, 0.6, 1.0)
+				get_parent().add_child(b8)
+				b8.global_position = Vector3(global_position.x, 0, global_position.z)
+			Sfx.play("parry", -8.0, 0.05, 0, 1.6)
+			_done = true
 		elif String(atk["name"]) == "blink":
 			# şimşekle kahramanın arkasına ışınlan
 			var H4 = load("res://scripts/hazards.gd")
@@ -2947,7 +3112,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid" or nm == "volley" or nm == "ballista" or nm == "icespikes" or nm == "blink" or nm == "stormorb" or nm == "urn" or nm == "pulse":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror" or nm == "tidewave" or nm == "bubbles" or nm == "sunbeam" or nm == "seals" or nm == "verdict" or nm == "acid" or nm == "volley" or nm == "ballista" or nm == "icespikes" or nm == "blink" or nm == "stormorb" or nm == "urn" or nm == "pulse" or nm == "lure":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -3442,7 +3607,7 @@ func _animate(delta: float) -> void:
 					lean = 0.4 * e
 					glow = 3.0 + 18.0 * k
 					shake = 0.03 * k
-				"stormorb", "urn", "pulse":
+				"stormorb", "urn", "pulse", "lure":
 					arm_rx = 2.6 * e
 					glow = 3.0 + 18.0 * k
 				"blink":

@@ -23,6 +23,7 @@ const ScorpioScript = preload("res://scripts/scorpio_boss.gd")
 const SagScript = preload("res://scripts/sagittarius_boss.gd")
 const CapScript = preload("res://scripts/capricorn_boss.gd")
 const AqScript = preload("res://scripts/aquarius_boss.gd")
+const PiScript = preload("res://scripts/pisces_boss.gd")
 const PauseUI = preload("res://scripts/pause_ui.gd")
 const BoonUI = preload("res://scripts/boon_ui.gd")
 const CombatHud = preload("res://scripts/combat_hud.gd")
@@ -52,8 +53,8 @@ const DUST_BY_KIND := {"shade": 5, "caster": 5, "leaper": 6, "brute": 16}
 const BOSS_DUST := 150
 const BOSS_FIRST_BONUS := 200
 ## BÖLGELER: run derinliği 0-4 Koç Geçidi (4 = Koç), 5-9 Boğa Otlakları (9 = Boğa)
-const ZONE_START := {"aries": 0, "taurus": 5, "gemini": 10, "cancer": 15, "leo": 20, "virgo": 25, "libra": 30, "scorpio": 35, "sagittarius": 40, "capricorn": 45, "aquarius": 50}
-const LAST_DEPTH := 54
+const ZONE_START := {"aries": 0, "taurus": 5, "gemini": 10, "cancer": 15, "leo": 20, "virgo": 25, "libra": 30, "scorpio": 35, "sagittarius": 40, "capricorn": 45, "aquarius": 50, "pisces": 55}
+const LAST_DEPTH := 59
 const COMBAT_G := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "shade"], ["leaper", "leaper", "caster", "shade", "shade"]],
@@ -135,6 +136,17 @@ const COMBAT_Q := [
 const HP_MULT_Q := [3.6, 3.75, 3.95, 4.15]
 const DMG_MULT_Q := [4.0, 4.1, 4.25, 4.4]
 const ELITE_CHANCE_Q := [0.55, 0.6, 0.6, 0.65]
+const COMBAT_P := [
+	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
+	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
+	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
+	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
+]
+const HP_MULT_P := [3.85, 4.0, 4.2, 4.4]
+const DMG_MULT_P := [4.3, 4.4, 4.55, 4.7]
+const ELITE_CHANCE_P := [0.6, 0.6, 0.65, 0.7]
+const PI_DUST := 1100
+const PI_FIRST_BONUS := 2000
 const AQ_DUST := 940
 const AQ_FIRST_BONUS := 1200
 const CAP_DUST := 860
@@ -206,7 +218,9 @@ func _ready() -> void:
 		GameData.start_run()
 	room_i = clampi(GameData.run_room, 0, LAST_DEPTH)
 	zone = "aries"
-	if room_i >= int(ZONE_START["aquarius"]):
+	if room_i >= int(ZONE_START["pisces"]):
+		zone = "pisces"
+	elif room_i >= int(ZONE_START["aquarius"]):
 		zone = "aquarius"
 	elif room_i >= int(ZONE_START["capricorn"]):
 		zone = "capricorn"
@@ -235,11 +249,14 @@ func _ready() -> void:
 	if is_boss or is_rest:
 		waves = []
 	else:
-		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G, COMBAT_C, COMBAT_L, COMBAT_V, COMBAT_B, COMBAT_S, COMBAT_Y, COMBAT_K, COMBAT_Q)
+		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G, COMBAT_C, COMBAT_L, COMBAT_V, COMBAT_B, COMBAT_S, COMBAT_Y, COMBAT_K, COMBAT_Q, COMBAT_P)
 		waves = table[mini(local_i, table.size() - 1)]
 	Sfx.play_music(_music_path(), -9.0)
 
-	if zone == "aquarius":
+	if zone == "pisces":
+		_environment_pisces()
+		_arena_pisces()
+	elif zone == "aquarius":
 		_environment_aquarius()
 		_arena_aquarius()
 	elif zone == "capricorn":
@@ -326,7 +343,9 @@ func _ready() -> void:
 		hud.banner("SANCTUARY", tr("The stars mend your wounds"))
 		_spawn_fountain()
 	elif is_boss:
-		if zone == "aquarius":
+		if zone == "pisces":
+			hud.banner("PISCES", tr("The Dreamer"))
+		elif zone == "aquarius":
 			hud.banner("AQUARIUS", tr("The Water Bearer"))
 		elif zone == "capricorn":
 			hud.banner("CAPRICORN", tr("The Mountain Elder"))
@@ -350,7 +369,9 @@ func _ready() -> void:
 			hud.banner("ARIES", tr("The Ram's Fury"))
 		get_tree().create_timer(1.6).timeout.connect(_spawn_boss)
 	elif local_i == 0:
-		if zone == "aquarius":
+		if zone == "pisces":
+			hud.banner("THE SEA OF DREAMS", tr("The last sign, where every sign returns"))
+		elif zone == "aquarius":
 			hud.banner("THE STORM OBSERVATORY", tr("Where the future is struck by lightning"))
 		elif zone == "capricorn":
 			hud.banner("THE FROZEN SUMMIT", tr("Patience is the steepest climb"))
@@ -546,6 +567,107 @@ func _arena() -> void:
 		if i % 3 == 0:
 			_mesh(_sphere(hh * 0.09), pos + Vector3(0, hh * 0.5, 0), _glow(Color(1.0, 0.4, 0.1), 3.0))
 	_embers(heat)
+
+
+# ---------------------------------------------------------------- RÜYALAR DENİZİ ortamı
+
+func _environment_pisces() -> void:
+	# rüya ile deniz arası: alacakaranlık lila gök, sonsuz durgun su, yukarı süzülen ışık kabarcıkları
+	var psky := ProceduralSkyMaterial.new()
+	psky.sky_top_color = Color(0.05, 0.04, 0.12)
+	psky.sky_horizon_color = Color(0.36, 0.26, 0.5)
+	psky.sky_curve = 0.18
+	psky.ground_horizon_color = Color(0.25, 0.2, 0.4)
+	psky.ground_bottom_color = Color(0.04, 0.04, 0.1)
+	psky.sun_angle_max = 1.0
+	var sky := Sky.new()
+	sky.sky_material = psky
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.6, 0.55, 0.78)
+	env.ambient_light_energy = 0.9
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.glow_enabled = true
+	env.glow_intensity = 0.6
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 1.1
+	env.ssao_enabled = true
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.14, 0.1, 0.24)
+	env.fog_light_energy = 1.0
+	env.fog_density = 0.01
+	env.fog_sky_affect = 0.3
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.light_color = Color(0.85, 0.8, 1.0)
+	sun.light_energy = 0.75
+	sun.shadow_enabled = not GameData.is_web()
+	sun.rotation_degrees = Vector3(-58, 135, 0)
+	add_child(sun)
+
+
+func _arena_pisces() -> void:
+	var top := CylinderMesh.new()
+	top.top_radius = ARENA_R + 0.6
+	top.bottom_radius = ARENA_R + 0.6
+	top.height = 1.0
+	top.radial_segments = 96
+	var fm := ShaderMaterial.new()
+	fm.shader = preload("res://shaders/pi_floor.gdshader")
+	_mesh(top, Vector3(0, -0.5, 0), fm)
+	_floor_glyph("♓", Color(0.85, 0.65, 1.0))
+	# arenanın çevresi: aynalı, durgun bir deniz
+	var sea := PlaneMesh.new()
+	sea.size = Vector2(400, 400)
+	var sm := _mat(Color(0.06, 0.05, 0.14), 0.6, 0.05)
+	_mesh(sea, Vector3(0, -0.35, 0), sm)
+	var pearl := _glow(Color(0.9, 0.8, 1.0), 2.0)
+	var stone := _mat(Color(0.3, 0.27, 0.45), 0.0, 0.6)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 91 + room_i * 5
+	var back := Vector3(-1, 0, -1).normalized()
+	# sudan yükselen inci kabukları ve kemerler (arka taraf)
+	for i in 9:
+		var a2 := TAU * (float(i) + 0.5) / 9.0
+		var dir := Vector3(cos(a2), 0, sin(a2))
+		if dir.dot(back) < -0.2:
+			continue
+		var hh := rng.randf_range(1.4, 2.4)
+		var c := CylinderMesh.new()
+		c.top_radius = 0.2
+		c.bottom_radius = 0.35
+		c.height = hh
+		c.radial_segments = 8
+		_mesh(c, dir * (ARENA_R + 1.3) + Vector3(0, hh * 0.5 - 0.35, 0), stone)
+		_mesh(_sphere(0.28), dir * (ARENA_R + 1.3) + Vector3(0, hh - 0.2, 0), pearl)
+	# uzakta sudan yükselen iki dev balık kuyruğu silueti
+	for s: float in [-1.0, 1.0]:
+		var a := atan2(back.z, back.x) + s * 0.5
+		var tail := _mesh(_sphere(6.0), Vector3(cos(a) * 60.0, 6.0, sin(a) * 60.0), _mat(Color(0.18, 0.15, 0.32), 0.0, 0.5))
+		tail.scale = Vector3(0.25, 1.4, 1.0)
+		tail.rotation.y = -a
+	# yukarı süzülen ışık kabarcıkları
+	var em := CPUParticles3D.new()
+	em.amount = 80 if not GameData.is_web() else 40
+	em.lifetime = 8.0
+	em.preprocess = 8.0
+	em.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	em.emission_box_extents = Vector3(ARENA_R + 6.0, 0.5, ARENA_R + 6.0)
+	em.direction = Vector3.UP
+	em.spread = 15.0
+	em.gravity = Vector3(0, 0.2, 0)
+	em.initial_velocity_min = 0.3
+	em.initial_velocity_max = 0.7
+	var s2 := SphereMesh.new()
+	s2.radius = 0.06
+	s2.height = 0.12
+	em.mesh = s2
+	em.material_override = _glow(Color(0.8, 0.75, 1.0), 3.0)
+	add_child(em)
 
 
 # ---------------------------------------------------------------- FIRTINA GÖZLEMEVİ ortamı
@@ -1981,7 +2103,7 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	_tune_enemy(e)
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
-	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G, ELITE_CHANCE_C, ELITE_CHANCE_L, ELITE_CHANCE_V, ELITE_CHANCE_B, ELITE_CHANCE_S, ELITE_CHANCE_Y, ELITE_CHANCE_K, ELITE_CHANCE_Q)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
+	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G, ELITE_CHANCE_C, ELITE_CHANCE_L, ELITE_CHANCE_V, ELITE_CHANCE_B, ELITE_CHANCE_S, ELITE_CHANCE_Y, ELITE_CHANCE_K, ELITE_CHANCE_Q, ELITE_CHANCE_P)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
 	if room_i >= 1 or Retro.rank(rt, "moon") > 0:
 		e.elite = randf() < elite_ch
 	if e.elite and room_i >= 2:
@@ -2009,7 +2131,7 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 			_lonely = e
 
 
-const ZONE_ORDER := ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius"]
+const ZONE_ORDER := ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"]
 
 
 ## KARIŞIK GRUPLAR: ileri bölgelerde yaratıkların ~%25'i önceki bölgelerden tanıdık yüzler olur
@@ -2024,15 +2146,17 @@ func _mixed_zone() -> String:
 func _tune_enemy(e) -> void:
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
-	var hpm: float = float(_zt(HP_MULT, HP_MULT_T, HP_MULT_G, HP_MULT_C, HP_MULT_L, HP_MULT_V, HP_MULT_B, HP_MULT_S, HP_MULT_Y, HP_MULT_K, HP_MULT_Q)[di])
-	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G, DMG_MULT_C, DMG_MULT_L, DMG_MULT_V, DMG_MULT_B, DMG_MULT_S, DMG_MULT_Y, DMG_MULT_K, DMG_MULT_Q)[di])
+	var hpm: float = float(_zt(HP_MULT, HP_MULT_T, HP_MULT_G, HP_MULT_C, HP_MULT_L, HP_MULT_V, HP_MULT_B, HP_MULT_S, HP_MULT_Y, HP_MULT_K, HP_MULT_Q, HP_MULT_P)[di])
+	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G, DMG_MULT_C, DMG_MULT_L, DMG_MULT_V, DMG_MULT_B, DMG_MULT_S, DMG_MULT_Y, DMG_MULT_K, DMG_MULT_Q, DMG_MULT_P)[di])
 	e.hp_mult = hpm * (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * (1.15 if GameData.run_rising == "leo" else 1.0)
 	e.dmg_mult = dmm * (1.0 + 0.2 * float(Retro.rank(rt, "mars")))
 	e.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
 
 
 ## Bölgeye göre tablo seçer
-func _zt(a: Array, t: Array, g: Array, c: Array, l: Array, v: Array, b: Array, sc: Array, y: Array, k: Array, q: Array) -> Array:
+func _zt(a: Array, t: Array, g: Array, c: Array, l: Array, v: Array, b: Array, sc: Array, y: Array, k: Array, q: Array, pp: Array) -> Array:
+	if zone == "pisces":
+		return pp
 	if zone == "aquarius":
 		return q
 	if zone == "capricorn":
@@ -2166,8 +2290,8 @@ func _physics_process(delta: float) -> void:
 ##  Yengeç: gelgit kıyıyı basar (iç daire güvenli) · Aslan: Zenit (gölgelere saklan) · Başak: dama ızgarası
 
 const HZ = preload("res://scripts/hazards.gd")
-const HAZARD_EVERY := {"aries": 5.0, "taurus": 6.5, "gemini": 9.0, "cancer": 13.0, "leo": 15.0, "virgo": 12.0, "libra": 12.0, "scorpio": 6.5, "sagittarius": 6.0, "capricorn": 7.0, "aquarius": 6.0}
-const HAZARD_DMG := {"aries": 1.0, "taurus": 1.15, "gemini": 1.3, "cancer": 1.45, "leo": 1.6, "virgo": 1.75, "libra": 1.9, "scorpio": 2.0, "sagittarius": 2.1, "capricorn": 2.25, "aquarius": 2.4}
+const HAZARD_EVERY := {"aries": 5.0, "taurus": 6.5, "gemini": 9.0, "cancer": 13.0, "leo": 15.0, "virgo": 12.0, "libra": 12.0, "scorpio": 6.5, "sagittarius": 6.0, "capricorn": 7.0, "aquarius": 6.0, "pisces": 7.0}
+const HAZARD_DMG := {"aries": 1.0, "taurus": 1.15, "gemini": 1.3, "cancer": 1.45, "leo": 1.6, "virgo": 1.75, "libra": 1.9, "scorpio": 2.0, "sagittarius": 2.1, "capricorn": 2.25, "aquarius": 2.4, "pisces": 2.55}
 var _hazard_t := 6.0
 
 
@@ -2236,6 +2360,22 @@ func _tick_hazards(delta: float) -> void:
 			z.dmg = 12.0 * k
 			z.safe_r = 2.3
 			add_child(z)
+		"pisces":
+			# rüya köpüğü: çevrende bir halka köpük belirir, tek boşluktan çık
+			var n9 := 8
+			var gap9 := randi() % n9
+			for i in n9:
+				if i == gap9:
+					continue
+				var a9 := TAU * float(i) / float(n9)
+				var b9 := HZ.Blast.new()
+				b9.hero = hero
+				b9.radius = 1.2
+				b9.delay = 1.3
+				b9.dmg = 10.0 * k
+				b9.col = Color(0.85, 0.65, 1.0)
+				add_child(b9)
+				b9.global_position = HZ.clamp_arena(hp + Vector3(cos(a9), 0, sin(a9)) * 2.6, ARENA_R - 0.5)
 		"aquarius":
 			# yıldırım: biri üstüne, biri yakınına (yavaşlatır)
 			for i in 2:
@@ -2362,6 +2502,8 @@ func _on_cleared() -> void:
 		bonus = int(round(float(bonus) * 4.6))
 	elif zone == "aquarius":
 		bonus = int(round(float(bonus) * 5.0))
+	elif zone == "pisces":
+		bonus = int(round(float(bonus) * 5.5))
 	bonus = int(round(float(bonus) * _retro_mult()))
 	# AY TAŞI: dövüş odalarından ara sıra düşer
 	if not is_rest and not is_boss and randf() < 0.22:
@@ -2433,6 +2575,8 @@ func _door_info(type: String) -> Dictionary:
 		"rest":
 			return {"glyph": "\u2665", "color": Color(0.6, 0.95, 0.8), "label": "SANCTUARY", "title": tr("SANCTUARY")}
 		"boss":
+			if zone == "pisces":
+				return {"glyph": "\u2653", "color": Color(0.85, 0.65, 1.0), "label": "PISCES", "title": tr("FACE PISCES")}
 			if zone == "aquarius":
 				return {"glyph": "\u2652", "color": Color(0.6, 0.9, 1.0), "label": "AQUARIUS", "title": tr("FACE AQUARIUS")}
 			if zone == "capricorn":
@@ -2454,6 +2598,8 @@ func _door_info(type: String) -> Dictionary:
 			if zone == "taurus":
 				return {"glyph": "\u2649", "color": Color(0.55, 1.0, 0.45), "label": "TAURUS", "title": tr("FACE TAURUS")}
 			return {"glyph": "\u2648", "color": Color(1.0, 0.35, 0.2), "label": "ARIES", "title": tr("FACE ARIES")}
+		"pisces_gate":
+			return {"glyph": "\u2653", "color": Color(0.85, 0.65, 1.0), "label": "PISCES", "title": tr("ONWARD TO PISCES")}
 		"aquarius_gate":
 			return {"glyph": "\u2652", "color": Color(0.6, 0.9, 1.0), "label": "AQUARIUS", "title": tr("ONWARD TO AQUARIUS")}
 		"capricorn_gate":
@@ -2541,7 +2687,7 @@ func _enter_door(type: String) -> void:
 	if type == "home":
 		_leave()
 		return
-	if type == "taurus_gate" or type == "gemini_gate" or type == "cancer_gate" or type == "leo_gate" or type == "virgo_gate" or type == "libra_gate" or type == "scorpio_gate" or type == "sagittarius_gate" or type == "capricorn_gate" or type == "aquarius_gate":
+	if type == "taurus_gate" or type == "gemini_gate" or type == "cancer_gate" or type == "leo_gate" or type == "virgo_gate" or type == "libra_gate" or type == "scorpio_gate" or type == "sagittarius_gate" or type == "capricorn_gate" or type == "aquarius_gate" or type == "pisces_gate":
 		# sonraki bölgeye geçiş: kısa bir nefes (canın %30'u yenilenir) ve ilk odada bir lütuf
 		GameData.run_room = int(ZONE_START[type.trim_suffix("_gate")])
 		GameData.run_reward = "boon:" + Boons.random_planet()
@@ -2596,7 +2742,9 @@ func _spawn_fountain() -> void:
 func _spawn_boss() -> void:
 	if ended:
 		return
-	if zone == "aquarius":
+	if zone == "pisces":
+		boss = PiScript.new()
+	elif zone == "aquarius":
 		boss = AqScript.new()
 	elif zone == "capricorn":
 		boss = CapScript.new()
@@ -2637,6 +2785,37 @@ func _spawn_boss() -> void:
 	Sfx.play("bossroar", 0.0, 0.0, 0, 0.6)
 
 
+## Final: arenanın çevresinde on iki burç sembolü sırayla yanar ve göğe yükselir
+func _finale() -> void:
+	var glyphs := ["\u2648", "\u2649", "\u264A", "\u264B", "\u264C", "\u264D", "\u264E", "\u264F", "\u2650", "\u2651", "\u2652", "\u2653"]
+	var cols := [Color(1.0, 0.4, 0.25), Color(0.55, 1.0, 0.45), Color(0.6, 0.8, 1.0), Color(0.5, 0.9, 1.0), Color(1.0, 0.8, 0.4), Color(0.5, 1.0, 0.85),
+		Color(0.4, 1.0, 0.8), Color(0.5, 1.0, 0.3), Color(0.7, 0.55, 1.0), Color(0.4, 1.0, 0.9), Color(0.6, 0.9, 1.0), Color(0.85, 0.65, 1.0)]
+	for i in 12:
+		var a := -PI * 0.5 + TAU * float(i) / 12.0
+		var lb := Label3D.new()
+		lb.text = glyphs[i]
+		lb.font_size = 220
+		lb.pixel_size = 0.01
+		lb.modulate = cols[i]
+		lb.outline_size = 0
+		lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		lb.no_depth_test = true
+		lb.position = Vector3(cos(a) * 7.0, 0.5, sin(a) * 7.0)
+		lb.modulate.a = 0.0
+		add_child(lb)
+		var tw := create_tween()
+		tw.tween_interval(0.25 * float(i))
+		tw.tween_property(lb, "modulate:a", 1.0, 0.3)
+		tw.parallel().tween_callback(func():
+			Sfx.play("coin", -10.0, 0.0, 0, 0.6 + 0.08 * float(i))
+			Fx.flash_light(lb.global_position + Vector3(0, 1, 0), cols[i], 5.0, 6.0, 0.4))
+		tw.tween_interval(3.2 - 0.25 * float(i))
+		tw.tween_property(lb, "position", lb.position * 1.6 + Vector3(0, 9.0, 0), 2.5).set_trans(Tween.TRANS_SINE)
+	get_tree().create_timer(3.4).timeout.connect(func():
+		Fx.shake(0.5)
+		Fx.flash_light(Vector3(0, 6, 0), Color(1.0, 0.95, 1.0), 14.0, 40.0, 2.0))
+
+
 func _on_summon(kinds: Array) -> void:
 	for i in kinds.size():
 		var a := randf() * TAU
@@ -2654,7 +2833,8 @@ func _on_boss_killed(_b) -> void:
 		"cancer": GameData.cancer_defeated, "leo": GameData.leo_defeated, "virgo": GameData.virgo_defeated,
 		"libra": GameData.libra_defeated, "scorpio": GameData.scorpio_defeated,
 		"sagittarius": GameData.sagittarius_defeated, "capricorn": GameData.capricorn_defeated,
-		"aquarius": GameData.aquarius_defeated}
+		"aquarius": GameData.aquarius_defeated,
+		"pisces": GameData.pisces_defeated}
 	var first_win := not bool(beaten.get(zone, false))
 	GameData.ores[zone] = int(GameData.ores.get(zone, 0)) + (2 if first_win else 1)
 	# kalan yardımcılar da dağılır
@@ -2663,6 +2843,25 @@ func _on_boss_killed(_b) -> void:
 			e.take_hit(9999.0, Vector3.UP, 0.0, true)
 	await get_tree().create_timer(1.6).timeout
 	if ended:
+		return
+	if zone == "pisces":
+		# FİNAL: on iki takımyıldızın hepsi arındı
+		var first_all := not GameData.pisces_defeated
+		var amount_p := PI_DUST + (PI_FIRST_BONUS if first_all else 0)
+		amount_p = int(round(float(amount_p) * _retro_mult()))
+		GameData.pisces_defeated = true
+		_drop_dust(Vector3(0, 2.0, -3.5), amount_p)
+		GameData.last_run_msg = tr("Pisces is restored! All twelve constellations shine again — the sky is whole. This run: %d stardust") % (GameData.run_dust + amount_p)
+		hud.banner("PISCES IS RESTORED", tr("+%d stardust") % amount_p)
+		Sfx.play("coin", -2.0, 0.0, 0, 0.5)
+		GameData.go_save()
+		_finale()
+		await get_tree().create_timer(4.5).timeout
+		if ended:
+			return
+		hud.banner("THE SKY IS WHOLE AGAIN", tr("All twelve constellations shine. Beyond the eye, the dream goes on."))
+		await get_tree().create_timer(3.0).timeout
+		_add_door(Vector3(0, 0, -7.5), "home")
 		return
 	if zone == "aquarius":
 		var amount_q := AQ_DUST + (AQ_FIRST_BONUS if not GameData.aquarius_defeated else 0)
@@ -2675,7 +2874,8 @@ func _on_boss_killed(_b) -> void:
 		Fx.flash_light(Vector3(0, 4, 0), Color(0.6, 0.9, 1.0), 10.0, 25.0, 1.5)
 		GameData.go_save()
 		await get_tree().create_timer(1.5).timeout
-		_add_door(Vector3(0, 0, -7.5), "home")
+		_add_door(Vector3(-3.4, 0, -7.5), "pisces_gate")
+		_add_door(Vector3(3.4, 0, -7.5), "home")
 		return
 	if zone == "capricorn":
 		var amount_k := CAP_DUST + (CAP_FIRST_BONUS if not GameData.capricorn_defeated else 0)
