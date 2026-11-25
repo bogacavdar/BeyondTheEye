@@ -33,7 +33,7 @@ const BOONS := [
 	{"id": "merc_wings", "planet": "Mercury", "name": "Winged Step", "desc": "Dashing through enemies deals 15 damage", "flags": ["dash_strike"]},
 	{"id": "merc_haste", "planet": "Mercury", "name": "Quick Mind", "desc": "-25% Skill Cooldowns", "mods": {"haste": 25.0}},
 
-	{"id": "venus_embrace", "planet": "Venus", "name": "Venus Embrace", "desc": "+3% Life Steal", "mods": {"lifesteal": 3.0}},
+	{"id": "venus_embrace", "planet": "Venus", "name": "Venus Embrace", "desc": "+2% Life Steal", "mods": {"lifesteal": 2.0}},
 	{"id": "venus_grace", "planet": "Venus", "name": "Beauty's Grace", "desc": "+30 Max Health", "mods": {"max_hp": 30.0}},
 	{"id": "venus_allure", "planet": "Venus", "name": "Allure", "desc": "Take 15% less damage", "mods": {"dmg_reduction": 15.0}},
 	{"id": "venus_garden", "planet": "Venus", "name": "Rose Garden", "desc": "Heal 10 health after every chamber", "mods": {"room_heal": 10.0}},

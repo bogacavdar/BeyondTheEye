@@ -42,7 +42,7 @@ const TR := {
 	"Quicksilver": "Cıva", "-40% Dash Cooldown": "Atılma bekleme süresi -%40",
 	"Winged Step": "Kanatlı Adım", "Dashing through enemies deals 15 damage": "Düşmanların içinden atılmak 15 hasar verir",
 	"Quick Mind": "Çevik Zihin", "-25% Skill Cooldowns": "Yetenek bekleme süreleri -%25",
-	"Venus Embrace": "Venüs Kucağı", "+3% Life Steal": "+%3 Can Çalma",
+	"Venus Embrace": "Venüs Kucağı", "+2% Life Steal": "+%2 Can Çalma",
 	"Beauty's Grace": "Güzelliğin Zarafeti", "+30 Max Health": "+30 En Yüksek Can",
 	"Allure": "Cazibe", "Take 15% less damage": "%15 daha az hasar alırsın",
 	"Rose Garden": "Gül Bahçesi", "Heal 10 health after every chamber": "Her odadan sonra 10 can iyileşirsin",

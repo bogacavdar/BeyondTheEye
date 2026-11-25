@@ -52,6 +52,7 @@ var _parry_cd := 0.0
 var _invuln := 0.0
 var _slow_t := 0.0      # Diken Çalısı: yavaşlatma süresi
 var _slow_mult := 1.0
+var _ls_budget := 0.0     # can çalma bütçesi (saniyede dolar)
 var _regen_acc := 0.0
 var _first_strike := true
 var _kills := 0
@@ -167,6 +168,7 @@ func _face(dir: Vector3, delta: float, spd := 30.0) -> void:
 # ---------------------------------------------------------------- ana döngü
 
 func _physics_process(delta: float) -> void:
+	_ls_budget = minf(_ls_budget + max_hp * 0.03 * delta, max_hp * 0.03)
 	_t += delta
 	dash_cd -= delta
 	_parry_cd -= delta
@@ -526,7 +528,11 @@ func on_ranged_hit(dmg: float, e) -> void:
 ## Verilen hasarın yan etkileri: can çalma, şifacı eller, hasat
 func _on_dealt(dmg: float, e) -> void:
 	if float(st["lifesteal"]) > 0.0:
-		heal(dmg * float(st["lifesteal"]) / 100.0)
+		# can çalma tavanı: saniyede en fazla canın %3'ü (çok vuruşlu saldırılarla ölümsüz olmayı önler)
+		var gain := minf(dmg * float(st["lifesteal"]) / 100.0, _ls_budget)
+		if gain > 0.0:
+			_ls_budget -= gain
+			heal(gain)
 	if e.dead:
 		_kills += 1
 		if bool(st["healer"]):
