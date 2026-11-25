@@ -82,11 +82,11 @@ static func get_kit(id: String) -> Dictionary:
 				"color": Color(0.78, 0.65, 1.0),
 				"ranged": true,
 				"combo": [
-					{"wind": 0.16, "act": 0.04, "rec": 0.3, "dmg": 6.0, "arrows": 1, "spread": 0.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 2.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0},
-					{"wind": 0.16, "act": 0.04, "rec": 0.3, "dmg": 6.0, "arrows": 1, "spread": 0.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 2.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0},
-					{"wind": 0.22, "act": 0.05, "rec": 0.48, "dmg": 4.0, "arrows": 3, "spread": 26.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 4.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": -2.0, "finisher": true},
+					{"wind": 0.16, "act": 0.04, "rec": 0.3, "dmg": 6.0, "arrows": 1, "spread": 0.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 0.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0},
+					{"wind": 0.16, "act": 0.04, "rec": 0.3, "dmg": 6.0, "arrows": 1, "spread": 0.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 0.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0},
+					{"wind": 0.22, "act": 0.05, "rec": 0.48, "dmg": 4.0, "arrows": 3, "spread": 26.0, "pierce": 0, "speed": 34.0, "range": 12.0, "kb": 0.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": -2.0, "finisher": true},
 				],
-				"heavy": {"wind": 0.55, "act": 0.05, "rec": 0.4, "dmg": 22.0, "arrows": 1, "spread": 0.0, "pierce": 2, "speed": 44.0, "range": 15.0, "kb": 9.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0, "finisher": true},
+				"heavy": {"wind": 0.55, "act": 0.05, "rec": 0.4, "dmg": 22.0, "arrows": 1, "spread": 0.0, "pierce": 2, "speed": 44.0, "range": 15.0, "kb": 0.0, "a0": 0.0, "a1": 0.0, "arc": 0.0, "step": 0.0, "finisher": true},
 				"skills": [
 					{"name": "ARROW RAIN", "cd": 10.0, "type": "starfall", "radius": 2.6, "count": 10, "dmg": 6.0, "delay": 0.55, "star_r": 0.07, "max_range": 10.0},
 					{"name": "PIERCING STAR", "cd": 7.0, "type": "wave", "dmg": 18.0, "speed": 30.0, "range": 16.0, "width": 0.25},

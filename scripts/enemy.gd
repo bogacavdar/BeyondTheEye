@@ -1397,6 +1397,9 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	# ağır vuruşlar hafif düşmanların hazırlığını keser; kolos ve atlayan havadayken sendelemez
 	var airborne := state == "act" and String(atk.get("name", "")) == "pounce"
 	_knock *= 1.25
+	# itmesiz vuruşlar (yay okları) düşmanı sendeletmez
+	if kb <= 0.0:
+		return
 	if heavy and kind != "brute" and not airborne and state != "stun":
 		stun(0.45)
 	elif (state == "chase" or state == "recover") and kind != "brute":
