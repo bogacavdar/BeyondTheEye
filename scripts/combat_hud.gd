@@ -152,7 +152,7 @@ func _draw_slots() -> void:
 	var gold := UI.GOLD
 	# --- yetenekler ve hareketler: simge, üstünde tuş rozeti, altında çerçeveli ad kutusu
 	var slots := [
-		["1", 0, "starfall", ""], ["2", 1, "wave", ""], ["3", 2, "path", ""],
+		["1", 0, "starfall", ""], ["2", 1, "wave", ""], ["3", 2, "path", ""], ["Q", -3, "heavy", "HEAVY ATTACK"],
 		["SPACE", -1, "dash", "DASH"], ["RMB", -2, "parry", "PARRY"],
 	]
 	var sw := 72.0
@@ -165,7 +165,7 @@ func _draw_slots() -> void:
 	draw_rect(back, _a(gold, 0.35), false, 1.0)
 	for i in slots.size():
 		var sl: Array = slots[i]
-		var x := x0 + float(i) * (sw + gap) + (30.0 if i >= 3 else 0.0)
+		var x := x0 + float(i) * (sw + gap) + (30.0 if i >= 4 else 0.0)
 		var c := Vector2(x + sw * 0.5, y0 + sw * 0.5)
 		var frac_cd := 0.0
 		var idx: int = sl[1]
@@ -173,6 +173,8 @@ func _draw_slots() -> void:
 		if idx >= 0:
 			frac_cd = float(hero.skill_cd[idx]) / float(hero.SKILL_CD[idx])
 			name_txt = tr(String(hero.kit["skills"][idx]["name"]))
+		elif idx == -3:
+			frac_cd = 0.0
 		elif idx == -1:
 			frac_cd = clampf(hero.dash_cd / hero.DASH_COOLDOWN, 0.0, 1.0)
 		else:
@@ -370,6 +372,12 @@ func _icon(kind: String, c: Vector2, r: float, col: Color) -> void:
 				var o := float(k) * r * 0.45
 				draw_line(c + Vector2(-r + o, -r * 0.6), c + Vector2(-r * 0.2 + o, 0), col, 2.5, true)
 				draw_line(c + Vector2(-r * 0.2 + o, 0), c + Vector2(-r + o, r * 0.6), col, 2.5, true)
+		"heavy":
+			# ağır saldırı: merkezden saçılan darbe
+			draw_circle(c, r * 0.32, col)
+			for k in 8:
+				var a := TAU * float(k) / 8.0
+				draw_line(c + Vector2(cos(a), sin(a)) * r * 0.5, c + Vector2(cos(a), sin(a)) * r * (0.95 if k % 2 == 0 else 0.75), col, 2.5, true)
 		"parry":
 			# kalkan
 			var pts := PackedVector2Array([c + Vector2(-r * 0.8, -r * 0.8), c + Vector2(r * 0.8, -r * 0.8), c + Vector2(r * 0.8, 0), c + Vector2(0, r), c + Vector2(-r * 0.8, 0)])

@@ -69,6 +69,11 @@ var _wscale := 1.0          # serinin sonraki turları daha kısa hazırlanır
 var _claw_base := Color(1, 0.4, 0.1)
 var _eye_base := Color(1, 0.4, 0.1)
 var _twist := 0.0
+var _sky := false           # Fırtına Kuşu: gömülmek yerine havaya yükselir
+var partner = null          # İkiz Gölge: eşi
+var _enraged := false
+var _blink_cd := 2.0        # Merkür Habercisi ışınlanma
+var _mirror_node: MeshInstance3D
 
 var body_root: Node3D
 var vis: Node3D
@@ -98,6 +103,8 @@ func _ready() -> void:
 		_aries_variant()
 	elif zone == "taurus":
 		_taurus_variant()
+	elif zone == "gemini":
+		_gemini_variant()
 	# zorluk: derinlik çarpanları, daha kısa hazırlık ve daha sık saldırı
 	var em := 1.0
 	if elite:
@@ -123,7 +130,7 @@ func _ready() -> void:
 	for a in attacks:
 		a["dmg"] = float(a["dmg"]) * dmg_mult * em
 		a["windup"] = float(a["windup"]) * 0.92 * windup_mult
-		if not bool(a["parry"]):
+		if not bool(a["parry"]) and String(a["name"]) != "mirror":
 			a["windup"] = float(a["windup"]) * 0.4   # kırmızı (parry'lenemez) saldırılar ani: görünce hemen atıl
 		a["recover"] = float(a["recover"]) * 0.9
 		a["cd"] = float(a["cd"]) * 0.85
@@ -260,6 +267,56 @@ func _taurus_variant() -> void:
 			]
 
 
+## İKİZ GÖKLER yaratıkları:
+##  shade  -> İKİZ GÖLGE: çift doğar; biri ölünce eşi öfkelenir (daha hızlı ve sık saldırır). İkisini birlikte indir
+##  caster -> MERKÜR HABERCİSİ: yaklaşınca ışınlanıp kaçar; gidip geri dönen rüzgâr bıçağı fırlatır
+##  leaper -> FIRTINA KUŞU: havaya yükselir (dokunulmaz), tepende süzülür ve dalar
+##  brute  -> AYNA MUHAFIZI: aynasını kaldırınca hafif vuruşlarını sana yansıtır; ağır vuruş aynayı kırar
+func _gemini_variant() -> void:
+	_base_body = Color(0.55, 0.7, 1.0)
+	_base_cloth = Color(0.45, 0.5, 0.9)
+	match kind:
+		"caster":
+			attacks = [
+				{"name": "windblade", "shape": "line", "min": 2.5, "max": 10.0, "windup": 0.75, "act": 0.15, "recover": 0.6,
+					"dmg": 12.0, "reach": 9.0, "arc": 0.0, "parry": false, "cd": 2.8, "weight": 1.0},
+			]
+		"leaper":
+			_sky = true
+			max_hp = 80.0
+			attacks = [
+				{"name": "claw", "shape": "fan", "min": 0.0, "max": 1.9, "windup": 0.45, "act": 0.12, "recover": 0.5,
+					"dmg": 12.0, "reach": 2.1, "arc": 100.0, "parry": true, "cd": 1.0, "weight": 1.0},
+				{"name": "burrow", "shape": "circle", "min": 3.0, "max": 12.0, "windup": 0.45, "act": 2.4, "recover": 0.7,
+					"dmg": 22.0, "reach": 2.0, "arc": 360.0, "parry": false, "cd": 4.5, "weight": 2.0},
+			]
+		"brute":
+			max_hp = 220.0
+			attacks = [
+				{"name": "smash", "shape": "fan", "min": 0.0, "max": 2.7, "windup": 0.8, "act": 0.16, "recover": 0.9,
+					"dmg": 24.0, "reach": 3.0, "arc": 120.0, "parry": true, "cd": 1.6, "weight": 2.0},
+				{"name": "mirror", "shape": "circle", "min": 0.0, "max": 7.0, "windup": 0.6, "act": 1.8, "recover": 0.5,
+					"dmg": 0.0, "reach": 1.4, "arc": 360.0, "parry": false, "cd": 6.5, "weight": 1.5},
+				{"name": "quake", "shape": "circle", "min": 0.0, "max": 4.2, "windup": 1.1, "act": 0.2, "recover": 1.0,
+					"dmg": 26.0, "reach": 4.2, "arc": 360.0, "parry": false, "cd": 6.0, "weight": 1.0},
+			]
+
+
+## İkiz Gölge: eşi öldü
+func lost_twin() -> void:
+	if dead or _enraged:
+		return
+	_enraged = true
+	speed *= 1.4
+	for a in attacks:
+		a["windup"] = float(a["windup"]) * 0.7
+		a["cd"] = float(a["cd"]) * 0.6
+	_base_body = Color(1.0, 0.2, 0.15)
+	_base_cloth = Color(0.8, 0.1, 0.1)
+	Sfx.play("enemyattack", -4.0, 0.05, 0, 0.7)
+	Fx.flash_light(global_position + Vector3(0, 1.5, 0), Color(1.0, 0.2, 0.15), 5.0, 5.0, 0.4)
+
+
 # ---------------------------------------------------------------- görünüş
 
 func _m(c: Color, rough := 0.7) -> StandardMaterial3D:
@@ -354,6 +411,18 @@ func _build() -> void:
 					_build_golem()
 				_:
 					_build_thorn()
+	elif zone == "gemini":
+		m_eye.emission = Color(0.6, 0.85, 1.0)
+		m_claw.emission = Color(0.7, 0.85, 1.0)
+		match kind:
+			"caster":
+				_build_herald()
+			"leaper":
+				_build_stormbird()
+			"brute":
+				_build_mguard()
+			_:
+				_build_wraith()
 	else:
 		match kind:
 			"caster":
@@ -787,6 +856,135 @@ func _build_pebble() -> void:
 	arm_r = _arm(1.0, Vector3(0.45, 0.9, 0), 0.5)
 
 
+# ---- İkiz Gökler görünüşleri
+
+func _silver() -> StandardMaterial3D:
+	var m := _m(Color(0.85, 0.88, 0.95), 0.25)
+	m.metallic = 0.9
+	return m
+
+
+func _build_wraith() -> void:
+	# İKİZ GÖLGE: yarısı gümüş yarısı gece; iki yüzlü maske
+	var light := _m(Color(0.85, 0.88, 0.95), 0.6)
+	light.emission_enabled = true
+	light.emission = Color(0.5, 0.6, 0.9)
+	light.emission_energy_multiplier = 0.3
+	for s in [-1.0, 1.0]:
+		var half := _part(vis, _cone(0.03, 0.17, 1.1, 8), Vector3(s * 0.08, 0.95, 0), light if s < 0.0 else m_cloth)
+		half.scale = Vector3(1.0, 1.0, 1.6)
+	_part(vis, _sph(0.3, 0.5), Vector3(0, 1.55, 0), m_body, Vector3(1.2, 1.0, 0.85))
+	var hp := Vector3(0, 1.9, 0)
+	_part(vis, _sph(0.22), hp, light, Vector3(1.0, 1.1, 1.0))
+	_part(vis, _sph(0.17), hp + Vector3(0, 0, 0.08), m_cloth, Vector3(1.05, 1.15, 0.9))
+	var eye := _sph(0.035)
+	_part(vis, eye, hp + Vector3(-0.07, 0.02, -0.2), m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(vis, eye, hp + Vector3(0.07, 0.02, -0.2), m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(vis, eye, hp + Vector3(-0.07, 0.02, 0.2), m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(vis, eye, hp + Vector3(0.07, 0.02, 0.2), m_eye, Vector3(1.4, 0.7, 1.0))
+	arm_l = _arm(-1.0, Vector3(-0.36, 1.6, 0), 0.8)
+	arm_r = _arm(1.0, Vector3(0.36, 1.6, 0), 0.8)
+
+
+func _build_herald() -> void:
+	# MERKÜR HABERCİSİ: kanatlı miğfer, yılanlı asa (kaduse), beyaz-mavi cüppe
+	var robe := _m(Color(0.88, 0.92, 1.0), 0.7)
+	robe.emission_enabled = true
+	robe.emission = Color(0.4, 0.55, 0.9)
+	robe.emission_energy_multiplier = 0.2
+	_part(vis, _cone(0.42, 0.13, 1.5, 12), Vector3(0, 1.0, 0), robe)
+	_part(vis, _sph(0.22, 0.45), Vector3(0, 1.8, 0), robe)
+	var hp := Vector3(0, 2.12, 0)
+	var silver := _silver()
+	_part(vis, _sph(0.17), hp, silver, Vector3(1.0, 1.0, 1.1))
+	_part(vis, _sph(0.035), hp + Vector3(-0.06, -0.02, -0.16), m_eye, Vector3(1.4, 0.7, 1.0))
+	_part(vis, _sph(0.035), hp + Vector3(0.06, -0.02, -0.16), m_eye, Vector3(1.4, 0.7, 1.0))
+	for s in [-1.0, 1.0]:
+		for k in 3:
+			var w := _part(vis, _cone(0.05, 0.0, 0.32 - float(k) * 0.06, 4), hp + Vector3(s * 0.18, 0.08 + float(k) * 0.05, 0.05 + float(k) * 0.06), m_claw)
+			w.rotation = Vector3(0.9, 0, -s * 1.2)
+	arm_l = _arm(-1.0, Vector3(-0.28, 1.9, 0), 0.6)
+	arm_r = _arm(1.0, Vector3(0.28, 1.9, 0), 0.6)
+	var staff := _part(arm_r, _cone(0.025, 0.025, 1.8, 6), Vector3(0.05, -0.35, 0), _m(Color(0.95, 0.8, 0.4)))
+	staff.rotation.x = 0.1
+	for k in 6:
+		var a := float(k) * 1.2
+		_part(arm_r, _sph(0.045), Vector3(0.05 + cos(a) * 0.08, 0.1 + float(k) * 0.09, sin(a) * 0.08), m_eye)
+	_part(arm_r, _sph(0.09), Vector3(0.05, 0.65, 0), m_claw)
+
+
+func _build_stormbird() -> void:
+	# FIRTINA KUŞU: geniş kanatlı, gümüş tüylü yırtıcı
+	var feather := _m(Color(0.75, 0.8, 0.92), 0.8)
+	feather.emission_enabled = true
+	feather.emission = Color(0.4, 0.55, 0.9)
+	feather.emission_energy_multiplier = 0.25
+	_part(vis, _sph(0.32, 0.5), Vector3(0, 1.1, 0), feather, Vector3(0.9, 0.8, 1.5))
+	var hp := Vector3(0, 1.3, -0.5)
+	_part(vis, _sph(0.17), hp, feather)
+	var beak := _part(vis, _cone(0.06, 0.0, 0.25, 4), hp + Vector3(0, -0.04, -0.2), _m(Color(0.95, 0.8, 0.35)))
+	beak.rotation.x = -PI * 0.5
+	_part(vis, _sph(0.035), hp + Vector3(-0.08, 0.04, -0.12), m_eye)
+	_part(vis, _sph(0.035), hp + Vector3(0.08, 0.04, -0.12), m_eye)
+	for k in 3:
+		var tf := _part(vis, _cone(0.08, 0.0, 0.55, 4), Vector3((float(k) - 1.0) * 0.08, 1.12, 0.65), feather)
+		tf.rotation = Vector3(1.4, 0, (float(k) - 1.0) * 0.3)
+	for s in [-1.0, 1.0]:
+		_part(vis, _cone(0.025, 0.035, 0.45, 5), Vector3(s * 0.1, 0.65, 0.05), m_claw)
+	# kanatlar: kol düğümleri kanat gibi çırpar
+	arm_l = Node3D.new()
+	arm_l.position = Vector3(-0.25, 1.2, 0)
+	vis.add_child(arm_l)
+	arm_r = Node3D.new()
+	arm_r.position = Vector3(0.25, 1.2, 0)
+	vis.add_child(arm_r)
+	for pair in [[arm_l, -1.0], [arm_r, 1.0]]:
+		var wn: Node3D = pair[0]
+		var s: float = pair[1]
+		var wing := BoxMesh.new()
+		wing.size = Vector3(1.1, 0.05, 0.5)
+		_part(wn, wing, Vector3(s * 0.55, 0, 0), feather)
+		var tip := BoxMesh.new()
+		tip.size = Vector3(0.5, 0.04, 0.35)
+		_part(wn, tip, Vector3(s * 1.25, 0, 0.1), m_claw)
+
+
+func _build_mguard() -> void:
+	# AYNA MUHAFIZI: gümüş zırhlı dev; kaldırınca parlayan büyük yuvarlak ayna
+	var silver := _silver()
+	_part(vis, _cone(0.22, 0.4, 0.9, 12), Vector3(0, 0.6, 0), m_cloth)
+	_part(vis, _sph(0.55, 0.9), Vector3(0, 1.4, 0), m_body, Vector3(1.3, 1.0, 0.95))
+	_part(vis, _sph(0.42, 0.6), Vector3(0, 1.5, -0.22), silver, Vector3(1.35, 1.0, 0.6))
+	var hp := Vector3(0, 2.0, -0.1)
+	_part(vis, _sph(0.26), hp, silver, Vector3(1.0, 1.1, 1.05))
+	var visor := BoxMesh.new()
+	visor.size = Vector3(0.3, 0.05, 0.05)
+	_part(vis, visor, hp + Vector3(0, 0.02, -0.25), m_eye)
+	arm_l = _arm(-1.0, Vector3(-0.72, 1.65, 0), 0.9)
+	arm_r = _arm(1.0, Vector3(0.72, 1.65, 0), 0.9)
+	_part(arm_r, _sph(0.22), Vector3(0, -1.0, 0), silver, Vector3(1.0, 1.3, 1.0))
+	# ayna (ayna duruşunda parlar)
+	_mirror_node = MeshInstance3D.new()
+	var disk := CylinderMesh.new()
+	disk.top_radius = 0.9
+	disk.bottom_radius = 0.9
+	disk.height = 0.06
+	disk.radial_segments = 24
+	_mirror_node.mesh = disk
+	var mm := StandardMaterial3D.new()
+	mm.albedo_color = Color(0.85, 0.95, 1.0)
+	mm.metallic = 1.0
+	mm.roughness = 0.05
+	mm.emission_enabled = true
+	mm.emission = Color(0.7, 0.9, 1.0)
+	mm.emission_energy_multiplier = 1.5
+	_mirror_node.material_override = mm
+	_mirror_node.position = Vector3(0, 1.4, -0.85)
+	_mirror_node.rotation.x = PI * 0.5
+	_mirror_node.visible = false
+	vis.add_child(_mirror_node)
+
+
 func _head(p: Vector3) -> void:
 	_part(vis, _sph(0.24, 0.5), p + Vector3(0, 0, 0.05), m_cloth, Vector3(1.0, 1.1, 1.15))
 	_part(vis, _sph(0.16), p + Vector3(0, -0.03, -0.1), _m(Color(0.01, 0.0, 0.02)))
@@ -903,6 +1101,10 @@ func _physics_process(delta: float) -> void:
 			if hero_ok:
 				_face = _face.slerp(dir_to, minf(8.0 * delta, 1.0)).normalized()
 				want = _chase_move(dir_to, dist)
+				if zone == "gemini" and kind == "caster":
+					_blink_cd -= delta
+					if dist < 3.5 and _blink_cd <= 0.0:
+						_herald_blink()
 				if _global_cd <= 0.0:
 					_pick_attack(dist, dir_to)
 		"windup":
@@ -1036,7 +1238,7 @@ func _set_state(s: String) -> void:
 	_st = 0.0
 	if s == "windup":
 		_show_tele()
-		if String(atk["name"]) == "burrow":
+		if String(atk["name"]) == "burrow" or String(atk["name"]) == "mirror":
 			tele.visible = false
 		if kind == "brute":
 			Sfx.play("bruteroar", -6.0, 0.08, 0)
@@ -1054,6 +1256,20 @@ func _set_state(s: String) -> void:
 			_done = true
 		elif String(atk["name"]) == "fireball":
 			_throw_fireball()
+			_done = true
+		elif String(atk["name"]) == "windblade":
+			var wb := WindBlade.new()
+			wb.owner_node = self
+			wb.dir = _aim_dir
+			wb.dmg = float(atk["dmg"])
+			wb.hero = hero
+			wb.out_dist = float(atk["reach"])
+			get_parent().add_child(wb)
+			wb.global_position = global_position + Vector3(0, 1.3, 0) + _aim_dir * 0.6
+			Sfx.play("swing", -6.0, 0.08, 0, 1.4)
+			_done = true
+		elif String(atk["name"]) == "mirror":
+			Sfx.play("parry", -8.0, 0.05, 0, 2.0)
 			_done = true
 		elif String(atk["name"]) == "fissure":
 			_spawn_fissure()
@@ -1097,18 +1313,23 @@ func _do_act(_delta: float) -> Vector3:
 
 
 func _burrowed() -> bool:
-	return state == "act" and String(atk.get("name", "")) == "burrow" and _sink > 0.8
+	return state == "act" and String(atk.get("name", "")) == "burrow" and absf(_sink) > 0.8
+
+
+## gömülme derinliği (Fırtına Kuşu için negatif: havaya yükselir)
+func _bd() -> float:
+	return -4.0 if _sky else 1.7
 
 
 ## TOPRAK KÖSTEBEĞİ: gömül -> altından ilerle -> yerde halka -> fırla
 func _burrow(delta: float) -> Vector3:
 	var st := _st
 	if st < 0.4:
-		_sink = lerpf(0.0, 1.7, st / 0.4)
+		_sink = lerpf(0.0, _bd(), st / 0.4)
 		_dirt(global_position, 3)
 		return Vector3.ZERO
 	if st < 1.6:
-		_sink = 1.7
+		_sink = _bd()
 		_dig_fx -= delta
 		if _dig_fx <= 0.0:
 			_dig_fx = 0.1
@@ -1150,7 +1371,7 @@ func _burrow(delta: float) -> Vector3:
 
 
 func _dirt(p: Vector3, n: int) -> void:
-	var m: StandardMaterial3D = Fx.mat(Color(0.35, 0.25, 0.15), 0.0, 0.95)
+	var m: StandardMaterial3D = Fx.mat(Color(0.85, 0.9, 1.0) if _sky else Color(0.35, 0.25, 0.15), 0.0, 0.95)
 	var b := BoxMesh.new()
 	b.size = Vector3(0.1, 0.08, 0.1)
 	Fx._burst(Vector3(p.x, 0.1, p.z), Vector3.UP, n, m, b, 2.0, 4.5, 50.0, -14.0, 0.6, 0.6, 1.2, true)
@@ -1267,7 +1488,7 @@ func _throw_fireball() -> void:
 func _resolve() -> void:
 	_done = true
 	var nm := String(atk["name"])
-	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure":
+	if nm == "ramcharge" or nm == "fireball" or nm == "burrow" or nm == "fissure" or nm == "windblade" or nm == "mirror":
 		return
 	var reach := float(atk["reach"])
 	var col: Color = PARRY_COL if bool(atk["parry"]) else DANGER_COL
@@ -1330,6 +1551,25 @@ func stun(sec: float, parried := false) -> void:
 	_set_state("stun")
 
 
+## Merkür Habercisi: kahramandan uzağa ışınlanır
+func _herald_blink() -> void:
+	_blink_cd = 5.0
+	var hp_pos: Vector3 = hero.global_position
+	var best := global_position
+	for i in 8:
+		var a := randf() * TAU
+		var p := hp_pos + Vector3(cos(a), 0, sin(a)) * randf_range(6.5, 8.5)
+		if Vector2(p.x, p.z).length() < _bounds - 0.5:
+			best = p
+			break
+	var ring := SlashFx.make(0.0, TAU, 0.2, 1.4, Color(0.7, 0.9, 1.0), 0.3)
+	get_parent().add_child(ring)
+	ring.global_transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, 0.5, 0))
+	global_position = Vector3(best.x, 0.0, best.z)
+	Fx.flash_light(global_position + Vector3(0, 1.5, 0), Color(0.7, 0.9, 1.0), 4.0, 4.0, 0.25)
+	Sfx.play("dash", -8.0, 0.05, 0, 1.8)
+
+
 ## Her tipin kendi ses rengi
 func _voice_pitch() -> float:
 	match kind:
@@ -1383,6 +1623,18 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		return
 	if _burrowed():
 		return
+	# AYNA MUHAFIZI: ayna duruşunda hafif vuruşlar sana yansır; ağır vuruş aynayı kırar
+	if zone == "gemini" and kind == "brute" and (state == "act" or state == "windup") and String(atk.get("name", "")) == "mirror":
+		if heavy:
+			Sfx.play("crush", -4.0, 0.05, 0, 1.4)
+			Fx.flash_light(global_position + Vector3(0, 1.5, 0), Color(0.7, 0.9, 1.0), 6.0, 5.0, 0.3)
+			stun(1.4)
+		else:
+			HitFx.impact(get_parent(), global_position + Vector3(0, 1.4, 0) - dir * 0.9, -dir, Color(0.75, 0.9, 1.0), true)
+			Sfx.play("parry", -6.0, 0.05, 40, 1.8)
+			if hero != null and is_instance_valid(hero) and not hero.dead:
+				hero.take_damage(dmg * 0.5, -dir, false)
+			return
 	var stunned_by_parry: bool = state == "stun" and _parried
 	var final := dmg * (2.0 if stunned_by_parry else 1.0)
 	# Ülker kalkanı önce hasarı emer
@@ -1484,6 +1736,8 @@ func _die(dir: Vector3) -> void:
 	Fx.flash_light(p, Color(1.0, 0.85, 0.55), 5.0, 6.0, 0.35)
 	Fx.shake(0.25 if kind != "brute" else 0.6)
 	Sfx.play("enemydie", -5.0, 0.08, 0, _voice_pitch())
+	if zone == "gemini" and kind == "shade" and partner != null and is_instance_valid(partner) and not partner.dead:
+		partner.lost_twin()
 	if zone == "taurus" and kind == "shade" and not pebble:
 		var tp := ThornPatch.new()
 		tp.hero = hero
@@ -1508,7 +1762,7 @@ func _die(dir: Vector3) -> void:
 
 func _animate(delta: float) -> void:
 	body_root.rotation.y = lerp_angle(body_root.rotation.y, atan2(-_face.x, -_face.z), minf(14.0 * delta, 1.0))
-	var hover := sin(_t * 2.2) * 0.08 + (0.35 if kind == "caster" else 0.0)
+	var hover := sin(_t * 2.2) * 0.08 + (0.35 if kind == "caster" else 0.0) + (0.5 if _sky else 0.0)
 	var lean := 0.0          # öne (+) / arkaya (-) eğilme
 	var arm_lx := 0.25       # kol öne kalkma (+) / geriye (-)
 	var arm_rx := 0.25
@@ -1575,7 +1829,12 @@ func _animate(delta: float) -> void:
 				"burrow":
 					# GÖMÜLME: kendi etrafında döner
 					twist = _t * 18.0 * k
-				"fireball", "bolt":
+				"mirror":
+					# AYNA: aynayı önüne kaldırır, gümüş parlar
+					arm_lx = 1.5 * e
+					arm_rx = 1.2 * e
+					lean = -0.1 * e
+				"fireball", "bolt", "windblade":
 					# BÜYÜ: kollarını göğe kaldırır, ışığı büyür, havaya yükselir
 					arm_lx = 2.8 * e
 					arm_rx = 2.8 * e
@@ -1612,7 +1871,11 @@ func _animate(delta: float) -> void:
 					py = -0.12
 				"ramcharge":
 					lean = 0.55
-				"fireball", "bolt":
+				"mirror":
+					arm_lx = 1.5
+					arm_rx = 1.2
+					glow = 18.0 + sin(_t * 20.0) * 4.0
+				"fireball", "bolt", "windblade":
 					arm_lx = 1.5
 					arm_rx = 1.5
 					lean = 0.25
@@ -1637,13 +1900,18 @@ func _animate(delta: float) -> void:
 	_twist = lerpf(_twist, twist, sp) if nm != "burrow" or state != "windup" else twist
 	vis.rotation.y = _twist
 	if state != "spawn":
-		vis.position.y = lerpf(vis.position.y, hover - _sink + py, minf(20.0 * delta, 1.0)) if _sink <= 0.0 else hover - _sink
+		vis.position.y = lerpf(vis.position.y, hover - _sink + py, minf(20.0 * delta, 1.0)) if absf(_sink) < 0.001 else hover - _sink
 		vis.position.x = sin(_t * 55.0) * shake
 		if not (state == "windup" and nm == "ramcharge"):
 			vis.position.z = lerpf(vis.position.z, 0.0, sp)
-	if state != "act" and _sink > 0.0:
+	if state != "act" and _sink != 0.0:
 		_sink = 0.0
-	hp_bar.visible = _sink < 0.5
+	hp_bar.visible = absf(_sink) < 0.5
+	if _mirror_node != null:
+		_mirror_node.visible = (state == "act" or state == "windup") and nm == "mirror"
+	if _sky:
+		arm_lz += sin(_t * (14.0 if state == "act" else 7.0)) * 0.5
+		arm_rz -= sin(_t * (14.0 if state == "act" else 7.0)) * 0.5
 	if _halo != null:
 		_halo.rotation.y += delta * 1.4
 	arm_l.rotation.x = lerpf(arm_l.rotation.x, arm_lx, sp)
@@ -1999,3 +2267,67 @@ class Fissure extends Node3D:
 			mi.scale = Vector3(1, 0.01, 1)
 			_spikes.append([mi, _t])
 		Sfx.play("crush", -16.0, 0.15, 25, 1.2)
+
+
+# ---------------------------------------------------------------- Merkür Habercisi rüzgâr bıçağı (gider ve döner)
+
+class WindBlade extends Node3D:
+	var owner_node = null
+	var hero = null
+	var dir := Vector3.FORWARD
+	var dmg := 12.0
+	var out_dist := 9.0
+	var speed := 13.0
+	var _trav := 0.0
+	var _back := false
+	var _hit_out := false
+	var _hit_back := false
+	var _t := 0.0
+	var _blade: MeshInstance3D
+
+	func _ready() -> void:
+		top_level = true
+		_blade = MeshInstance3D.new()
+		var t := TorusMesh.new()
+		t.inner_radius = 0.38
+		t.outer_radius = 0.5
+		t.rings = 24
+		_blade.mesh = t
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_color = Color(0.7, 0.9, 1.0, 0.9)
+		_blade.material_override = m
+		_blade.scale = Vector3(1.0, 0.25, 1.0)
+		add_child(_blade)
+
+	func _physics_process(delta: float) -> void:
+		_t += delta
+		_blade.rotation.y += delta * 18.0
+		if not _back:
+			global_position += dir * speed * delta
+			_trav += speed * delta
+			if _trav >= out_dist:
+				_back = true
+		else:
+			if owner_node == null or not is_instance_valid(owner_node) or owner_node.dead:
+				queue_free()
+				return
+			var target: Vector3 = owner_node.global_position + Vector3(0, 1.3, 0)
+			var d := target - global_position
+			if d.length() < 0.6:
+				queue_free()
+				return
+			global_position += d.normalized() * speed * 1.1 * delta
+		if hero != null and is_instance_valid(hero) and not hero.dead:
+			var v: Vector3 = hero.global_position + Vector3(0, 1.0, 0) - global_position
+			if Vector2(v.x, v.z).length() < 0.7 and ((not _back and not _hit_out) or (_back and not _hit_back)):
+				var res: String = hero.take_damage(dmg, dir if not _back else -dir, false)
+				if res == "hit":
+					if _back:
+						_hit_back = true
+					else:
+						_hit_out = true
+		if _t > 4.0:
+			queue_free()

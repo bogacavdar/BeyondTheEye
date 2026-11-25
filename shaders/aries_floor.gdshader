@@ -3,8 +3,8 @@
 // Ortada sönük, yere kazınmış bir koç boynuzu sarmalı (♈).
 shader_type spatial;
 
-uniform vec3 rock : source_color = vec3(0.13, 0.085, 0.07);
-uniform vec3 rock_hi : source_color = vec3(0.26, 0.17, 0.12);
+uniform vec3 rock : source_color = vec3(0.09, 0.09, 0.1);
+uniform vec3 rock_hi : source_color = vec3(0.2, 0.19, 0.2);
 uniform vec3 lava : source_color = vec3(1.0, 0.38, 0.08);
 uniform float heat = 1.0;
 
@@ -68,8 +68,9 @@ void fragment() {
 	float horn = (1.0 - smoothstep(0.05, 0.11, spiral)) * smoothstep(0.8, 1.6, r) * (1.0 - smoothstep(4.2, 5.0, r));
 	float pulse = 0.75 + 0.25 * sin(TIME * 1.6 + v.y * 6.2831);
 	float glow = (crack * 0.95 + fine * 0.25) * pulse * heat;
-	ALBEDO = base * (1.0 - crack * 0.6) + vec3(0.25, 0.08, 0.02) * horn * 0.6;
+	ALBEDO = base * (1.0 - crack * 0.6) + vec3(0.18, 0.12, 0.08) * horn * 0.5;
 	ROUGHNESS = 0.85 - n * 0.15;
 	METALLIC = 0.0;
-	EMISSION = lava * (glow * 2.2 + horn * 0.55 * pulse);
+	// çatlaklar sönük tutulur: kırmızı saldırı uyarıları ve kızıl yaratıklar zeminden ayrılsın
+	EMISSION = lava * (glow * 0.7 + horn * 0.25 * pulse);
 }

@@ -14,6 +14,7 @@ const HeroScript = preload("res://scripts/hero.gd")
 const EnemyScript = preload("res://scripts/enemy.gd")
 const AriesScript = preload("res://scripts/aries_boss.gd")
 const TaurusScript = preload("res://scripts/taurus_boss.gd")
+const GeminiScript = preload("res://scripts/gemini_boss.gd")
 const PauseUI = preload("res://scripts/pause_ui.gd")
 const BoonUI = preload("res://scripts/boon_ui.gd")
 const CombatHud = preload("res://scripts/combat_hud.gd")
@@ -42,8 +43,19 @@ const DUST_BY_KIND := {"shade": 5, "caster": 5, "leaper": 6, "brute": 16}
 const BOSS_DUST := 150
 const BOSS_FIRST_BONUS := 200
 ## BÖLGELER: run derinliği 0-4 Koç Geçidi (4 = Koç), 5-9 Boğa Otlakları (9 = Boğa)
-const ZONE_START := {"aries": 0, "taurus": 5}
-const LAST_DEPTH := 9
+const ZONE_START := {"aries": 0, "taurus": 5, "gemini": 10}
+const LAST_DEPTH := 14
+const COMBAT_G := [
+	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
+	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "shade"], ["leaper", "leaper", "caster", "shade", "shade"]],
+	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "shade", "leaper"]],
+	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
+]
+const HP_MULT_G := [1.9, 2.0, 2.15, 2.3]
+const DMG_MULT_G := [1.6, 1.68, 1.76, 1.85]
+const ELITE_CHANCE_G := [0.25, 0.3, 0.35, 0.35]
+const GEMINI_DUST := 300
+const GEMINI_FIRST_BONUS := 400
 const COMBAT_T := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "caster"]],
 	[["leaper", "leaper", "shade", "caster"], ["brute", "caster", "shade", "shade"], ["leaper", "caster", "shade", "shade", "shade"]],
@@ -68,6 +80,7 @@ var wave := -1
 var room_i := 0
 var zone := "aries"
 var local_i := 0             # bölge içindeki oda sırası (0-3 dövüş, 4 boss)
+var _lonely = null           # İkiz Gölge eşleştirmesi: eşini bekleyen gölge
 var reward := ""
 var is_boss := false
 var is_rest := false
@@ -95,7 +108,11 @@ func _ready() -> void:
 	if GameData.run_room == 0 and GameData.run_hp < 0.0 and GameData.run_reward == "":
 		GameData.start_run()
 	room_i = clampi(GameData.run_room, 0, LAST_DEPTH)
-	zone = "taurus" if room_i >= int(ZONE_START["taurus"]) else "aries"
+	zone = "aries"
+	if room_i >= int(ZONE_START["gemini"]):
+		zone = "gemini"
+	elif room_i >= int(ZONE_START["taurus"]):
+		zone = "taurus"
 	local_i = room_i - int(ZONE_START[zone])
 	reward = GameData.run_reward
 	is_boss = local_i >= BOSS_DEPTH
@@ -105,11 +122,14 @@ func _ready() -> void:
 	if is_boss or is_rest:
 		waves = []
 	else:
-		var table: Array = COMBAT_T if zone == "taurus" else COMBAT
+		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G)
 		waves = table[mini(local_i, table.size() - 1)]
 	Sfx.play_music("res://assets/music/akash_chamber.mp3" if is_rest else "res://assets/music/awakening.mp3", -9.0)
 
-	if zone == "taurus":
+	if zone == "gemini":
+		_environment_gemini()
+		_arena_gemini()
+	elif zone == "taurus":
 		_environment_taurus()
 		_arena_taurus()
 	else:
@@ -117,7 +137,7 @@ func _ready() -> void:
 		_arena()
 
 	camera = CameraScript.new()
-	camera.offset = Vector3(9.0, 11.5, 9.0) * ((1.22 if zone == "taurus" else 1.12) if is_boss else 1.0)
+	camera.offset = Vector3(9.0, 11.5, 9.0) * ((1.22 if zone == "taurus" else 1.15) if is_boss else 1.0)
 	add_child(camera)
 	camera.fov = 44.0
 	Fx.camera = camera
@@ -156,13 +176,17 @@ func _ready() -> void:
 		hud.banner("SANCTUARY", tr("The stars mend your wounds"))
 		_spawn_fountain()
 	elif is_boss:
-		if zone == "taurus":
+		if zone == "gemini":
+			hud.banner("GEMINI", tr("Castor & Pollux"))
+		elif zone == "taurus":
 			hud.banner("TAURUS", tr("The Immovable"))
 		else:
 			hud.banner("ARIES", tr("The Ram's Fury"))
 		get_tree().create_timer(1.6).timeout.connect(_spawn_boss)
 	elif local_i == 0:
-		if zone == "taurus":
+		if zone == "gemini":
+			hud.banner("THE TWIN SKIES", tr("Two voices, one sky"))
+		elif zone == "taurus":
 			hud.banner("THE BULL'S MEADOWS", tr("Venus guards the road to Taurus"))
 		else:
 			hud.banner("THE RAM'S PASS", tr("The road to Aries burns"))
@@ -322,6 +346,156 @@ func _arena() -> void:
 		if i % 3 == 0:
 			_mesh(_sphere(hh * 0.09), pos + Vector3(0, hh * 0.5, 0), _glow(Color(1.0, 0.4, 0.1), 3.0))
 	_embers(heat)
+
+
+# ---------------------------------------------------------------- İKİZ GÖKLER ortamı
+
+func _environment_gemini() -> void:
+	# parlak, rüzgârlı gökyüzü; aşağıda bulut denizi
+	var psky := ProceduralSkyMaterial.new()
+	psky.sky_top_color = Color(0.22, 0.42, 0.85)
+	psky.sky_horizon_color = Color(0.78, 0.86, 1.0)
+	psky.sky_curve = 0.1
+	psky.ground_horizon_color = Color(0.85, 0.9, 1.0)
+	psky.ground_bottom_color = Color(0.7, 0.78, 0.95)
+	psky.sun_angle_max = 6.0
+	var sky := Sky.new()
+	sky.sky_material = psky
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.62, 0.68, 0.85)
+	env.ambient_light_energy = 0.85
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.glow_enabled = true
+	env.glow_intensity = 0.45
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 1.35
+	env.ssao_enabled = true
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.8, 0.86, 1.0)
+	env.fog_light_energy = 0.8
+	env.fog_density = 0.004
+	env.fog_sky_affect = 0.2
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.light_color = Color(1.0, 0.97, 0.92)
+	sun.light_energy = 1.1
+	sun.shadow_enabled = not GameData.is_web()
+	sun.rotation_degrees = Vector3(-50, 130, 0)
+	add_child(sun)
+	# gökte Kastor (mavi-beyaz) ve Polluks (turuncu-altın)
+	var back := Vector3(-1, 0, -1).normalized()
+	var side := Vector3(1, 0, -1).normalized()
+	_mesh(_sphere(1.6), back * 120.0 + side * 6.0 + Vector3(0, 60, 0), _glow(Color(0.7, 0.85, 1.0), 6.0))
+	_mesh(_sphere(1.8), back * 120.0 - side * 6.0 + Vector3(0, 57, 0), _glow(Color(1.0, 0.75, 0.4), 6.0))
+
+
+func _arena_gemini() -> void:
+	var top := CylinderMesh.new()
+	top.top_radius = ARENA_R + 0.6
+	top.bottom_radius = ARENA_R + 0.6
+	top.height = 1.0
+	top.radial_segments = 96
+	var fm := ShaderMaterial.new()
+	fm.shader = preload("res://shaders/gemini_floor.gdshader")
+	_mesh(top, Vector3(0, -0.5, 0), fm)
+	var rockm := _mat(Color(0.82, 0.84, 0.9), 0.0, 0.8)
+	var under := CylinderMesh.new()
+	under.top_radius = ARENA_R + 0.6
+	under.bottom_radius = 1.5
+	under.height = 9.0
+	under.radial_segments = 16
+	_mesh(under, Vector3(0, -5.5, 0), rockm)
+	var clouds := PlaneMesh.new()
+	clouds.size = Vector2(300, 300)
+	var cm := ShaderMaterial.new()
+	cm.shader = preload("res://shaders/cloud_sea.gdshader")
+	_mesh(clouds, Vector3(0, -9.0, 0), cm)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21 + room_i * 13
+	var marble := _mat(Color(0.93, 0.94, 0.97), 0.0, 0.35)
+	var gold := _mat(Color(0.95, 0.8, 0.42), 0.9, 0.35)
+	# kenarda ikiz sütunlar (çift çift), aralarında süzülen cıva küreleri
+	for i in 6:
+		var a := TAU * (float(i) + 0.5) / 6.0
+		var dir := Vector3(cos(a), 0, sin(a))
+		var tang := Vector3(-dir.z, 0, dir.x)
+		var base := dir * (ARENA_R + 0.3)
+		var h := 3.2 + float(i % 2) * 0.8
+		for sgn: float in [-1.0, 1.0]:
+			var p := base + tang * sgn * 0.75
+			var c := CylinderMesh.new()
+			c.top_radius = 0.22
+			c.bottom_radius = 0.26
+			c.height = h
+			_mesh(c, p + Vector3(0, h * 0.5, 0), marble)
+			var cap := BoxMesh.new()
+			cap.size = Vector3(0.62, 0.14, 0.62)
+			_mesh(cap, p + Vector3(0, h + 0.07, 0), gold)
+		_mesh(_sphere(0.2), base + Vector3(0, h * 0.7, 0), _glow(Color(0.75, 0.85, 1.0) if i % 2 == 0 else Color(1.0, 0.85, 0.55), 3.0))
+	# arkada ikiz kuleler: Kastor (mavi) ve Polluks (altın)
+	var back := Vector3(-1, 0, -1).normalized()
+	var side := Vector3(1, 0, -1).normalized()
+	for sgn: float in [-1.0, 1.0]:
+		var p := back * (ARENA_R + 16.0) + side * sgn * 7.0
+		var col := Color(0.6, 0.8, 1.0) if sgn < 0.0 else Color(1.0, 0.8, 0.45)
+		var tw := CylinderMesh.new()
+		tw.top_radius = 1.2
+		tw.bottom_radius = 2.0
+		tw.height = 34.0
+		tw.radial_segments = 12
+		_mesh(tw, p + Vector3(0, 6.0, 0), marble)
+		for k in 4:
+			var band := TorusMesh.new()
+			band.inner_radius = 1.6 - float(k) * 0.08
+			band.outer_radius = 1.8 - float(k) * 0.08
+			_mesh(band, p + Vector3(0, float(k) * 7.0 - 2.0, 0), gold)
+		var spire := CylinderMesh.new()
+		spire.top_radius = 0.0
+		spire.bottom_radius = 1.3
+		spire.height = 5.0
+		_mesh(spire, p + Vector3(0, 25.5, 0), gold)
+		_mesh(_sphere(0.9), p + Vector3(0, 28.8, 0), _glow(col, 5.0))
+	# uçan kaya adacıkları
+	for i in 10:
+		var a := rng.randf() * TAU
+		var d := rng.randf_range(22.0, 55.0)
+		var r := rng.randf_range(1.2, 3.5)
+		var rk := _mesh(_sphere(r), Vector3(cos(a) * d, rng.randf_range(-6.0, 8.0), sin(a) * d), rockm)
+		rk.scale = Vector3(1.3, 0.7, 1.1)
+	_wind()
+
+
+## Arenayı yatay geçen rüzgâr çizgileri ve tüyler
+func _wind() -> void:
+	var em := CPUParticles3D.new()
+	em.amount = 40
+	em.lifetime = 2.4
+	em.preprocess = 2.4
+	em.position = Vector3(-ARENA_R - 8.0, 2.0, 0)
+	em.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	em.emission_box_extents = Vector3(1.0, 2.0, ARENA_R + 6.0)
+	em.direction = Vector3(1, 0.05, 0.2)
+	em.spread = 6.0
+	em.gravity = Vector3.ZERO
+	em.initial_velocity_min = 10.0
+	em.initial_velocity_max = 15.0
+	var q := QuadMesh.new()
+	q.size = Vector2(1.6, 0.03)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(1, 1, 1, 0.35)
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	q.material = m
+	em.mesh = q
+	add_child(em)
 
 
 # ---------------------------------------------------------------- BOĞA OTLAKLARI ortamı
@@ -694,7 +868,7 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	_tune_enemy(e)
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
-	var elite_ch := float((ELITE_CHANCE_T if zone == "taurus" else ELITE_CHANCE)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
+	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G)[di]) + 0.15 * float(Retro.rank(rt, "moon"))
 	if room_i >= 1 or Retro.rank(rt, "moon") > 0:
 		e.elite = randf() < elite_ch
 	e._bounds = ARENA_R - 0.5
@@ -706,17 +880,34 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	e.killed.connect(_on_killed)
 	alive += 1
 	Sfx.play("enemyattack", -14.0, 0.1, 120, 1.0)
+	# İkiz Gölgeler çift olarak eşleşir
+	if zone == "gemini" and kind == "shade":
+		if _lonely != null and is_instance_valid(_lonely) and not _lonely.dead:
+			e.partner = _lonely
+			_lonely.partner = e
+			_lonely = null
+		else:
+			_lonely = e
 
 
 ## Derinliğe ve retro lanetlerine göre güç çarpanları
 func _tune_enemy(e) -> void:
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
-	var hpm: float = float((HP_MULT_T if zone == "taurus" else HP_MULT)[di])
-	var dmm: float = float((DMG_MULT_T if zone == "taurus" else DMG_MULT)[di])
+	var hpm: float = float(_zt(HP_MULT, HP_MULT_T, HP_MULT_G)[di])
+	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G)[di])
 	e.hp_mult = hpm * (1.0 + 0.25 * float(Retro.rank(rt, "jupiter")))
 	e.dmg_mult = dmm * (1.0 + 0.2 * float(Retro.rank(rt, "mars")))
 	e.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
+
+
+## Bölgeye göre tablo seçer
+func _zt(a: Array, t: Array, g: Array) -> Array:
+	if zone == "gemini":
+		return g
+	if zone == "taurus":
+		return t
+	return a
 
 
 func _on_killed(e) -> void:
@@ -804,6 +995,8 @@ func _on_cleared() -> void:
 		bonus += DUST_REWARD[mini(local_i, DUST_REWARD.size() - 1)]
 	if zone == "taurus":
 		bonus = int(round(float(bonus) * 1.4))
+	elif zone == "gemini":
+		bonus = int(round(float(bonus) * 1.8))
 	bonus = int(round(float(bonus) * _retro_mult()))
 	if not is_rest:
 		GameData.stardust += bonus
@@ -860,9 +1053,13 @@ func _door_info(type: String) -> Dictionary:
 		"rest":
 			return {"glyph": "\u2665", "color": Color(0.6, 0.95, 0.8), "label": "SANCTUARY", "title": tr("SANCTUARY")}
 		"boss":
+			if zone == "gemini":
+				return {"glyph": "\u264A", "color": Color(0.6, 0.8, 1.0), "label": "GEMINI", "title": tr("FACE THE TWINS")}
 			if zone == "taurus":
 				return {"glyph": "\u2649", "color": Color(0.55, 1.0, 0.45), "label": "TAURUS", "title": tr("FACE TAURUS")}
 			return {"glyph": "\u2648", "color": Color(1.0, 0.35, 0.2), "label": "ARIES", "title": tr("FACE ARIES")}
+		"gemini_gate":
+			return {"glyph": "\u264A", "color": Color(0.6, 0.8, 1.0), "label": "GEMINI", "title": tr("ONWARD TO GEMINI")}
 		"taurus_gate":
 			return {"glyph": "\u2649", "color": Color(0.55, 1.0, 0.45), "label": "TAURUS", "title": tr("ONWARD TO TAURUS")}
 		"home":
@@ -932,9 +1129,9 @@ func _enter_door(type: String) -> void:
 	if type == "home":
 		_leave()
 		return
-	if type == "taurus_gate":
-		# Boğa Otlakları'na geçiş: kısa bir nefes (canın %30'u yenilenir) ve ilk odada bir lütuf
-		GameData.run_room = int(ZONE_START["taurus"])
+	if type == "taurus_gate" or type == "gemini_gate":
+		# sonraki bölgeye geçiş: kısa bir nefes (canın %30'u yenilenir) ve ilk odada bir lütuf
+		GameData.run_room = int(ZONE_START["taurus" if type == "taurus_gate" else "gemini"])
 		GameData.run_reward = "boon:" + Boons.random_planet()
 		GameData.run_hp = minf(hero.hp + hero.max_hp * 0.3, hero.max_hp)
 		GameData.go_save()
@@ -987,7 +1184,12 @@ func _spawn_fountain() -> void:
 func _spawn_boss() -> void:
 	if ended:
 		return
-	boss = TaurusScript.new() if zone == "taurus" else AriesScript.new()
+	if zone == "gemini":
+		boss = GeminiScript.new()
+	elif zone == "taurus":
+		boss = TaurusScript.new()
+	else:
+		boss = AriesScript.new()
 	boss.hero = hero
 	var rt: Dictionary = GameData.retro
 	boss.dmg_mult = 1.0 + 0.2 * float(Retro.rank(rt, "mars"))
@@ -1000,6 +1202,8 @@ func _spawn_boss() -> void:
 	boss._face = Vector3(0, 0, 1)
 	boss.killed.connect(_on_boss_killed)
 	boss.summon.connect(_on_summon)
+	if boss.has_signal("hint"):
+		boss.hint.connect(func(a: String, b: String): hud.banner(a, b))
 	hud.boss = boss
 	Fx.shake(0.6)
 	Sfx.play("bossroar", 0.0, 0.0, 0, 0.6)
@@ -1023,6 +1227,19 @@ func _on_boss_killed(_b) -> void:
 	await get_tree().create_timer(1.6).timeout
 	if ended:
 		return
+	if zone == "gemini":
+		var amount_g := GEMINI_DUST + (GEMINI_FIRST_BONUS if not GameData.gemini_defeated else 0)
+		amount_g = int(round(float(amount_g) * _retro_mult()))
+		GameData.gemini_defeated = true
+		_drop_dust(Vector3(0, 2.0, -3.0), amount_g)
+		GameData.last_run_msg = tr("The Twins are restored! Three constellations shine again. This run: %d stardust") % (GameData.run_dust + amount_g)
+		hud.banner("THE TWINS ARE RESTORED", tr("+%d stardust") % amount_g)
+		Sfx.play("coin", -2.0, 0.0, 0, 0.5)
+		Fx.flash_light(Vector3(0, 4, 0), Color(0.7, 0.85, 1.0), 10.0, 25.0, 1.5)
+		GameData.go_save()
+		await get_tree().create_timer(1.5).timeout
+		_add_door(Vector3(0, 0, -7.5), "home")
+		return
 	if zone == "taurus":
 		var amount_t := TAURUS_DUST + (TAURUS_FIRST_BONUS if not GameData.taurus_defeated else 0)
 		amount_t = int(round(float(amount_t) * _retro_mult()))
@@ -1034,7 +1251,8 @@ func _on_boss_killed(_b) -> void:
 		Fx.flash_light(Vector3(0, 4, 0), Color(0.7, 1.0, 0.6), 10.0, 25.0, 1.5)
 		GameData.go_save()
 		await get_tree().create_timer(1.5).timeout
-		_add_door(Vector3(0, 0, -7.5), "home")
+		_add_door(Vector3(-3.4, 0, -7.5), "gemini_gate")
+		_add_door(Vector3(3.4, 0, -7.5), "home")
 		return
 	var amount := BOSS_DUST
 	var first: bool = not GameData.aries_defeated

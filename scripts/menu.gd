@@ -331,6 +331,8 @@ func _slot_row(n: int) -> Control:
 		var extra := tr("ARIES DEFEATED") if bool(info["aries"]) else ""
 		if bool(info.get("taurus", false)):
 			extra = tr("ARIES & TAURUS DEFEATED")
+		if bool(info.get("gemini", false)):
+			extra = tr("ARIES, TAURUS & GEMINI DEFEATED")
 		if int(info["run_room"]) >= 0:
 			extra += ("  ·  " if extra != "" else "") + tr("RUN IN PROGRESS") + " (%d)" % (int(info["run_room"]) + 1)
 		if extra != "":
