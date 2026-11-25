@@ -1,0 +1,11 @@
+SES KAYNAKLARI (hepsi CC0 — ücretsiz, ticari kullanım serbest, isim vermek gerekmez)
+
+hit_*, heavyhit_*, hurt_*, parry_*, slash_*   Kenney "Impact Sounds" ve "RPG Audio" (kenney.nl)
+cut_*, stab_*, crush_1-2, bowshot_*           "150 Combat Sound Effects" - untamedpixels (opengameart.org/node/195932)
+crush_3-4                                      aynı paket, Earth Spell Impact (kısaltıldı)
+swing_*                                        "20 Sword Sound Effects" - StarNinjas (opengameart.org/node/122900)
+enemyhurt_1-5, enemydie_*, enemyattack_1-4,
+bruteroar_*, bossroar_*                        "80 CC0 creature SFX" - rubberduck (opengameart.org/node/85621)
+enemyhurt_6-10, enemyattack_5-7                "Monster Sounds Volume 2" (opengameart.org/node/4017)
+
+Tüm sesler ses seviyesi eşitlenip mono OGG'ye çevrildi.

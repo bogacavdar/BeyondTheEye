@@ -1,0 +1,20 @@
+SES DOSYALARI KLASÖRÜ
+
+Buraya koyduğun ses dosyaları, oyundaki kodla üretilen geçici seslerin yerine otomatik çalar.
+Desteklenen biçimler: .ogg, .wav, .mp3
+
+Dosya adları (aynı sesin birden çok çeşidi için _1, _2 ... _8 ekle):
+
+  rifle          tüfek atışı
+  shotgun        pompalı atışı
+  flesh          merminin ete girişi (EN ÖNEMLİSİ)
+  splat          zombinin ölümü / parçalanma
+  armor          metal zırha vuruş
+  armor_break    zırhın kopması
+  hurt           oyuncunun hasar alması
+  dash           atılma
+  wall           mermi duvara çarpınca
+  switch         silah değiştirme
+  coin           kredi toplama
+
+Örnek: flesh_1.ogg, flesh_2.ogg, flesh_3.ogg, shotgun.wav
