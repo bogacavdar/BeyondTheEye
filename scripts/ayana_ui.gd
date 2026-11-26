@@ -26,7 +26,7 @@ func _ready() -> void:
 	_box = VBoxContainer.new()
 	_box.add_theme_constant_override("separation", 10)
 	_box.custom_minimum_size = Vector2(900, 0)
-	p.add_child(_box)
+	load("res://scripts/portraits.gd").wrap(p, _box, "ayana")
 	visible = false
 
 

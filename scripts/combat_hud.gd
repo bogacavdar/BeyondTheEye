@@ -54,6 +54,10 @@ var _card := {}
 
 func boss_card(glyph: String, title: String, col: Color) -> void:
 	_card = {"glyph": glyph, "title": title, "col": col}
+	# portre (varsa): kartın solunda
+	var zones := {"♈": "aries", "♉": "taurus", "♊": "gemini", "♋": "cancer", "♌": "leo", "♍": "virgo",
+		"♎": "libra", "♏": "scorpio", "♐": "sagittarius", "♑": "capricorn", "♒": "aquarius", "♓": "pisces"}
+	_card["tex"] = load("res://scripts/portraits.gd").tex(String(zones.get(glyph, "")))
 	_card_t = 0.0
 	_banner_t = 0.0
 
@@ -184,6 +188,12 @@ func _draw() -> void:
 		var cc: Color = _card["col"]
 		var cy := size.y * 0.3
 		draw_rect(Rect2(0, cy - 120, size.x, 225), Color(0.01, 0.015, 0.05, 0.6 * ca))
+		var ptex = _card.get("tex")
+		if ptex != null:
+			var ph := 420.0
+			var pw: float = ph * float(ptex.get_width()) / float(maxi(ptex.get_height(), 1))
+			var slide := (1.0 - clampf(_card_t * 2.5, 0.0, 1.0)) * 120.0
+			draw_texture_rect(ptex, Rect2(size.x * 0.5 - 360.0 - pw - slide, cy - 250.0, pw, ph), false, Color(1, 1, 1, ca))
 		var parts := String(_card["title"]).split("  ·  ")
 		var gf := UI.symbol_font()
 		_text(String(_card["glyph"]) + "︎", Vector2(size.x * 0.5, cy - 30.0), 84, _a(cc, ca), true, gf)

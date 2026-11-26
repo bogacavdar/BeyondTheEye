@@ -132,6 +132,14 @@ func _show(s: String) -> void:
 	_sep()
 	_para(tr("THE GUARDIAN"), 20, UI.GOLD)
 	if Almanac.defeated(s):
+		var pt = load("res://scripts/portraits.gd").tex(s)
+		if pt != null:
+			var trc := TextureRect.new()
+			trc.texture = pt
+			trc.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			trc.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+			trc.custom_minimum_size = Vector2(300.0 * float(pt.get_width()) / float(maxi(pt.get_height(), 1)), 300)
+			_page.add_child(trc)
 		_para(Almanac.t(pg["boss"]), 24, col)
 		_para(Almanac.t(pg["boss_d"]), 17, UI.CREAM)
 	else:
