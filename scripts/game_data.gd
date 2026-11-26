@@ -679,10 +679,10 @@ static func setup_input() -> void:
 	# parry: Shift (sol serçe parmak, WASD'den el kalkmaz) + fare yan tuşları
 	_keys("parry", [KEY_SHIFT])
 	_keys("pause", [KEY_ESCAPE, KEY_P])
-	# yetenekler WASD'nin yanında: Q / E / R (1-2-3 de çalışır)
-	_keys("skill_1", [KEY_Q, KEY_1])
-	_keys("skill_2", [KEY_E, KEY_2])
-	_keys("skill_3", [KEY_R, KEY_3])
+	# yetenekler WASD'nin yanında: Q / E / R
+	_keys("skill_1", [KEY_Q])
+	_keys("skill_2", [KEY_E])
+	_keys("skill_3", [KEY_R])
 	_keys("mute_music", [KEY_M])
 	if not is_mobile():
 		# telefonda dokunuş fare tıklaması gibi de gelir; saldırı/parry'yi tetiklemesin

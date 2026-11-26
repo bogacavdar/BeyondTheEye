@@ -189,7 +189,7 @@ func _build_controls() -> Control:
 	var rows := [
 		["WASD", "Move"], ["Space", "Dash (dodges red warnings)"], ["Hold Space", "Sprint"],
 		["Left click", "Attack combo"], ["Right click / F", "Heavy attack"], ["Shift / mouse side", "Parry (gold warnings)"],
-		["Q / E / R", "Skills (1-2-3 also work)"], ["E", "Interact / doors"], ["M", "Music on / off"], ["Esc", "Pause"],
+		["Q / E / R", "Skills"], ["E", "Interact / doors"], ["M", "Music on / off"], ["Esc", "Pause"],
 	]
 	var grid := GridContainer.new()
 	grid.columns = 2

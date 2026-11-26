@@ -217,7 +217,7 @@ const TR := {
 	"ACHIEVEMENTS": "BAŞARIMLAR",
 	"Hold Space": "Boşluğu basılı tut", "Right click / F": "Sağ tık / F", "Shift / mouse side": "Shift / fare yan tuşu", "SHIFT": "SHIFT",
 	"F / Middle click": "F / Orta tık",
-	"Skills (1-2-3 also work)": "Yetenekler (1-2-3 de çalışır)",
+	"Skills": "Yetenekler",
 	"Q / E / R": "Q / E / R",
 	"Graphics": "Grafik",
 	"Low": "Düşük",
