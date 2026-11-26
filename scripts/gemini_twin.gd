@@ -332,6 +332,9 @@ var _chain_follow := false
 
 
 func _physics_process(delta: float) -> void:
+	if puppet:
+		_puppet_tick(delta)
+		return
 	_t += delta
 	_st += delta
 	_global_cd -= delta
@@ -688,6 +691,10 @@ func enrage(on: bool) -> void:
 # ---------------------------------------------------------------- hasar, düşme, ayağa kalkma
 
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	if puppet:
+		Net.send_hit(self, dmg, dir, kb, heavy, crit)
+		_flash = 1.0
+		return
 	last_dealt = 0.0
 	if dead or gone or state == "intro":
 		return
@@ -839,3 +846,51 @@ func _animate(delta: float) -> void:
 	m_body.emission_energy_multiplier = 0.3 + _flash * 3.0 + (0.8 if _enraged else 0.0)
 	hp_mat.set_shader_parameter("fill", clampf(hp / max_hp, 0.0, 1.0))
 	hp_mat.set_shader_parameter("stunned", 1.0 if state == "stun" or down else 0.0)
+
+# ---------------------------------------------------------------- ÇEVRİM İÇİ: kukla (client'taki kopya)
+## Client'ta yapay zekâ çalışmaz; host'un anlık görüntüsüne göre hareket eder, vuruşları host'a iletir.
+var puppet := false
+var _net_pos := Vector3.ZERO
+
+
+func _puppet_tick(delta: float) -> void:
+	_t += delta
+	_st += delta
+	_flash = maxf(_flash - delta * 6.0, 0.0)
+	global_position = global_position.lerp(_net_pos, minf(12.0 * delta, 1.0))
+	if tele != null and tele.visible:
+		_place_tele()
+	_animate(delta)
+
+
+func net_apply(e: Array) -> void:
+	_net_pos = e[2]
+	_face = Vector3(float(e[3]), 0, float(e[4]))
+	_aim_dir = Vector3(float(e[7]), 0, float(e[8]))
+	var nh := float(e[9])
+	if nh < hp - 0.5:
+		_flash = 1.0
+	hp = nh
+	max_hp = float(e[10])
+	if e.size() > 12 and int(e[12]) > 0:
+		set("phase", int(e[12]))
+	# ikizler düşer ve kalkar: yerde yatma halkası
+	var dn := bool(e[11])
+	if dn != dead:
+		dead = dn
+		down = dn
+		down_ring.visible = dn
+		if dn:
+			tele.visible = false
+			state = "down"
+		return
+	if dead:
+		return
+	var st := String(e[5])
+	if st != state:
+		_net_state(st, String(e[6]))
+
+
+func _net_state(st: String, an: String) -> void:
+	atk = an
+	_set_state(st)

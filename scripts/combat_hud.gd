@@ -59,6 +59,7 @@ func boss_card(glyph: String, title: String, col: Color) -> void:
 
 
 func banner(a: String, b := "") -> void:
+	Net.send_banner(a, b)
 	_banner_a = a
 	_banner_b = b
 	_banner_t = 4.0

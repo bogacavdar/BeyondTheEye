@@ -28,9 +28,16 @@ func _ready() -> void:
 	visible = false
 
 
+var _online_view := false
+var _ip_text := ""
+
+
 func open() -> void:
 	for c in _box.get_children():
 		c.queue_free()
+	if _online_view or Net.is_client():
+		_open_online()
+		return
 	var t := UI.label(tr("CHOOSE YOUR RISING SIGN"), 34, UI.GOLD, 5)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_box.add_child(t)
@@ -68,27 +75,38 @@ func open() -> void:
 	cdl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cdl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_box.add_child(cdl)
-	# İKİZLER: yerel co-op (bilgisayarda, en az bir kontrolcüyle)
+	# ÇEVRİM İÇİ İKİZLER: host / katıl ekranı
 	if not GD.is_mobile():
+		var ob := UI.button("🌐︎  " + (tr("ONLINE: CONNECTED") if Net.online() else tr("ONLINE CO-OP")), 18, Color(0.55, 0.85, 1.0))
+		ob.custom_minimum_size = Vector2(330, 50)
+		ob.pressed.connect(func():
+			_online_view = true
+			open())
+		var orow := HBoxContainer.new()
+		orow.alignment = BoxContainer.ALIGNMENT_CENTER
+		orow.add_child(ob)
+		_box.add_child(orow)
+	# İKİZLER: yerel co-op (bilgisayarda, en az bir kontrolcüyle)
+	if not GD.is_mobile() and not Net.online():
 		var pads := Input.get_connected_joypads().size()
-		var crow := HBoxContainer.new()
-		crow.alignment = BoxContainer.ALIGNMENT_CENTER
-		crow.add_theme_constant_override("separation", 14)
-		_box.add_child(crow)
+		var coop_row := HBoxContainer.new()
+		coop_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		coop_row.add_theme_constant_override("separation", 14)
+		_box.add_child(coop_row)
 		var cb := UI.button(("♊︎  " + tr("TWINS: 2 PLAYERS")) if GD.coop else ("♊︎  " + tr("TWINS: OFF")), 18, Color(0.75, 0.55, 1.0) if GD.coop else UI.CREAM)
 		cb.custom_minimum_size = Vector2(330, 50)
 		cb.disabled = pads == 0 and not GD.coop
 		cb.pressed.connect(func():
 			GD.coop = not GD.coop
 			open())
-		crow.add_child(cb)
+		coop_row.add_child(cb)
 		var hint := tr("Player 2 plays with a controller. One controller: Player 1 uses keyboard and mouse.") if pads > 0 else tr("Connect a controller for Player 2.")
 		if pads >= 2:
 			hint = tr("Two controllers: each player uses their own.")
 		var hl := UI.label(hint, 14, Color(0.75, 0.75, 0.85), 3)
 		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hl.custom_minimum_size = Vector2(520, 0)
-		crow.add_child(hl)
+		coop_row.add_child(hl)
 	# SONSUZ GÖKYÜZÜ döngü seçimi (Balık yenildikten sonra)
 	if int(GD.sky_best) >= 1:
 		var st := UI.label(tr("ENDLESS SKY"), 22, Color(0.85, 0.65, 1.0), 4)
@@ -167,3 +185,77 @@ func _process(_d: float) -> void:
 	if visible and Input.is_action_just_pressed("ui_cancel"):
 		visible = false
 		closed.emit()
+
+
+## Çevrim içi ekranı: oyun aç (host) ya da IP ile katıl
+func _open_online() -> void:
+	var t := UI.label(tr("ONLINE CO-OP"), 34, UI.GOLD, 5)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_box.add_child(t)
+	var info := UI.label(tr("One player opens the game, the other joins with their address. On the same network it works directly; over the internet the host must open UDP port %d on their modem.") % Net.PORT, 16, UI.CREAM, 3)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.custom_minimum_size = Vector2(900, 0)
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_box.add_child(info)
+	var st := UI.label(Net.status if Net.status != "" else tr("Not connected."), 20, Color(0.55, 0.85, 1.0), 4)
+	st.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	st.custom_minimum_size = Vector2(900, 0)
+	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_box.add_child(st)
+	if not Net.status_changed.is_connected(_on_net_status):
+		Net.status_changed.connect(_on_net_status)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	_box.add_child(row)
+	if Net.role == "":
+		var hb := UI.button(tr("HOST A GAME"), 20, UI.GOLD)
+		hb.custom_minimum_size = Vector2(280, 56)
+		hb.pressed.connect(func():
+			Net.host()
+			open())
+		row.add_child(hb)
+		var ip := LineEdit.new()
+		ip.placeholder_text = tr("Host's address (e.g. 192.168.1.20)")
+		ip.text = _ip_text
+		ip.custom_minimum_size = Vector2(330, 56)
+		ip.add_theme_font_size_override("font_size", 20)
+		ip.text_changed.connect(func(v: String): _ip_text = v)
+		row.add_child(ip)
+		var jb := UI.button(tr("JOIN"), 20, Color(0.55, 0.85, 1.0))
+		jb.custom_minimum_size = Vector2(180, 56)
+		jb.pressed.connect(func():
+			if _ip_text.strip_edges() != "":
+				Net.join(_ip_text)
+				open())
+		row.add_child(jb)
+	else:
+		var lb := UI.button(tr("DISCONNECT"), 18, Color(1.0, 0.6, 0.55))
+		lb.custom_minimum_size = Vector2(260, 52)
+		lb.pressed.connect(func():
+			Net.leave()
+			open())
+		row.add_child(lb)
+	if Net.role == "host" and Net.connected:
+		var go := UI.label(tr("Your friend is here. Go back and choose your rising sign to start the run together."), 16, UI.CREAM, 3)
+		go.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_box.add_child(go)
+	if not Net.is_client():
+		var back := UI.button(tr("BACK"), 18)
+		back.custom_minimum_size = Vector2(220, 50)
+		back.pressed.connect(func():
+			_online_view = false
+			open())
+		var brow := HBoxContainer.new()
+		brow.alignment = BoxContainer.ALIGNMENT_CENTER
+		brow.add_child(back)
+		_box.add_child(brow)
+	else:
+		var wait := UI.label(tr("The host chooses the rising sign and starts the run; you will be pulled in automatically."), 16, UI.CREAM, 3)
+		wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_box.add_child(wait)
+
+
+func _on_net_status(_t: String) -> void:
+	if visible and (_online_view or Net.is_client()):
+		open()

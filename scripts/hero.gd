@@ -184,6 +184,9 @@ func room_cleared() -> void:
 func heal(v: float) -> void:
 	if v <= 0.0 or dead:
 		return
+	if remote:
+		Net.send_hurt("heal", [v])
+		return
 	hp = minf(hp + v * (1.0 + float(st["heal_power"]) / 100.0) * float(st.get("heal_mult", 1.0)), max_hp)
 	hp_changed.emit(hp, max_hp)
 
@@ -334,6 +337,9 @@ func _jp(a: String) -> bool:
 func revive(frac: float) -> void:
 	if not dead:
 		return
+	if remote:
+		Net.send_hurt("revive", [frac])
+		return
 	dead = false
 	state = "free"
 	hp = max_hp * frac
@@ -353,7 +359,43 @@ func tint_p2() -> void:
 		m_navy2.albedo_color = Color(0.12, 0.4, 0.45)
 
 
+# ---------------------------------------------------------------- ÇEVRİM İÇİ: uzaktaki oyuncunun kopyası
+## remote: bu kahraman karşı bilgisayardaki oyuncudur; konumu ağdan gelir. Host'taki kopya hasar alırsa
+## hasar karşı tarafa iletilir (orada asıl kahramana uygulanır).
+var remote := false
+var _net_pos := Vector3.ZERO
+var _net_speed := 0.0
+
+
+func net_apply(p: Array) -> void:
+	_net_pos = Vector3(float(p[0]), 0, float(p[1]))
+	if pivot != null:
+		pivot.rotation.y = lerp_angle(pivot.rotation.y, float(p[2]), 0.6)
+	max_hp = float(p[5])
+	hp = float(p[4])
+	_net_speed = float(p[7])
+	var d := bool(p[3])
+	if d and not dead:
+		_die()
+	elif not d and dead:
+		dead = false
+		state = "free"
+		var t := create_tween()
+		t.tween_property(pivot, "rotation:x", 0.0, 0.4)
+		t.parallel().tween_property(pivot, "position:y", 0.0, 0.4)
+
+
+func _remote_tick(delta: float) -> void:
+	if _net_pos != Vector3.ZERO or global_position.length() < 0.01:
+		global_position = global_position.lerp(_net_pos, minf(14.0 * delta, 1.0))
+	if not dead:
+		_animate(delta, _net_speed)
+
+
 func _physics_process(delta: float) -> void:
+	if remote:
+		_remote_tick(delta)
+		return
 	_poll_pad()
 	_ls_budget = minf(_ls_budget + max_hp * 0.03 * delta, max_hp * 0.03)
 	_t += delta
@@ -717,6 +759,7 @@ func _do_hit() -> void:
 	var fx_node := SlashFx.make(float(_atk["a0"]), float(_atk["a1"]), 0.45, rng, _slash_col())
 	get_parent().add_child(fx_node)
 	fx_node.global_transform = Transform3D(pivot.global_transform.basis, global_position + Vector3(0, 1.05, 0))
+	Net.send_slash(float(_atk["a0"]), float(_atk["a1"]), rng, _slash_col(), fx_node.global_transform)
 	# element izi: kılıç yayının ucunda elementin parçacıkları
 	if GameData.hero_el != "":
 		var fwd: Vector3 = -pivot.global_transform.basis.z
@@ -1162,6 +1205,11 @@ func _pose_weapon(delta: float) -> void:
 ## Düşman vuruşu. parryable=false ise parry işe yaramaz (sadece atılma kurtarır).
 ## Dönüş: "parried", "hit" ya da "miss"
 func take_damage(amount: float, from_dir: Vector3, parryable := true) -> String:
+	if remote:
+		if dead:
+			return "miss"
+		Net.send_hurt("dmg", [amount, from_dir, parryable])
+		return "hit"
 	if dead:
 		return "miss"
 	if parryable and state == "parry" and _parry_t > 0.0:
@@ -1253,12 +1301,18 @@ func _die() -> void:
 ## Dikenli alan gibi etkiler kahramanı kısa süre yavaşlatır
 ## Zehir: saniyede dps kadar can eritir; üst üste binerse süre uzar, güç en yükseği alır
 func apply_poison(dps: float, dur: float) -> void:
+	if remote:
+		Net.send_hurt("poison", [dps, dur])
+		return
 	_poison_dps = maxf(_poison_dps, dps) if _poison_t > 0.0 else dps
 	_poison_t = minf(_poison_t + dur, 8.0)
 
 
 ## Denizanası çeker, gelgit dalgası iter: hedefe doğru dış hız (atılma bunu yok sayar)
 func apply_pull(target: Vector3, strength: float, dur: float) -> void:
+	if remote:
+		Net.send_hurt("pull", [target, strength, dur])
+		return
 	var v := target - global_position
 	v.y = 0.0
 	if v.length() < 0.3:
@@ -1278,6 +1332,9 @@ func _slash_col() -> Color:
 
 
 func apply_slow(mult: float, dur: float) -> void:
+	if remote:
+		Net.send_hurt("slow", [mult, dur])
+		return
 	_slow_mult = minf(_slow_mult, mult) if _slow_t > 0.0 else mult
 	_slow_t = maxf(_slow_t, dur)
 

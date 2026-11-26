@@ -2428,6 +2428,9 @@ func _place_tele() -> void:
 # ---------------------------------------------------------------- yapay zekâ
 
 func _physics_process(delta: float) -> void:
+	if puppet:
+		_puppet_tick(delta)
+		return
 	_t += delta
 	_st += delta
 	_global_cd -= delta
@@ -3362,6 +3365,10 @@ func pull_to(point: Vector3, strength: float) -> void:
 # ---------------------------------------------------------------- hasar
 
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	if puppet:
+		Net.send_hit(self, dmg, dir, kb, heavy, crit)
+		_flash = 1.0
+		return
 	last_dealt = 0.0
 	if dead or state == "spawn":
 		return
@@ -4402,3 +4409,50 @@ class SunBeam extends Node3D:
 		if _t >= 0.35:
 			queue_free()
 
+# ---------------------------------------------------------------- ÇEVRİM İÇİ: kukla (client'taki kopya)
+## Client'ta yapay zekâ çalışmaz; host'un anlık görüntüsüne göre hareket eder, vuruşları host'a iletir.
+var puppet := false
+var _net_pos := Vector3.ZERO
+
+
+func _puppet_tick(delta: float) -> void:
+	_t += delta
+	_st += delta
+	_flash = maxf(_flash - delta * 6.0, 0.0)
+	global_position = global_position.lerp(_net_pos, minf(12.0 * delta, 1.0))
+	if tele != null and tele.visible:
+		_place_tele()
+	_animate(delta)
+
+
+func net_apply(e: Array) -> void:
+	if dead:
+		return
+	_net_pos = e[2]
+	_face = Vector3(float(e[3]), 0, float(e[4]))
+	_aim_dir = Vector3(float(e[7]), 0, float(e[8]))
+	var nh := float(e[9])
+	if nh < hp - 0.5:
+		_flash = 1.0
+	hp = nh
+	max_hp = float(e[10])
+	pass
+	if bool(e[11]):
+		_die(-_face)
+		return
+	var st := String(e[5])
+	if st != state:
+		_net_state(st, String(e[6]))
+
+
+func _net_state(st: String, an: String) -> void:
+	for a in attacks:
+		if String(a.get("name", "")) == an:
+			atk = a
+			break
+	state = st
+	_st = 0.0
+	if st == "windup" and not atk.is_empty():
+		_show_tele()
+	elif tele != null:
+		tele.visible = st == "act" and String(atk.get("name", "")) == "pounce"

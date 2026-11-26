@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 Fx="*res://scripts/fx.gd"
 Sfx="*res://scripts/sfx.gd"
+Net="*res://scripts/net.gd"
 
 [display]
 

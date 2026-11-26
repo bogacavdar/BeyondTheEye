@@ -428,6 +428,10 @@ func stun(sec: float, parried := false) -> void:
 
 
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	if puppet:
+		Net.send_hit(self, dmg, dir, kb, heavy, crit)
+		_flash = 1.0
+		return
 	# kabuğa çekilmişken neredeyse hasar almaz; aksi halde önden sert, arkadan yumuşak
 	var m := 1.0
 	if state == "act" and atk == "shell":

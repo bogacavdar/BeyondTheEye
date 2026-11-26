@@ -355,6 +355,10 @@ func stun(sec: float, parried := false) -> void:
 
 
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	if puppet:
+		Net.send_hit(self, dmg, dir, kb, heavy, crit)
+		_flash = 1.0
+		return
 	if _hidden:
 		last_dealt = 0.0
 		return

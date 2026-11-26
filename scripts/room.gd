@@ -318,8 +318,27 @@ func _ready() -> void:
 	if GameData.run_hp > 0.0:
 		hero.set_run_hp(GameData.run_hp)
 	hero.hurt.connect(_on_hero_hurt)
+	# ÇEVRİM İÇİ İKİZLER: ikinci kahraman karşı bilgisayardaki oyuncudur (her iki tarafta "hero" kendi oyuncumuz)
+	if Net.online():
+		hero2 = HeroScript.new()
+		hero2.remote = true
+		hero2.pid = 1
+		hero2.camera = camera
+		hero2.bound_radius = ARENA_R - 0.4
+		add_child(hero2)
+		hero2.global_position = Vector3(1.6, 0, 5.4)
+		hero2.add_to_group("heroes")
+		hero2.tint_p2()
+		var mid0 := Node3D.new()
+		add_child(mid0)
+		mid0.global_position = Vector3(0.8, 0, 5.2)
+		_cam_focus = mid0
+		camera.target = mid0
+		if Net.is_host():
+			hero.died.connect(_on_coop_died.bind(hero))
+			hero2.died.connect(_on_coop_died.bind(hero2))
 	# İKİZLER: ikinci kahraman (kontrolcüsü bağlıysa)
-	if GameData.coop and not GameData.is_mobile() and GameData.coop_bind():
+	elif GameData.coop and not GameData.is_mobile() and GameData.coop_bind():
 		hero2 = HeroScript.new()
 		hero2.pid = 1
 		hero2.pad_dev = GameData.p2_pad
@@ -374,6 +393,7 @@ func _ready() -> void:
 		add_child(comp)
 	_aim_moon()
 	_grade()
+	Net.room_ready(self)
 
 	if is_rest:
 		hero.heal(hero.max_hp * 0.4)
@@ -404,7 +424,8 @@ func _ready() -> void:
 			hud.banner("TAURUS", tr("The Immovable"))
 		else:
 			hud.banner("ARIES", tr("The Ram's Fury"))
-		get_tree().create_timer(1.6).timeout.connect(_spawn_boss)
+		if not Net.is_client():
+			get_tree().create_timer(1.6).timeout.connect(_spawn_boss)
 	elif local_i == 0:
 		if zone == "pisces":
 			hud.banner("THE SEA OF DREAMS", tr("The last sign, where every sign returns"))
@@ -2108,6 +2129,8 @@ func _process(delta: float) -> void:
 		l.light_energy = 1.1 + 0.25 * sin(_t * 9.0 + ph) + 0.15 * sin(_t * 23.0 + ph * 2.0)
 	hud.dust = GameData.stardust
 	hud.wave = wave + 1
+	if Net.is_client():
+		return   # client: dalgalar, kapılar ve ödüller host'ta işler
 	if ended:
 		return
 	if not cleared and not is_boss and alive <= 0 and pending <= 0:
@@ -2358,6 +2381,8 @@ func _mote(p: Vector3, value: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if Net.is_client():
+		return
 	_tick_hazards(delta)
 	for m in get_tree().get_nodes_in_group("motes"):
 		var t := float(m.get_meta("t")) + delta
@@ -2635,6 +2660,7 @@ func _on_cleared() -> void:
 
 
 func _on_boon_picked(_id: String) -> void:
+	Net.sync_boons()
 	hero.refresh_stats()
 	_spawn_doors()
 
@@ -2730,6 +2756,7 @@ func _door_info(type: String) -> Dictionary:
 
 
 func _add_door(pos: Vector3, type: String) -> void:
+	Net.send_door(pos, type)
 	var info := _door_info(type)
 	var col: Color = info["color"]
 	var root := Node3D.new()
@@ -3250,6 +3277,8 @@ func _coop_tick(delta: float) -> void:
 		# uzaklaştıkça kamera geri çekilir
 		var spread := a.distance_to(b)
 		camera.fov = lerpf(camera.fov, clampf(44.0 + (spread - 6.0) * 1.6, 44.0, 62.0), minf(3.0 * delta, 1.0))
+	if Net.is_client():
+		return   # hedef seçimi ve kaldırma host'ta
 	_retarget_t -= delta
 	if _retarget_t <= 0.0:
 		_retarget_t = 0.35
@@ -3297,7 +3326,34 @@ func _on_coop_died(who) -> void:
 	_on_hero_died()
 
 
+func _exit_tree() -> void:
+	Net.room_left(self)
+
+
+## ÇEVRİM İÇİ: arkadaş ayrıldı (host)
+func net_partner_left() -> void:
+	if hero2 != null and is_instance_valid(hero2):
+		hero2.queue_free()
+	hero2 = null
+	_cam_focus = hero
+	camera.target = hero
+	hud.hero2 = null
+	hud.banner(tr("YOUR FRIEND LEFT"), "")
+
+
+## ÇEVRİM İÇİ: host run'ı bitirdi (client)
+func net_run_over(death: bool) -> void:
+	if ended:
+		return
+	ended = true
+	if death:
+		hud.death_screen(GameData.run_dust)
+		await get_tree().create_timer(3.5).timeout
+	_leave()
+
+
 func _on_hero_died() -> void:
+	Net.send_run_over(true)
 	ended = true
 	GameData.last_run_msg = tr("The stars remember you. Gathered this run: %d stardust") % GameData.run_dust
 	GameData.go_save()
@@ -3313,6 +3369,8 @@ func _abandon() -> void:
 
 
 func _leave() -> void:
+	if not ended:
+		Net.send_run_over(false)
 	GameData.coop_unbind()
 	GameData.run_hp2 = -1.0
 	GameData.clear_saved_run()

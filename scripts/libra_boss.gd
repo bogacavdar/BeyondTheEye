@@ -324,6 +324,10 @@ func stun(sec: float, parried := false) -> void:
 
 ## Hangi yandan vurulduğunu denge hesabına ekler
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	if puppet:
+		Net.send_hit(self, dmg, dir, kb, heavy, crit)
+		_flash = 1.0
+		return
 	var right := Vector3(-_face.z, 0, _face.x)
 	var side := right.dot(-dir)
 	super.take_hit(dmg, dir, kb, heavy, crit)
