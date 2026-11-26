@@ -1,6 +1,6 @@
 extends "res://scripts/hub_player.gd"
 ## KAHRAMAN (dövüş): Yolcu'nun bedeni + seçilen kozmik silah.
-## Sol tık: 3 vuruşluk kombo · Q: ağır saldırı · Sağ tık: parry · Boşluk: atılma · Shift (basılı): koşma
+## Sol tık: 3 vuruşluk kombo · Sağ tık: ağır saldırı · Shift: parry · Boşluk: atılma (basılı tut: koş)
 ## 1 / 2 / 3: silahın yetenekleri (weapon_kits.gd). Fare: nişan yönü.
 ## Parry: sadece ALTIN uyarılı saldırılar karşılanabilir. KIZIL uyarılı saldırılardan atılarak kaçılır.
 ## Değerler Doğum Haritası'ndan gelir (hero_stats.gd).
@@ -446,7 +446,8 @@ func _physics_process(delta: float) -> void:
 		move = right * input.x - fwd * input.y
 		if move.length() > 1.0:
 			move = move.normalized()
-		sprinting = _held("sprint") and move.length() > 0.1 and state == "free"
+		# Hades II gibi: atılma tuşunu basılı tutmaya devam edersen atılmadan sonra koşarsın
+		sprinting = (_held("sprint") or _held("dash")) and move.length() > 0.1 and state == "free"
 		_read_actions(move)
 
 	var spd_now := SPEED * (1.0 + float(st["move_speed"]) / 100.0) * (SPRINT_MULT if sprinting else 1.0)

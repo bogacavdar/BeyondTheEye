@@ -214,7 +214,7 @@ func _draw() -> void:
 	# --- kontroller (ilk saniyelerde)
 	if _t < 15.0:
 		var a := clampf(15.0 - _t, 0.0, 1.0)
-		var hint_txt := tr("LMB attack  ·  F heavy  ·  RMB parry (gold warnings)  ·  Space dash (red warnings)  ·  Shift sprint  ·  Q E R skills")
+		var hint_txt := tr("LMB attack  ·  RMB heavy  ·  Shift parry (gold warnings)  ·  Space dash, hold to sprint (red warnings)  ·  Q E R skills")
 		if GameData.input_mode == "pad":
 			hint_txt = tr("X attack  ·  Y heavy  ·  B parry (gold warnings)  ·  A dash (red warnings)  ·  LT sprint  ·  LB RB RT skills")
 		if GameData.input_mode != "touch":
@@ -254,8 +254,8 @@ func _draw_slots() -> void:
 	var gold := UI.GOLD
 	# --- yetenekler ve hareketler: simge, üstünde tuş rozeti, altında çerçeveli ad kutusu
 	var slots := [
-		["Q", 0, "starfall", ""], ["E", 1, "wave", ""], ["R", 2, "path", ""], ["F", -3, "heavy", "HEAVY ATTACK"],
-		["SPACE", -1, "dash", "DASH"], ["RMB", -2, "parry", "PARRY"],
+		["Q", 0, "starfall", ""], ["E", 1, "wave", ""], ["R", 2, "path", ""], ["RMB", -3, "heavy", "HEAVY ATTACK"],
+		["SPACE", -1, "dash", "DASH"], ["SHIFT", -2, "parry", "PARRY"],
 	]
 	if GameData.input_mode == "pad":
 		var pk := ["LB", "RB", "RT", "Y", "A", "B"]

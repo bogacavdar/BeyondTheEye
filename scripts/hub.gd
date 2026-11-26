@@ -690,7 +690,7 @@ func _build_ui() -> void:
 	dust_label = UI.label("", 22, UI.CREAM, 5)
 	dust_label.position = Vector2(42, 96)
 	root.add_child(dust_label)
-	var hint_txt := "WASD move   ·   LMB / F / Q E R try your weapon   ·   E interact   ·   Esc pause"
+	var hint_txt := "WASD move   ·   LMB / RMB / Q E R try your weapon   ·   E interact   ·   Esc pause"
 	if GameData.is_mobile():
 		hint_txt = "Left stick move   ·   USE interact   ·   II pause"
 	elif Input.get_connected_joypads().size() > 0:

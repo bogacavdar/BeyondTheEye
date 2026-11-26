@@ -187,9 +187,9 @@ func _build_controls() -> Control:
 	vb.add_child(t)
 	vb.add_child(UI.divider(260))
 	var rows := [
-		["WASD", "Move"], ["Shift", "Sprint"], ["Space", "Dash (dodges red warnings)"],
-		["Left click", "Attack combo"], ["F / Middle click", "Heavy attack"], ["Q / E / R", "Skills (1-2-3 also work)"], ["Right click", "Parry (gold warnings)"],
-		["1  2  3", "Weapon skills"], ["E", "Interact / doors"], ["M", "Music on / off"], ["Esc", "Pause"],
+		["WASD", "Move"], ["Space", "Dash (dodges red warnings)"], ["Hold Space", "Sprint"],
+		["Left click", "Attack combo"], ["Right click / F", "Heavy attack"], ["Shift / mouse side", "Parry (gold warnings)"],
+		["Q / E / R", "Skills (1-2-3 also work)"], ["E", "Interact / doors"], ["M", "Music on / off"], ["Esc", "Pause"],
 	]
 	var grid := GridContainer.new()
 	grid.columns = 2
