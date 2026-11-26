@@ -186,6 +186,14 @@ static func is_web() -> bool:
 	return OS.has_feature("web") or OS.has_feature("mobile")
 
 
+## GRAFİK KALİTESİ: 0 düşük, 1 orta, 2 yüksek (ayarlardan seçilir)
+static var gfx_quality := 2
+
+
+static func gfx_outline() -> bool:
+	return gfx_quality >= 1
+
+
 static func is_mobile() -> bool:
 	return OS.has_feature("mobile")
 

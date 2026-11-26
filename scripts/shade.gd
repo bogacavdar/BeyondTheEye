@@ -71,7 +71,7 @@ func _m(c: Color, rough := 0.7) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
 	m.roughness = rough
-	return m
+	return load("res://scripts/toon.gd").style(m)
 
 
 func _part(parent: Node3D, mesh: Mesh, pos: Vector3, mat: Material, sc := Vector3.ONE) -> MeshInstance3D:

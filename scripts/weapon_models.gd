@@ -13,6 +13,7 @@ static func _m(key: String, color: Color, metal: float, rough: float) -> Standar
 		m.albedo_color = color
 		m.metallic = metal
 		m.roughness = rough
+		load("res://scripts/toon.gd").style(m)
 		_mats[key] = m
 	return _mats[key]
 

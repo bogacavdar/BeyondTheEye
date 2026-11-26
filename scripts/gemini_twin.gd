@@ -93,7 +93,7 @@ func _m(c: Color, rough := 0.5, metal := 0.0) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.roughness = rough
 	m.metallic = metal
-	return m
+	return load("res://scripts/toon.gd").style(m)
 
 
 func _part(parent: Node3D, mesh: Mesh, pos: Vector3, mat: Material, sc := Vector3.ONE) -> MeshInstance3D:

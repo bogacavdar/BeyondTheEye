@@ -94,7 +94,7 @@ func _mat(c: Color, rough: float, metal := 0.0) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.roughness = rough
 	m.metallic = metal
-	return m
+	return load("res://scripts/toon.gd").style(m)
 
 
 func _materials() -> void:
