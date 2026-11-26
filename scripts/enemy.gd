@@ -175,14 +175,18 @@ func _ready() -> void:
 			ch = 2
 		elif nm == "fireball":
 			ch = 3
+		# ilk bölgelerde seriler kısa (öğrenme alanı)
+		if _early():
+			ch = mini(ch, 2)
 		a["chain"] = ch
 	for a in attacks:
-		a["dmg"] = float(a["dmg"]) * dmg_mult * em
-		a["windup"] = float(a["windup"]) * 0.92 * windup_mult
+		a["dmg"] = float(a["dmg"]) * dmg_mult * em * (0.8 if _early() else 1.0)
+		a["windup"] = float(a["windup"]) * (1.0 if _early() else 0.92) * windup_mult
 		if not bool(a["parry"]) and String(a["name"]) != "mirror":
-			a["windup"] = float(a["windup"]) * 0.4   # kırmızı (parry'lenemez) saldırılar ani: görünce hemen atıl
-		a["recover"] = float(a["recover"]) * 0.9
-		a["cd"] = float(a["cd"]) * 0.85
+			# kırmızı (parry'lenemez) saldırılar hızlı ama okunur; ilk bölgelerde daha yavaş
+			a["windup"] = float(a["windup"]) * (0.85 if _early() else 0.65)
+		a["recover"] = float(a["recover"]) * (1.1 if _early() else 0.95)
+		a["cd"] = float(a["cd"]) * (1.15 if _early() else 0.95)
 	hp = max_hp
 	for a in attacks:
 		_cd[a["name"]] = randf_range(0.3, 1.2)
@@ -2641,7 +2645,31 @@ func _end_act() -> void:
 	_set_state("recover")
 
 
+## İlk üç bölge (Koç, Boğa, İkizler) öğrenme alanı: daha yavaş, daha az saldırgan
+func _early() -> bool:
+	return zone == "aries" or zone == "taurus" or zone == "gemini"
+
+
+## SALDIRI SIRASI: aynı anda en fazla birkaç düşman saldırır (Hades gibi); diğerleri çevrede bekler.
+## İlk bölgelerde 2, sonra 3 düşman.
+func _attack_slots_full() -> bool:
+	var cap := 2 if _early() else 3
+	var n := 0
+	for o in get_tree().get_nodes_in_group("enemies"):
+		if o == self or o.get("phase") != null:
+			continue
+		var st = o.get("state")
+		if st == "windup" or st == "act":
+			n += 1
+			if n >= cap:
+				return true
+	return false
+
+
 func _pick_attack(dist: float, dir_to: Vector3) -> void:
+	if _attack_slots_full():
+		_global_cd = randf_range(0.25, 0.5)
+		return
 	var total := 0.0
 	var cands: Array = []
 	for a in attacks:

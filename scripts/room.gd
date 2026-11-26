@@ -43,15 +43,15 @@ const ARENA_R := 11.0
 const BOSS_DEPTH := 4
 ## Her derinlik: dalgalar listesi; her dalga: düşman tipleri
 const COMBAT := [
-	[["shade", "shade", "caster"], ["shade", "leaper", "shade", "caster"]],
-	[["shade", "leaper", "caster", "shade"], ["brute", "caster", "shade", "shade"], ["leaper", "caster", "shade", "shade"]],
-	[["shade", "leaper", "caster", "shade", "shade"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "caster", "shade"]],
-	[["brute", "shade", "caster", "leaper", "shade"], ["caster", "caster", "leaper", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade"]],
+	[["shade", "shade"], ["shade", "caster", "shade"]],
+	[["shade", "leaper", "caster"], ["brute", "shade", "shade"]],
+	[["shade", "leaper", "caster", "shade"], ["brute", "caster", "shade", "leaper"]],
+	[["brute", "shade", "caster", "leaper", "shade"], ["caster", "leaper", "shade", "shade", "brute"]],
 ]
 ## Derinliğe göre düşman güçlenmesi ve seçkin olma şansı (dengeli: her oyuncu için)
 const HP_MULT := [1.0, 1.1, 1.25, 1.4]
 const DMG_MULT := [1.0, 1.1, 1.2, 1.3]
-const ELITE_CHANCE := [0.0, 0.1, 0.15, 0.2]
+const ELITE_CHANCE := [0.0, 0.0, 0.08, 0.15]
 const DUST_REWARD := [30, 45, 60, 80]
 const ROOM_BONUS := [10, 15, 20, 25]
 const DUST_BY_KIND := {"shade": 5, "caster": 5, "leaper": 6, "brute": 16}
@@ -2453,12 +2453,14 @@ func _physics_process(delta: float) -> void:
 ##  Yengeç: gelgit kıyıyı basar (iç daire güvenli) · Aslan: Zenit (gölgelere saklan) · Başak: dama ızgarası
 
 const HZ = preload("res://scripts/hazards.gd")
-const HAZARD_EVERY := {"aries": 5.0, "taurus": 6.5, "gemini": 9.0, "cancer": 13.0, "leo": 15.0, "virgo": 12.0, "libra": 12.0, "scorpio": 6.5, "sagittarius": 6.0, "capricorn": 7.0, "aquarius": 6.0, "pisces": 7.0}
+const HAZARD_EVERY := {"aries": 11.0, "taurus": 10.0, "gemini": 10.0, "cancer": 13.0, "leo": 15.0, "virgo": 12.0, "libra": 12.0, "scorpio": 6.5, "sagittarius": 6.0, "capricorn": 7.0, "aquarius": 6.0, "pisces": 7.0}
 const HAZARD_DMG := {"aries": 1.0, "taurus": 1.15, "gemini": 1.3, "cancer": 1.45, "leo": 1.6, "virgo": 1.75, "libra": 1.9, "scorpio": 2.0, "sagittarius": 2.1, "capricorn": 2.25, "aquarius": 2.4, "pisces": 2.55}
 var _hazard_t := 6.0
 
 
 func _tick_hazards(delta: float) -> void:
+	if room_i < 2:
+		return   # ilk iki oda tehlikesiz: oyuncu kontrollere alışsın
 	if is_boss or is_rest or cleared or ended or hero == null or hero.dead:
 		return
 	if wave < 0 or alive <= 0:

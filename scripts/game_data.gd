@@ -673,17 +673,19 @@ static func setup_input() -> void:
 	_keys("move_right", [KEY_D, KEY_RIGHT])
 	_keys("dash", [KEY_SPACE])
 	_keys("interact", [KEY_E, KEY_F])
-	_keys("heavy", [KEY_Q])
+	_keys("heavy", [KEY_F, KEY_C])
 	_keys("sprint", [KEY_SHIFT])
 	_keys("pause", [KEY_ESCAPE, KEY_P])
-	_keys("skill_1", [KEY_1])
-	_keys("skill_2", [KEY_2])
-	_keys("skill_3", [KEY_3])
+	# yetenekler WASD'nin yanında: Q / E / R (1-2-3 de çalışır)
+	_keys("skill_1", [KEY_Q, KEY_1])
+	_keys("skill_2", [KEY_E, KEY_2])
+	_keys("skill_3", [KEY_R, KEY_3])
 	_keys("mute_music", [KEY_M])
 	if not is_mobile():
 		# telefonda dokunuş fare tıklaması gibi de gelir; saldırı/parry'yi tetiklemesin
 		_mouse("fire", MOUSE_BUTTON_LEFT)
 		_mouse("parry", MOUSE_BUTTON_RIGHT)
+		_mouse("heavy", MOUSE_BUTTON_MIDDLE)
 	# KONTROLCÜ (Xbox düzeni; PlayStation'da aynı yerdeki tuşlar):
 	#  sol çubuk/yön tuşları: yürü · sağ çubuk: nişan · X: saldırı · Y: ağır saldırı · A: atılma
 	#  B: parry · LB/RB/RT: 1-2-3 yetenekleri · LT ya da sol çubuğa basmak: koş · Start: duraklat
@@ -779,9 +781,9 @@ static func _keys(action: String, keys: Array) -> void:
 
 
 static func _mouse(action: String, button: MouseButton) -> void:
-	if InputMap.has_action(action):
-		return
-	InputMap.add_action(action)
+	if not InputMap.has_action(action):
+		InputMap.add_action(action)
 	var mb := InputEventMouseButton.new()
 	mb.button_index = button
-	InputMap.action_add_event(action, mb)
+	if not InputMap.action_has_event(action, mb):
+		InputMap.action_add_event(action, mb)
