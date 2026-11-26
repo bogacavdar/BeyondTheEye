@@ -52,6 +52,7 @@ var dial_rings: Array = []
 
 
 func _ready() -> void:
+	GameData.coop_unbind()
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	GameData.go_load()

@@ -201,6 +201,9 @@ var _focus_t := 0.0
 
 
 func _input(event: InputEvent) -> void:
+	# co-op: 2. oyuncunun kontrolcüsü 1. oyuncunun nişan kipini değiştirmesin
+	if GameData.p2_pad >= 0 and (event is InputEventJoypadButton or event is InputEventJoypadMotion) and event.device == GameData.p2_pad:
+		return
 	var mode := GameData.input_mode
 	if event is InputEventJoypadButton and event.pressed:
 		mode = "pad"

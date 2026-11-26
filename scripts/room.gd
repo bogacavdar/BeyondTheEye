@@ -183,6 +183,10 @@ const TAURUS_DUST := 220
 const TAURUS_FIRST_BONUS := 300
 
 var hero
+var hero2 = null          # İKİZLER: 2. oyuncu (co-op değilse null)
+var _cam_focus: Node3D    # co-op'ta kamera iki kahramanın ortasına bakar
+var _revive := {}         # yerde yatan kahraman -> kaldırma ilerlemesi (sn)
+var _retarget_t := 0.0
 var camera
 var sky_mat: ShaderMaterial
 var _flames: Array = []
@@ -308,16 +312,41 @@ func _ready() -> void:
 	hero.bound_radius = ARENA_R - 0.4
 	add_child(hero)
 	hero.global_position = Vector3(0, 0, 5.0)
+	hero.add_to_group("heroes")
 	camera.target = hero
+	_cam_focus = hero
 	if GameData.run_hp > 0.0:
 		hero.set_run_hp(GameData.run_hp)
-	hero.died.connect(_on_hero_died)
 	hero.hurt.connect(_on_hero_hurt)
+	# İKİZLER: ikinci kahraman (kontrolcüsü bağlıysa)
+	if GameData.coop and not GameData.is_mobile() and GameData.coop_bind():
+		hero2 = HeroScript.new()
+		hero2.pid = 1
+		hero2.pad_dev = GameData.p2_pad
+		hero2.camera = camera
+		hero2.bound_radius = ARENA_R - 0.4
+		add_child(hero2)
+		hero2.global_position = Vector3(1.6, 0, 5.4)
+		hero2.add_to_group("heroes")
+		hero2.tint_p2()
+		if GameData.run_hp2 > 0.0:
+			hero2.set_run_hp(GameData.run_hp2)
+		hero2.hurt.connect(_on_hero_hurt)
+		hero2.died.connect(_on_coop_died.bind(hero2))
+		hero.died.connect(_on_coop_died.bind(hero))
+		var mid := Node3D.new()
+		add_child(mid)
+		mid.global_position = Vector3(0.8, 0, 5.2)
+		_cam_focus = mid
+		camera.target = mid
+	else:
+		hero.died.connect(_on_hero_died)
 
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	hud = CombatHud.new()
 	hud.hero = hero
+	hud.hero2 = hero2
 	hud.wave_total = waves.size()
 	hud.room = local_i + 1
 	hud.room_total = BOSS_DEPTH + 1
@@ -2072,6 +2101,8 @@ func _sphere(r: float) -> SphereMesh:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if hero2 != null:
+		_coop_tick(delta)
 	for l in _flames:
 		var ph: float = l.get_meta("flicker")
 		l.light_energy = 1.1 + 0.25 * sin(_t * 9.0 + ph) + 0.15 * sin(_t * 23.0 + ph * 2.0)
@@ -2092,17 +2123,22 @@ func _process(delta: float) -> void:
 	# kapılar
 	var near = null
 	var best := 2.6
+	var p2_near := false
 	for d in doors:
 		var dp: Vector3 = d["pos"]
-		var dist := Vector2(hero.global_position.x - dp.x, hero.global_position.z - dp.z).length()
-		if dist < best:
-			best = dist
-			near = d
+		for h in ([hero, hero2] if hero2 != null else [hero]):
+			if h.dead:
+				continue
+			var dist := Vector2(h.global_position.x - dp.x, h.global_position.z - dp.z).length()
+			if dist < best:
+				best = dist
+				near = d
+				p2_near = h == hero2
 	hud.prompt = String(near["title"]) if near != null else ""
 	if near != null:
 		hud.prompt_glyph = String(near["glyph"])
 		hud.prompt_color = near["color"]
-	if near != null and Input.is_action_just_pressed("interact"):
+	if near != null and (Input.is_action_just_pressed("interact") or (p2_near and hero2._jp("interact"))):
 		_enter_door(String(near["type"]))
 
 	if Input.is_action_just_pressed("pause") and not pause_ui.visible and not boon_ui.visible:
@@ -2203,6 +2239,8 @@ func _tune_enemy(e) -> void:
 	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G, DMG_MULT_C, DMG_MULT_L, DMG_MULT_V, DMG_MULT_B, DMG_MULT_S, DMG_MULT_Y, DMG_MULT_K, DMG_MULT_Q, DMG_MULT_P)[di])
 	e.hp_mult = hpm * (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * (1.15 if GameData.run_rising == "leo" else 1.0) * _cyc_hp()
 	e.dmg_mult = dmm * (1.0 + 0.2 * float(Retro.rank(rt, "mars"))) * _cyc_dmg()
+	if hero2 != null:
+		e.hp_mult *= 1.5   # İKİZLER: iki kahramana karşı düşmanlar daha dayanıklı
 	e.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
 
 
@@ -2749,6 +2787,16 @@ func _light_at(pos: Vector3, col: Color, parent: Node3D) -> void:
 	l.global_position = pos
 
 
+## co-op: yerde yatan kahraman bir sonraki odaya canının %25'iyle geçer
+func _save_hp2(heal: float) -> void:
+	if hero != null and hero.dead:
+		GameData.run_hp = hero.max_hp * 0.25
+	if hero2 == null:
+		return
+	var h2: float = hero2.max_hp * 0.25 if hero2.dead else hero2.hp
+	GameData.run_hp2 = minf(h2 + hero2.max_hp * heal, hero2.max_hp)
+
+
 func _enter_door(type: String) -> void:
 	if type == "home":
 		_leave()
@@ -2759,6 +2807,7 @@ func _enter_door(type: String) -> void:
 		GameData.run_room = 0
 		GameData.run_reward = "boon:" + Boons.random_planet()
 		GameData.run_hp = minf(hero.hp + hero.max_hp * 0.5, hero.max_hp)
+		_save_hp2(0.5)
 		GameData.go_save()
 		Sfx.play("dash", -4.0, 0.0, 0, 0.4)
 		get_tree().change_scene_to_file(ROOM_SCENE)
@@ -2768,6 +2817,7 @@ func _enter_door(type: String) -> void:
 		GameData.run_room = int(ZONE_START[type.trim_suffix("_gate")])
 		GameData.run_reward = "boon:" + Boons.random_planet()
 		GameData.run_hp = minf(hero.hp + hero.max_hp * 0.3, hero.max_hp)
+		_save_hp2(0.3)
 		GameData.go_save()
 		Sfx.play("dash", -4.0, 0.0, 0, 0.5)
 		get_tree().change_scene_to_file(ROOM_SCENE)
@@ -2775,6 +2825,7 @@ func _enter_door(type: String) -> void:
 	GameData.run_room = room_i + 1
 	GameData.run_reward = type
 	GameData.run_hp = hero.hp
+	_save_hp2(0.0)
 	GameData.go_save()
 	Sfx.play("dash", -4.0, 0.0, 0, 0.6)
 	get_tree().change_scene_to_file(ROOM_SCENE)
@@ -2829,15 +2880,19 @@ func _boss_intro() -> void:
 	if boss.get("_global_cd") != null:
 		boss._global_cd = maxf(float(boss._global_cd), 2.4)
 	hero.frozen = true
+	if hero2 != null:
+		hero2.frozen = true
 	var cam = Fx.camera
 	if cam != null and is_instance_valid(cam) and boss is Node3D:
 		cam.target = boss
 		Juice.zoom_punch(6.0, 2.2)
 	get_tree().create_timer(2.2).timeout.connect(func():
+		if hero2 != null and is_instance_valid(hero2):
+			hero2.frozen = false
 		if hero != null and is_instance_valid(hero):
 			hero.frozen = false
 			if cam != null and is_instance_valid(cam):
-				cam.target = hero)
+				cam.target = _cam_focus if _cam_focus != null else hero)
 
 
 func _spawn_boss() -> void:
@@ -2870,7 +2925,7 @@ func _spawn_boss() -> void:
 	boss.hero = hero
 	var rt: Dictionary = GameData.retro
 	boss.dmg_mult = (1.0 + 0.2 * float(Retro.rank(rt, "mars"))) * _cyc_dmg()
-	boss.max_hp *= (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * _cyc_hp()
+	boss.max_hp *= (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * _cyc_hp() * (1.6 if hero2 != null else 1.0)
 	boss.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
 	boss.total_eclipse = Retro.rank(rt, "eclipse") > 0
 	boss._bounds = ARENA_R - 1.0
@@ -3181,6 +3236,67 @@ func _cyc_dmg() -> float:
 	return 1.0 + 0.2 * float(GameData.run_cycle)
 
 
+## İKİZLER: kamera ortası, düşmanların en yakın kahramanı hedeflemesi, yerde yatanı kaldırma
+func _coop_tick(delta: float) -> void:
+	var a: Vector3 = hero.global_position
+	var b: Vector3 = hero2.global_position
+	if _cam_focus != hero and _cam_focus != null and is_instance_valid(_cam_focus):
+		var tgt := (a + b) * 0.5
+		if hero.dead:
+			tgt = tgt.lerp(b, 0.5)
+		elif hero2.dead:
+			tgt = tgt.lerp(a, 0.5)
+		_cam_focus.global_position = _cam_focus.global_position.lerp(tgt, minf(6.0 * delta, 1.0))
+		# uzaklaştıkça kamera geri çekilir
+		var spread := a.distance_to(b)
+		camera.fov = lerpf(camera.fov, clampf(44.0 + (spread - 6.0) * 1.6, 44.0, 62.0), minf(3.0 * delta, 1.0))
+	_retarget_t -= delta
+	if _retarget_t <= 0.0:
+		_retarget_t = 0.35
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e == null or not is_instance_valid(e) or bool(e.get("dead")):
+				continue
+			var best = null
+			var bd := 1.0e9
+			for h in [hero, hero2]:
+				if h.dead:
+					continue
+				var d: float = h.global_position.distance_squared_to(e.global_position)
+				if d < bd:
+					bd = d
+					best = h
+			if best != null and e.get("hero") != best:
+				e.hero = best
+	# yerde yatan: ortağı yanında 2,5 sn durursa %40 canla kalkar
+	for pair in [[hero, hero2], [hero2, hero]]:
+		var down = pair[0]
+		var mate = pair[1]
+		if not down.dead or ended:
+			_revive.erase(down)
+			continue
+		var near: bool = not mate.dead and mate.global_position.distance_to(down.global_position) < 2.0
+		var p := float(_revive.get(down, 0.0))
+		p = p + delta if near else maxf(p - delta * 0.5, 0.0)
+		_revive[down] = p
+		if near and int(p * 4.0) != int((p - delta) * 4.0):
+			Sfx.play("coin", -16.0, 0.05, 0, 0.8 + p * 0.3)
+		if p >= 2.5:
+			_revive.erase(down)
+			down.revive(0.4)
+			hud.banner(tr("BACK ON YOUR FEET"), "")
+	hud.revive = _revive
+
+
+func _on_coop_died(who) -> void:
+	if ended:
+		return
+	var other = hero2 if who == hero else hero
+	if other != null and not other.dead:
+		hud.banner(tr("YOUR TWIN HAS FALLEN"), tr("Stand beside them to lift them up"))
+		return
+	_on_hero_died()
+
+
 func _on_hero_died() -> void:
 	ended = true
 	GameData.last_run_msg = tr("The stars remember you. Gathered this run: %d stardust") % GameData.run_dust
@@ -3197,6 +3313,8 @@ func _abandon() -> void:
 
 
 func _leave() -> void:
+	GameData.coop_unbind()
+	GameData.run_hp2 = -1.0
 	GameData.clear_saved_run()
 	GameData.run_room = 0
 	GameData.run_hp = -1.0

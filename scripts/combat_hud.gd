@@ -11,6 +11,8 @@ const Elements = preload("res://scripts/elements.gd")
 var zone_el := ""          # bu bölgenin elementi (room.gd verir)
 
 var hero = null
+var hero2 = null          # İKİZLER: 2. oyuncu
+var revive := {}          # yerde yatan kahraman -> kaldırma ilerlemesi
 var dust := 0
 var wave := 0
 var wave_total := 1
@@ -128,6 +130,27 @@ func _draw() -> void:
 		draw_rect(Rect2(bx + Vector2(0, bh - 6.0), Vector2(bw * sf, 6.0)), Color(0.6, 0.85, 1.0))
 	draw_rect(Rect2(bx - Vector2(4, 4), Vector2(bw + 8, bh + 8)), gold, false, 2.0)
 	_text("%d / %d" % [int(ceil(hero.hp)), int(hero.max_hp)], bx + Vector2(bw * 0.5, bh - 3.0), 18, UI.CREAM)
+	# İKİZLER: 2. oyuncunun can çubuğu sağ üstte
+	if hero2 != null and is_instance_valid(hero2):
+		var b2 := Vector2(size.x - 40.0 - bw, 96.0)
+		var p2c := Color(0.75, 0.55, 1.0)
+		draw_rect(Rect2(b2 - Vector2(4, 4), Vector2(bw + 8, bh + 8)), Color(0.02, 0.03, 0.1, 0.85))
+		var f2 := clampf(hero2.hp / hero2.max_hp, 0.0, 1.0)
+		draw_rect(Rect2(b2, Vector2(bw * f2, bh)), p2c if not hero2.dead else Color(0.4, 0.4, 0.45))
+		draw_rect(Rect2(b2 - Vector2(4, 4), Vector2(bw + 8, bh + 8)), p2c, false, 2.0)
+		_text("P2  %d / %d" % [int(ceil(hero2.hp)), int(hero2.max_hp)], b2 + Vector2(bw * 0.5, bh - 3.0), 18, UI.CREAM)
+		_text("P1", bx + Vector2(-22, bh - 3.0), 16, gold)
+	# yerde yatanların üstünde kaldırma halkası
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		for h in revive:
+			if h == null or not is_instance_valid(h) or not h.dead:
+				continue
+			var sp: Vector2 = cam.unproject_position(h.global_position + Vector3(0, 1.6, 0))
+			var pr := clampf(float(revive[h]) / 2.5, 0.0, 1.0)
+			draw_arc(sp, 26.0, 0.0, TAU, 32, Color(1, 1, 1, 0.25), 4.0)
+			draw_arc(sp, 26.0, -PI * 0.5, -PI * 0.5 + TAU * pr, 32, gold, 5.0)
+			_text(tr("REVIVE"), sp + Vector2(0, 50), 15, UI.CREAM)
 	_text(tr("%d stardust") % dust, bx + Vector2(0, bh + 38.0), 20, UI.CREAM, false)
 	_draw_elements(bx + Vector2(0, bh + 68.0))
 

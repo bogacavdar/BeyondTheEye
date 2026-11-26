@@ -196,7 +196,7 @@ func _update_aim() -> void:
 	if _aim_lock_t > 0.0:
 		_apply_lock()
 		return
-	if GameData.input_mode != "mouse":
+	if GameData.input_mode != "mouse" or pad_dev >= 0:
 		_pad_aim()
 		return
 	var mp := get_viewport().get_mouse_position()
@@ -223,7 +223,8 @@ func _pad_aim() -> void:
 	var right := b.x
 	right.y = 0.0
 	right = right.normalized()
-	var rs := Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
+	var adev := pad_dev if pad_dev >= 0 else GameData.p1_pad
+	var rs := Vector2(Input.get_joy_axis(adev, JOY_AXIS_RIGHT_X), Input.get_joy_axis(adev, JOY_AXIS_RIGHT_Y))
 	if rs.length() > 0.35:
 		aim = (right * rs.x - fwd * rs.y).normalized()
 		aim_point = global_position + aim * 5.0
@@ -284,7 +285,76 @@ func _face(dir: Vector3, delta: float, spd := 30.0) -> void:
 
 # ---------------------------------------------------------------- ana döngü
 
+## İKİZLER (yerel co-op): pid 0 = 1. oyuncu (klavye/fare ve kendi kontrolcüsü), pid 1 = 2. oyuncu.
+## 2. oyuncu yalnızca kendi kontrolcüsünü (pad_dev) doğrudan okur; eylem tablosu (InputMap) 1. oyuncuya kalır.
+var pid := 0
+var pad_dev := -1
+var _pad_now := {}
+var _pad_prev := {}
+const PAD_BTN := {"fire": JOY_BUTTON_X, "heavy": JOY_BUTTON_Y, "dash": JOY_BUTTON_A, "parry": JOY_BUTTON_B,
+	"skill_1": JOY_BUTTON_LEFT_SHOULDER, "skill_2": JOY_BUTTON_RIGHT_SHOULDER, "interact": JOY_BUTTON_X}
+
+
+func _poll_pad() -> void:
+	if pad_dev < 0:
+		return
+	_pad_prev = _pad_now.duplicate()
+	for a in PAD_BTN:
+		_pad_now[a] = Input.is_joy_button_pressed(pad_dev, PAD_BTN[a])
+	_pad_now["skill_3"] = Input.get_joy_axis(pad_dev, JOY_AXIS_TRIGGER_RIGHT) > 0.5
+	_pad_now["sprint"] = Input.get_joy_axis(pad_dev, JOY_AXIS_TRIGGER_LEFT) > 0.5 or Input.is_joy_button_pressed(pad_dev, JOY_BUTTON_LEFT_STICK)
+
+
+func _mv() -> Vector2:
+	if pad_dev < 0:
+		return Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var v := Vector2(Input.get_joy_axis(pad_dev, JOY_AXIS_LEFT_X), Input.get_joy_axis(pad_dev, JOY_AXIS_LEFT_Y))
+	if Input.is_joy_button_pressed(pad_dev, JOY_BUTTON_DPAD_LEFT): v.x = -1.0
+	if Input.is_joy_button_pressed(pad_dev, JOY_BUTTON_DPAD_RIGHT): v.x = 1.0
+	if Input.is_joy_button_pressed(pad_dev, JOY_BUTTON_DPAD_UP): v.y = -1.0
+	if Input.is_joy_button_pressed(pad_dev, JOY_BUTTON_DPAD_DOWN): v.y = 1.0
+	if v.length() < 0.2:
+		return Vector2.ZERO
+	return v.limit_length(1.0)
+
+
+func _held(a: String) -> bool:
+	if pad_dev < 0:
+		return Input.is_action_pressed(a)
+	return bool(_pad_now.get(a, false))
+
+
+func _jp(a: String) -> bool:
+	if pad_dev < 0:
+		return Input.is_action_just_pressed(a)
+	return bool(_pad_now.get(a, false)) and not bool(_pad_prev.get(a, false))
+
+
+## Yerde yatan oyuncuyu kaldır (co-op): canın bir kısmıyla geri gelir
+func revive(frac: float) -> void:
+	if not dead:
+		return
+	dead = false
+	state = "free"
+	hp = max_hp * frac
+	_invuln = 2.0
+	var t := create_tween()
+	t.tween_property(pivot, "rotation:x", 0.0, 0.4)
+	t.parallel().tween_property(pivot, "position:y", 0.0, 0.4)
+	Fx.flash_light(global_position + Vector3(0, 1.2, 0), Color(1.0, 0.9, 0.6), 8.0, 8.0, 0.5)
+	Sfx.play("coin", -4.0, 0.0, 0, 0.6)
+
+
+## 2. oyuncunun pelerini mor-turkuaz: iki kahraman ekranda ayırt edilsin
+func tint_p2() -> void:
+	if m_navy != null:
+		m_navy.albedo_color = Color(0.35, 0.12, 0.45)
+	if m_navy2 != null:
+		m_navy2.albedo_color = Color(0.12, 0.4, 0.45)
+
+
 func _physics_process(delta: float) -> void:
+	_poll_pad()
 	_ls_budget = minf(_ls_budget + max_hp * 0.03 * delta, max_hp * 0.03)
 	_t += delta
 	dash_cd -= delta
@@ -323,7 +393,7 @@ func _physics_process(delta: float) -> void:
 	_update_aim()
 	var move := Vector3.ZERO
 	if not frozen and camera != null:
-		var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		var input := _mv()
 		var b: Basis = camera.global_transform.basis
 		var fwd := -b.z
 		fwd.y = 0.0
@@ -334,7 +404,7 @@ func _physics_process(delta: float) -> void:
 		move = right * input.x - fwd * input.y
 		if move.length() > 1.0:
 			move = move.normalized()
-		sprinting = Input.is_action_pressed("sprint") and move.length() > 0.1 and state == "free"
+		sprinting = _held("sprint") and move.length() > 0.1 and state == "free"
 		_read_actions(move)
 
 	var spd_now := SPEED * (1.0 + float(st["move_speed"]) / 100.0) * (SPRINT_MULT if sprinting else 1.0)
@@ -442,27 +512,27 @@ func _recovering() -> bool:
 
 
 func _read_actions(move: Vector3) -> void:
-	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0:
+	if _jp("dash") and dash_cd <= 0.0:
 		if state == "free" or _recovering() or (state == "parry" and _parry_t <= 0.0):
 			_start_dash(move.normalized() if move.length() > 0.1 else aim)
 			return
-	if Input.is_action_just_pressed("parry") and _parry_cd <= 0.0 and (state == "free" or _recovering()) and dash_t <= 0.0:
+	if _jp("parry") and _parry_cd <= 0.0 and (state == "free" or _recovering()) and dash_t <= 0.0:
 		state = "parry"
 		_parry_t = PARRY_WINDOW * (1.0 + float(st["parry_window"]) / 100.0)
 		_parry_cd = PARRY_COOLDOWN
 		Sfx.play("switch", -14.0, 0.05, 0, 0.7)
 		return
 	for i in 3:
-		if Input.is_action_just_pressed("skill_%d" % (i + 1)) and float(skill_cd[i]) <= 0.0 and dash_t <= 0.0:
+		if _jp("skill_%d" % (i + 1)) and float(skill_cd[i]) <= 0.0 and dash_t <= 0.0:
 			if state == "free" or _recovering():
 				_use_skill(i)
 				return
-	if Input.is_action_just_pressed("fire"):
+	if _jp("fire"):
 		if state == "free" and dash_t <= 0.0:
 			_start_attack(kit["combo"][_combo_i])
 		elif state == "attack":
 			_queued = "fire"
-	if Input.is_action_just_pressed("heavy") and heavy_cd <= 0.0:
+	if _jp("heavy") and heavy_cd <= 0.0:
 		if state == "free" and dash_t <= 0.0:
 			_start_attack(kit["heavy"])
 		elif state == "attack":

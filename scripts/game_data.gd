@@ -280,6 +280,12 @@ static var comp_runs := {}               # yoldaş -> birlikte girilen run sayı
 ## SONSUZ GÖKYÜZÜ (NG+): Balık yenilince açılır. Döngü arttıkça düşmanlar güçlenir, bosslar başka burçların yankısını taşır,
 ## ödüller artar. sky_best = açılmış en yüksek döngü, sky_cycle = seçili başlangıç döngüsü, run_cycle = bu run'ın döngüsü.
 static var sky_best := 0
+## İKİZLER (yerel co-op): coop seçildiyse run iki kahramanla oynanır. p2_pad: 2. oyuncunun kontrolcüsü,
+## p1_pad: 1. oyuncunun kontrolcüsü (yoksa -1: 1. oyuncu klavye ve fare kullanır)
+static var coop := false
+static var p1_pad := 0
+static var p2_pad := -1
+static var run_hp2 := -1.0
 static var achievements := {}            # başarım kimliği -> açıldığı zaman
 static var stats := {}                   # sayaçlar: parries, kills
 static var almanac := {}                 # almanak: "zone:<burç>" ve "<burç>:<tür>" -> sayı
@@ -311,6 +317,7 @@ static var pisces_defeated := false     # Balık en az bir kez yenildi mi
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
 static func start_run() -> void:
 	run_rising = ""
+	run_hp2 = -1.0
 	run_cycle = clampi(sky_cycle, 0, sky_best)
 	run_room = 0
 	run_hp = -1.0
@@ -549,7 +556,7 @@ static func go_save() -> void:
 static func snapshot_run() -> void:
 	saved_run = {"room": run_room, "hp": run_hp, "dust": run_dust, "boons": run_boons.duplicate(),
 		"reward": run_reward, "revives_used": run_revives_used, "unbroken_used": run_unbroken_used,
-		"weapon": chosen_weapon, "rising": run_rising, "cycle": run_cycle}
+		"weapon": chosen_weapon, "rising": run_rising, "cycle": run_cycle, "coop": coop, "hp2": run_hp2}
 
 
 static func has_saved_run() -> bool:
@@ -564,6 +571,8 @@ static func resume_run() -> void:
 	run_boons = Array(saved_run.get("boons", [])).duplicate()
 	run_rising = String(saved_run.get("rising", ""))
 	run_cycle = int(saved_run.get("cycle", 0))
+	coop = bool(saved_run.get("coop", false))
+	run_hp2 = float(saved_run.get("hp2", -1.0))
 	run_reward = String(saved_run.get("reward", ""))
 	run_revives_used = int(saved_run.get("revives_used", 0))
 	run_unbroken_used = bool(saved_run.get("unbroken_used", false))
@@ -687,6 +696,45 @@ static func setup_input() -> void:
 	_axis("sprint", JOY_AXIS_TRIGGER_LEFT, 1.0)
 	_pad("sprint", [JOY_BUTTON_LEFT_STICK])
 	_pad("pause", [JOY_BUTTON_START, JOY_BUTTON_BACK])
+
+
+## Co-op kontrolcü dağıtımı. 2 kontrolcü: 1. oyuncu ilkini, 2. oyuncu ikincisini kullanır.
+## 1 kontrolcü: 1. oyuncu klavye ve fare, 2. oyuncu kontrolcü. Hiç yoksa co-op açılamaz (false döner).
+## Eylem tablosundaki kontrolcü olayları yalnızca 1. oyuncunun cihazına bağlanır, böylece 2. oyuncunun
+## tuşları 1. oyuncuyu oynatmaz.
+static func coop_bind() -> bool:
+	var pads := Input.get_connected_joypads()
+	if pads.is_empty() and OS.get_environment("BTE_FAKE_PAD") != "":
+		pads = [0]   # yalnızca otomatik testler için
+	if pads.is_empty():
+		return false
+	if pads.size() >= 2:
+		p1_pad = int(pads[0])
+		p2_pad = int(pads[1])
+	else:
+		p1_pad = -1
+		p2_pad = int(pads[0])
+	_set_pad_device(p1_pad if p1_pad >= 0 else 15)
+	return true
+
+
+## Tek oyuncuya dönüş: kontrolcü olayları yine bütün cihazlardan okunur
+static func coop_unbind() -> void:
+	p1_pad = 0
+	p2_pad = -1
+	_set_pad_device(-1)
+
+
+static func _set_pad_device(dev: int) -> void:
+	for action in InputMap.get_actions():
+		if String(action).begins_with("ui_"):
+			continue
+		for ev in InputMap.action_get_events(action):
+			if ev is InputEventJoypadButton or ev is InputEventJoypadMotion:
+				InputMap.action_erase_event(action, ev)
+				var nev: InputEvent = ev.duplicate()
+				nev.device = dev
+				InputMap.action_add_event(action, nev)
 
 
 static func _pad(action: String, buttons: Array) -> void:

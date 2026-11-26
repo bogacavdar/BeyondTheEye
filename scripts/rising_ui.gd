@@ -68,6 +68,27 @@ func open() -> void:
 	cdl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cdl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_box.add_child(cdl)
+	# İKİZLER: yerel co-op (bilgisayarda, en az bir kontrolcüyle)
+	if not GD.is_mobile():
+		var pads := Input.get_connected_joypads().size()
+		var crow := HBoxContainer.new()
+		crow.alignment = BoxContainer.ALIGNMENT_CENTER
+		crow.add_theme_constant_override("separation", 14)
+		_box.add_child(crow)
+		var cb := UI.button(("♊︎  " + tr("TWINS: 2 PLAYERS")) if GD.coop else ("♊︎  " + tr("TWINS: OFF")), 18, Color(0.75, 0.55, 1.0) if GD.coop else UI.CREAM)
+		cb.custom_minimum_size = Vector2(330, 50)
+		cb.disabled = pads == 0 and not GD.coop
+		cb.pressed.connect(func():
+			GD.coop = not GD.coop
+			open())
+		crow.add_child(cb)
+		var hint := tr("Player 2 plays with a controller. One controller: Player 1 uses keyboard and mouse.") if pads > 0 else tr("Connect a controller for Player 2.")
+		if pads >= 2:
+			hint = tr("Two controllers: each player uses their own.")
+		var hl := UI.label(hint, 14, Color(0.75, 0.75, 0.85), 3)
+		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hl.custom_minimum_size = Vector2(520, 0)
+		crow.add_child(hl)
 	# SONSUZ GÖKYÜZÜ döngü seçimi (Balık yenildikten sonra)
 	if int(GD.sky_best) >= 1:
 		var st := UI.label(tr("ENDLESS SKY"), 22, Color(0.85, 0.65, 1.0), 4)

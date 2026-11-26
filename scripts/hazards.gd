@@ -26,6 +26,18 @@ static func hero_ok(hero) -> bool:
 
 
 ## Kahramana hasar + etki uygular; sonucu döndürür
+## Tehlikenin vurabileceği kahramanlar: tek oyunculu oyunda yalnızca hedef, co-op'ta ayakta olan herkes
+static func targets(hero) -> Array:
+	var out: Array = []
+	if hero != null and is_instance_valid(hero) and hero.is_inside_tree():
+		for h in hero.get_tree().get_nodes_in_group("heroes"):
+			if hero_ok(h):
+				out.append(h)
+	if out.is_empty() and hero_ok(hero):
+		out.append(hero)
+	return out
+
+
 static func hurt(hero, dmg: float, dir: Vector3, eff := "", parry := false) -> String:
 	if not hero_ok(hero):
 		return "miss"
@@ -104,8 +116,9 @@ class Blast extends Node3D:
 			ex.global_transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, 0.3, 0))
 			Fx.flash_light(global_position + Vector3(0, 1, 0), col, 4.0, radius * 2.5, 0.25)
 			Sfx.play("boom", -14.0, 0.2, 40, 1.5)
-			if H.hero_ok(hero) and H.flat_dist(hero.global_position, global_position) <= radius + 0.25:
-				H.hurt(hero, dmg, hero.global_position - global_position, eff)
+			for hh in H.targets(hero):
+				if H.flat_dist(hh.global_position, global_position) <= radius + 0.25:
+					H.hurt(hh, dmg, hh.global_position - global_position, eff)
 			if pool_life > 0.0:
 				var p = H.Pool.new()
 				p.hero = hero
@@ -159,14 +172,14 @@ class Line extends Node3D:
 				_bar.position.y = 0.9
 				_m.albedo_color.a = 0.9
 				Sfx.play("boom", -12.0, 0.1, 30, 1.9)
-				if H.hero_ok(hero):
-					var v: Vector3 = hero.global_position - global_position
+				for hh in H.targets(hero):
+					var v: Vector3 = hh.global_position - global_position
 					v.y = 0.0
 					var along := v.dot(dir)
 					var side := Vector3(-dir.z, 0, dir.x)
 					var sd := v.dot(side)
 					if along > -0.4 and along < length + 0.3 and absf(sd) < width * 0.5 + 0.35:
-						H.hurt(hero, dmg, side * signf(sd + 0.01), eff)
+						H.hurt(hh, dmg, side * signf(sd + 0.01), eff)
 		else:
 			_m.albedo_color.a = maxf(_m.albedo_color.a - delta * 3.0, 0.0)
 			scale.x = maxf(1.0 - (_t - delay) * 3.0, 0.05)
@@ -207,17 +220,20 @@ class Pool extends Node3D:
 		_m.albedo_color.a = (0.3 + 0.08 * sin(_t * 5.0)) * (1.0 - clampf((_t - life + 0.5) / 0.5, 0.0, 1.0))
 		_tick -= delta
 		var H = load("res://scripts/hazards.gd")
-		if _tick <= 0.0 and H.hero_ok(hero) and H.flat_dist(hero.global_position, global_position) <= radius:
+		if _tick <= 0.0:
 			_tick = 0.5
-			match eff:
-				"poison":
-					hero.apply_poison(dps, 1.0)
-				"slow", "freeze":
-					hero.apply_slow(0.5 if eff == "slow" else 0.25, 0.6)
-					if dps > 0.0:
-						hero.apply_poison(dps * 0.5, 0.5)
-				_:
-					hero.apply_poison(dps, 0.6)
+			for hh in H.targets(hero):
+				if H.flat_dist(hh.global_position, global_position) > radius:
+					continue
+				match eff:
+					"poison":
+						hh.apply_poison(dps, 1.0)
+					"slow", "freeze":
+						hh.apply_slow(0.5 if eff == "slow" else 0.25, 0.6)
+						if dps > 0.0:
+							hh.apply_poison(dps * 0.5, 0.5)
+					_:
+						hh.apply_poison(dps, 0.6)
 		if _t >= life:
 			queue_free()
 
@@ -254,10 +270,10 @@ class Shot extends Node3D:
 			var to: Vector3 = hero.global_position + Vector3(0, 1.0, 0) - global_position
 			vel = vel.lerp(to.normalized() * vel.length(), minf(homing * delta, 1.0))
 		global_position += vel * delta
-		if H.hero_ok(hero):
-			var d: Vector3 = hero.global_position + Vector3(0, 1.0, 0) - global_position
+		for hh in H.targets(hero):
+			var d: Vector3 = hh.global_position + Vector3(0, 1.0, 0) - global_position
 			if d.length() < radius + 0.3:
-				H.hurt(hero, dmg, vel, eff)
+				H.hurt(hh, dmg, vel, eff)
 				queue_free()
 				return
 		if _t > life or global_position.length() > 40.0:
@@ -310,19 +326,20 @@ class Spokes extends Node3D:
 		_m.albedo_color.a = (0.85 if live else 0.15 + 0.12 * sin(_t * 25.0)) * (1.0 - clampf((_t - life + 0.3) / 0.3, 0.0, 1.0))
 		_hit_cd -= delta
 		var H = load("res://scripts/hazards.gd")
-		if live and _hit_cd <= 0.0 and H.hero_ok(hero):
-			var v: Vector3 = hero.global_position - global_position
-			v.y = 0.0
-			var r := v.length()
-			if r > 0.9 and r < length + 1.3:
-				for i in arms:
-					var a := rotation.y + TAU * float(i) / float(arms)
-					var ad := Vector3(-sin(a), 0, -cos(a))
-					var side := Vector3(-ad.z, 0, ad.x)
-					if v.dot(ad) > 0.0 and absf(v.dot(side)) < width * 0.5 + 0.3:
-						_hit_cd = 0.6
-						H.hurt(hero, dmg, side * signf(spin), eff)
-						break
+		if live and _hit_cd <= 0.0:
+			for hh in H.targets(hero):
+				var v: Vector3 = hh.global_position - global_position
+				v.y = 0.0
+				var r := v.length()
+				if r > 0.9 and r < length + 1.3:
+					for i in arms:
+						var a := rotation.y + TAU * float(i) / float(arms)
+						var ad := Vector3(-sin(a), 0, -cos(a))
+						var side := Vector3(-ad.z, 0, ad.x)
+						if v.dot(ad) > 0.0 and absf(v.dot(side)) < width * 0.5 + 0.3:
+							_hit_cd = 0.6
+							H.hurt(hh, dmg, side * signf(spin), eff)
+							break
 		if _t >= life:
 			queue_free()
 
@@ -374,8 +391,9 @@ class Gust extends Node3D:
 		elif _t < warn + dur:
 			_em.initial_velocity_min = 12.0
 			_em.initial_velocity_max = 16.0
-			if H.hero_ok(hero) and hero.has_method("apply_pull"):
-				hero.apply_pull(hero.global_position + dir * 5.0, strength, 0.05)
+			for hh in H.targets(hero):
+				if hh.has_method("apply_pull"):
+					hh.apply_pull(hh.global_position + dir * 5.0, strength, 0.05)
 		else:
 			_em.emitting = false
 			if _t > warn + dur + 1.3:
