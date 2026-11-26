@@ -218,7 +218,7 @@ func _draw() -> void:
 		if GameData.input_mode == "pad":
 			hint_txt = tr("X attack  ·  Y heavy  ·  B parry (gold warnings)  ·  A dash (red warnings)  ·  LT sprint  ·  LB RB RT skills")
 		if GameData.input_mode != "touch":
-			_text(hint_txt, Vector2(size.x * 0.5, size.y - 18.0), 16, _a(UI.CREAM, 0.75 * a))
+			_text(hint_txt, Vector2(size.x * 0.5, size.y - 196.0), 16, _a(UI.CREAM, 0.85 * a))
 
 
 ## Element bilgisi: senin elementin (lütuflardan) ve bölgenin elementi; üstünlük durumu
