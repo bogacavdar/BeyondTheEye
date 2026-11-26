@@ -547,6 +547,47 @@ const GRADE := {
 }
 
 
+## IŞIK VE ATMOSFER (grafik kalitesine göre)
+##  yüksek: hacimli sis (güneşten ışık hüzmeleri), su bölgelerinde zemin yansımaları, yumuşak gölgeler
+##  orta: yalnızca yansımalar kapalı, sis hafif;  düşük: ikisi de kapalı, ortam gölgesi (SSAO) kapalı
+const ATMO := {
+	# bölge: [sis rengi, yoğunluk, yansıma]
+	"aries": [Color(0.55, 0.35, 0.25), 0.02, false], "taurus": [Color(0.4, 0.55, 0.3), 0.015, false],
+	"gemini": [Color(0.5, 0.6, 0.85), 0.015, false], "cancer": [Color(0.3, 0.45, 0.7), 0.02, true],
+	"leo": [Color(0.8, 0.6, 0.3), 0.018, false], "virgo": [Color(0.4, 0.6, 0.5), 0.015, false],
+	"libra": [Color(0.4, 0.7, 0.65), 0.015, true], "scorpio": [Color(0.3, 0.5, 0.2), 0.03, false],
+	"sagittarius": [Color(0.55, 0.45, 0.75), 0.012, false], "capricorn": [Color(0.7, 0.8, 0.9), 0.02, true],
+	"aquarius": [Color(0.4, 0.4, 0.8), 0.02, true], "pisces": [Color(0.6, 0.45, 0.85), 0.025, false],
+}
+
+
+func _atmosphere(env: Environment) -> void:
+	var q := int(GameData.gfx_quality)
+	var pc := not GameData.is_web()
+	if q <= 0:
+		env.ssao_enabled = false
+		env.glow_enabled = true
+		return
+	var a: Array = ATMO.get(zone, [Color(0.5, 0.5, 0.7), 0.015, false])
+	if pc and q >= 2:
+		env.volumetric_fog_enabled = true
+		env.volumetric_fog_albedo = a[0]
+		env.volumetric_fog_density = float(a[1]) * 0.55
+		env.volumetric_fog_emission = Color(a[0]) * 0.01
+		env.volumetric_fog_anisotropy = 0.6
+		env.volumetric_fog_length = 40.0
+		env.volumetric_fog_sky_affect = 0.2
+		if bool(a[2]):
+			env.ssr_enabled = true
+			env.ssr_max_steps = 48
+			env.ssr_fade_in = 0.2
+			env.ssr_fade_out = 2.0
+		for c in get_children():
+			if c is DirectionalLight3D:
+				c.light_volumetric_fog_energy = 1.6
+				c.shadow_blur = 1.5
+
+
 func _grade() -> void:
 	var g: Array = GRADE.get(zone, [1.0, 1.05, Color(0.02, 0.02, 0.08), 0.4])
 	for c in get_children():
@@ -555,6 +596,7 @@ func _grade() -> void:
 			env.adjustment_enabled = true
 			env.adjustment_saturation = float(g[0])
 			env.adjustment_contrast = float(g[1])
+			_atmosphere(env)
 			break
 	var layer := CanvasLayer.new()
 	layer.layer = -1

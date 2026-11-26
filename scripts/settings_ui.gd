@@ -59,6 +59,21 @@ func _ready() -> void:
 	fps.select(maxi(opts.find(GameData.max_fps), 0))
 	fps.item_selected.connect(_on_fps.bind(fps))
 	fps_row.add_child(fps)
+	# grafik kalitesi: düşük (zayıf cihazlar), orta, yüksek (sis, ışık hüzmeleri, yansımalar, tehlike ışıkları)
+	var gq_row := HBoxContainer.new()
+	gq_row.add_theme_constant_override("separation", 12)
+	grid.add_child(gq_row)
+	gq_row.add_child(UI.label("Graphics", 18, UI.CREAM))
+	var gq := OptionButton.new()
+	gq.focus_mode = Control.FOCUS_NONE
+	for o in ["Low", "Medium", "High"]:
+		gq.add_item(tr(o))
+	gq.select(clampi(GameData.gfx_quality, 0, 2))
+	gq.item_selected.connect(func(i: int):
+		GameData.gfx_quality = i
+		GameData.go_save())
+	gq_row.add_child(gq)
+	gq_row.add_child(UI.label(tr("(next room)"), 14, Color(0.7, 0.7, 0.78)))
 
 	vb.add_child(UI.label("Language", 20, UI.CREAM))
 	var fl := HBoxContainer.new()

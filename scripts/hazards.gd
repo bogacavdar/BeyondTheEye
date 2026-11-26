@@ -26,6 +26,12 @@ static func hero_ok(hero) -> bool:
 
 
 ## Kahramana hasar + etki uygular; sonucu döndürür
+## Tehlike ışıkları yalnızca bilgisayarda yüksek grafikte (sahnede aynı anda çok sayıda olabilir)
+static func light_ok() -> bool:
+	var GD = load("res://scripts/game_data.gd")
+	return int(GD.gfx_quality) >= 2 and not bool(GD.is_web())
+
+
 ## Tehlikenin vurabileceği kahramanlar: tek oyunculu oyunda yalnızca hedef, co-op'ta ayakta olan herkes
 static func targets(hero) -> Array:
 	var out: Array = []
@@ -83,6 +89,7 @@ class Blast extends Node3D:
 	var _t := 0.0
 	var _ring: MeshInstance3D
 	var _disc: MeshInstance3D
+	var _lt: OmniLight3D
 	var _dm: StandardMaterial3D
 
 	func _ready() -> void:
@@ -103,12 +110,23 @@ class Blast extends Node3D:
 		_disc.position.y = 0.06
 		_disc.scale = Vector3(0.05, 1, 0.05)
 		add_child(_disc)
+		# yüksek grafikte uyarı alanı zemine kendi renginde ışık vurur, dolduğunda güçlenir
+		if load("res://scripts/hazards.gd").light_ok():
+			_lt = OmniLight3D.new()
+			_lt.light_color = col
+			_lt.light_energy = 0.0
+			_lt.omni_range = radius * 1.8
+			_lt.position = Vector3(0, 0.8, 0)
+			_lt.shadow_enabled = false
+			add_child(_lt)
 
 	func _physics_process(delta: float) -> void:
 		_t += delta
 		var k := clampf(_t / delay, 0.0, 1.0)
 		_disc.scale = Vector3(k, 1, k)
 		_dm.albedo_color.a = 0.12 + 0.3 * k
+		if _lt != null:
+			_lt.light_energy = 0.4 + 1.6 * k
 		if _t >= delay:
 			var H = load("res://scripts/hazards.gd")
 			var ex = load("res://scripts/slash_fx.gd").make(0.0, TAU, radius * 0.2, radius, col, 0.3)
@@ -214,6 +232,13 @@ class Pool extends Node3D:
 		d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		d.position.y = 0.05
 		add_child(d)
+		if load("res://scripts/hazards.gd").light_ok():
+			var lt := OmniLight3D.new()
+			lt.light_color = col
+			lt.light_energy = 0.7
+			lt.omni_range = radius * 1.6
+			lt.position = Vector3(0, 0.6, 0)
+			add_child(lt)
 
 	func _physics_process(delta: float) -> void:
 		_t += delta
