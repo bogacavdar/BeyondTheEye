@@ -1,6 +1,6 @@
 # GÖZÜN ÖTESİ: Oyun Tasarım Belgesi (GDD)
 
-> Sürüm: 0.5.2 · Son güncelleme: 27 Kasım 2026 (Testçi 2. tur ölçümleri; boss evre süresi, Doğum Haritası azalan getiri, F tuşu kararları)
+> Sürüm: 0.5.3 · Son güncelleme: 27 Kasım 2026 (normal düşman tek vuruş kuralı; mekanik hasar tavanı yok)
 > Ekip: Boğaç (CEO: yön, test, astroloji) + Claude ajan ekibi (Analist, Yazılımcı, Testçi, Yönetici)
 > Adını Instagram kanalı @gozunotesi_'den alır ve görsel dili oradan gelir. İngilizce adı: **Beyond The Eye**.
 > Motor: Godot 4.7.2. Bu sürümdeki sayılar koddan doğrulandı (commit 1038b6e). Kod ile belge çelişirse önce bu belge güncellenir, sonra kod.
@@ -235,10 +235,8 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 
   `const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 1.25, "leo": 0.70, "virgo": 1.25, "libra": 1.45, "scorpio": 0.62, "sagittarius": 1.6, "capricorn": 1.25, "aquarius": 1.1, "pisces": 2.5}`. Testçi'nin önerisinden farkı: Balık 2,0 değil 2,5, çünkü Kova 1,1'de ~22 ve Balık en yüksek olmalı. Aslan boss'unun yavruları da sürü kuralına bağlıysa yukarıdaki varyant düzeltmesi boss'u da etkiler; Testçi yeniden ölçer.
   - **Balık notu [Yönetici kararı]:** `BOSS_DMG` 2,5 kalır, ama Balık'ın büyük tek vuruşları (`pisces_boss.gd` `BIG_HIT = 0,64` → etkin ~×1,6): kuyruk (26 ham → 41,6), girdap patlaması (28 → 44,8), çift ok çizgisi (20 → 32) ve burç yankıları (16–24 → 25,6–38,4). 100 canlı taban kahramana tek vuruş ≤ 45. Diğer saldırılar (kordon 18 → 45, kabarcık 14 → 35) tam ×2,5. Retro ve döngü çarpanları bunların üstüne biner.
-- **Boss tek vuruş tavanı (§15.3/3):** boss'ların en sert tek saldırıları ham 26–30 (Koç 30, Aslan 30, Yengeç 28, Oğlak 28, Balık 28). Yeni çarpanlarla Balık 28×2,5 = 70 ve Yay 24×1,6 ≈ 38 oluyor; 100 canlı kahramanda Balık kuralı bozuyor. Kural: **boss odasında** kahramanın aldığı tek bir vuruş, zırhtan önce, `0,40 × max_hp × (1 + 0,2 × Mars retrosu) × döngü hasar çarpanı` değerini aşamaz.
-  - Uygulama: `room.gd` boss odasında `hero.hit_cap_frac = 0.40` verir (normal odada 0, yani tavan yok). `hero.take_damage` başında `amount = minf(amount, hit_cap_frac × max_hp × retro_cyc)`, retro/döngü çarpanı room'dan verilir.
-  - Tavan boss'un yardımcılarına ve boss odasındaki tehlikelere de uygulanır (bunlar zaten daha düşük).
-  - Normal odalar için tavan yok (D5 onaylanmadı).
+- **Mekanik hasar tavanı yok [CEO KARARI]:** kahramanın aldığı hasara genel bir sınır konmaz (0.5.2'deki `hit_cap_frac` önerisi iptal; kodda uygulanmamıştı). Boss'ların büyük vuruşları kendi değerleriyle ayarlanır (Balık `BIG_HIT`, yukarıda). Normal düşmanlar için §13.8.
+- **Boss odasındaki yardımcılar (çağrılanlar dahil) [CEO KARARI]:** `BOSS_DMG` almaz. Hasar ve can çarpanı olarak o bölgenin normal oda tablosunun **1. değerini** alır (`room.gd _tune_enemy`: boss odasında `di = 0`; bugün `mini(local_i, 3)` = 3, yani 4. oda değeri). Seçkin sınırı (§13.3, odada en fazla 2) geçerli.
 - Hedef boss süreleri §15.2; Aslan sonrası boss süreleri düz kalmamalı (her boss bir öncekinden uzun ya da eşit).
 
 ### 13.5 Oda ve tehlike kuralları
@@ -294,6 +292,105 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 
   (Kritik şansı tavansız: 5 bin %6,9 · 10 bin %7,6 · 30 bin %9,8 · 506 bin %29,3.)
 - Testçi'nin ölçtüğü yarım harita ×5,1 / ×8,7 tılsım, mühür ve lütufları da içeriyor; bu tavan yalnızca harita payını düşürür. Testçi uygulamadan sonra kendi yöntemiyle yeniden ölçer. Hedef ×2,5 / ×3 tutmazsa Yönetici önce `damage` ve `boss_dmg`'nin k değerini düşürür (k 30 → 20, 20 → 15), T değerleri değişmez.
+
+### 13.8 Normal düşman tek vuruş kuralı [CEO KARARI]
+> CEO: "Normal canlılar normal güçte olmalı; boss ayrı, normal düşman ayrı. Her koşulda %60 vuran canlı OP'dir, nerflenmeli; genel sınır/tavan koymayalım."
+> Testçi 3. tur (T-33/T-34, yeni profil): ilk odalarda tek vuruş canın %56–66'sı (Yengeç, Aslan, Terazi, Yay, Kova, Balık); boss odalarında Terazi Gölge yırtması 74 / pençe 54, Balık'ta ramcharge/pençe 88–117.
+
+- **Ölçü:** bir normal düşmanın tek saldırısı, o bölgeye gelen **yeni oyuncu profilinin** (§15.7) en yüksek canının **en fazla %30'u** olur.
+  - Seçkin (×1,25), seçkin özellikleri ve bölge varyant güçlendirmeleri dahildir. Aslan'da sürü + taç en çok ×1,40, Aslan dışı taç ×1,30.
+  - Retro ve Sonsuz Gökyüzü hariçtir.
+  - En kötü durum ölçülür: bölgenin 4. oda çarpanı, öğrenme kademesi hasar çarpanı dahil (§13.1).
+- **Uygulama:** mekanik tavan yok. Saldırının kendi `dmg` değeri (`enemy.gd _setup_kind` ve bölge varyantları) düşürülür. Varyantta tanımlı olmayan, taban saldırıyı kullanan rol için o varyanta kendi saldırı listesi yazılır (değerler aşağıda).
+- **İzin verilen en yüksek taban hasar:** `B(z) = 0,30 × can(z) / (DMG_MULT_z[oda 4] × kademe hasarı × 1,25 × güçlendirme)`, aşağı yuvarlanır.
+
+| Bölge | Yeni profil can (referans) | %30 | Oda 4 DMG_MULT × kademe | **B (taban tavanı)** |
+|---|---|---|---|---|
+| Koç | 100 | 30 | 1,30 × 0,8 | **23** |
+| Boğa | 100 | 30 | 1,55 × 0,8 | **19** |
+| İkizler | 115 | 34,5 | 1,85 × 0,8 | **18** |
+| Yengeç | 115 | 34,5 | 2,15 × 0,9 | **14** |
+| Aslan | 125 | 37,5 | 1,75 × 1,0 (× sürü/taç) | **12** Gölge · **13** diğer |
+| Başak | 125 | 37,5 | 2,16 | **13** |
+| Terazi | 125 | 37,5 | 2,71 | **11** |
+| Akrep | 150 | 45 | 2,07 | **17** |
+| Yay | 150 | 45 | 3,11 | **11** |
+| Oğlak | 170 | 51 | 3,59 | **11** |
+| Kova | 170 | 51 | 4,00 | **10** |
+| Balık | 170 | 51 | 4,70 | **8** |
+
+  Referans canlar Testçi 3. tur `tres3` yeni profil oda ortalamalarından, artan sıraya getirilip 5'e aşağı yuvarlandı (Analist). Testçi'nin bölge tablosu bundan yüksekse (ör. Balık 187), Yönetici B'yi o tabloyla yeniden hesaplar: B Balık'ta 9 olur.
+
+- **Yeni saldırı değerleri** (yalnızca B'yi aşanlar; diğerleri aynı kalır). "Taban" = `_setup_kind` değeri (Gölge pençe 16 / yırtma 22, Kâhin ışık mermisi 12, Atlayan pençe 12 / atılış 22, Kolos ezme 24 / deprem 26).
+
+| Bölge | Rol | Saldırı | Eski | **Yeni** |
+|---|---|---|---|---|
+| Koç | Kolos (taban) | smash / quake | 24 / 26 | **23 / 23** |
+| Boğa | Gölge (taban) | rend | 22 | **19** |
+| Boğa | Atlayan | burrow | 20 | **19** |
+| Boğa | Kolos | smash / fissure | 24 / 24 | **19 / 19** |
+| İkizler | Gölge (taban) | rend | 22 | **18** |
+| İkizler | Atlayan | burrow | 22 | **18** |
+| İkizler | Kolos | smash / quake | 24 / 26 | **18 / 18** |
+| Yengeç | Gölge (taban) | claw / rend | 16 / 22 | **14 / 14** |
+| Yengeç | Gölge | kabuk kıskacı (`_shell_snap`, 18 × dmg_mult) | 18 | **16** |
+| Yengeç | Atlayan | pulse | 16 | **14** |
+| Yengeç | Kolos | smash | 24 | **14** |
+| Aslan | Gölge (taban) | claw / rend | 16 / 22 | **12 / 12** |
+| Aslan | Kâhin | sunbeam | 16 | **13** |
+| Aslan | Atlayan (taban) | pounce | 22 | **13** |
+| Aslan | Kolos | smash | 26 | **13** |
+| Başak | Gölge | claw / reap | 16 / 20 | **13 / 13** |
+| Başak | Kâhin | seals | 16 | **13** |
+| Başak | Atlayan (taban) | pounce | 22 | **13** |
+| Başak | Kolos (taban) | smash / quake | 24 / 26 | **13 / 13** |
+| Terazi | Gölge (taban) | claw / rend | 16 / 22 | **11 / 11** |
+| Terazi | Kâhin | verdict | 16 | **11** |
+| Terazi | Atlayan (taban) | claw / pounce | 12 / 22 | **11 / 11** |
+| Terazi | Kolos (taban) | smash / quake | 24 / 26 | **11 / 11** |
+| Terazi | Kolos (Karşı Ağırlık) | birikmiş patlama (22 × dmg_mult) | 22 | **13** |
+| Akrep | Gölge (taban) | rend | 22 | **17** |
+| Akrep | Atlayan (taban) | pounce | 22 | **17** |
+| Akrep | Kolos | smash | 24 | **17** |
+| Yay | Gölge (taban) | claw / rend | 16 / 22 | **11 / 11** |
+| Yay | Atlayan | claw / burrow | 12 / 22 | **11 / 11** |
+| Yay | Kolos | smash / ballista | 24 / 22 | **11 / 11** |
+| Oğlak | Gölge | claw / butt | 16 / 20 | **11 / 11** |
+| Oğlak | Kâhin | icespikes | 14 | **11** |
+| Oğlak | Atlayan | ramcharge | 20 | **11** |
+| Oğlak | Kolos (taban) | smash / quake | 24 / 26 | **11 / 11** |
+| Kova | Gölge | claw | 15 | **10** |
+| Kova | Kâhin | stormorb | 14 | **10** |
+| Kova | Atlayan | claw / urn | 13 / 16 | **10 / 10** |
+| Kova | Kolos | smash / pulse | 24 / 16 | **10 / 10** |
+| Balık | Gölge | claw / ramcharge | 15 / 16 | **8 / 8** |
+| Balık | Kâhin | lure | 18 | **8** |
+| Balık | Atlayan | claw / bubbles | 13 / 13 | **8 / 8** |
+| Balık | Kolos | smash / tidewave | 25 / 18 | **8 / 8** |
+| Terazi, Kova, Balık | seçkin özelliği "patlayan" (`room.gd`, 14 × dmg_mult) | blast | 14 | **13 / 12 / 10** (diğer bölgeler 14) |
+
+  Değişmeyenler: Koç kor cini ölüm patlaması (10), Boğa taşçık (10), tüm Kâhin mermileri B altındakiler (Boğa 11, İkizler 12, Yengeç 14, Akrep 12, Yay 11), Akrep grab 16, Aslan roar 12, Yengeç bubbles 10, Akrep/İkizler/Oğlak pençeleri B altında kalanlar.
+- **Karışık (yabancı) yaratıklar:** önceki bölgeden gelen bir yaratık o odada, **odanın bölgesindeki aynı rolün** saldırı değerlerini kullanır; mekaniği kendi kalır. Altın saldırısı yerli altın saldırısının, kızıl saldırısı yerli kızıl saldırısının hasarını alır. Kendi değeri daha düşükse kendi değeri kalır.
+  - Örnek: Balık'ta Koç Atlayanı'nın ramcharge'ı 20 değil 8.
+  - Uygulama: `enemy.gd`'de bölge × rol × renk (altın/kızıl) için yerli değer tablosu `NATIVE_HIT`; `_ready` içinde `room_zone != zone` ise saldırı başına `dmg = min(dmg, NATIVE_HIT[room_zone][kind][renk])`.
+- **Baskı uyarısı:** bu değerler ileri bölgelerde vuruşları yaklaşık yarıya indirir; §13.2'deki baskı/sn hedefleri düşer. Analist önerisi [Yönetici onayı gerekir]: baskı yeniden ölçülünce açık, büyük tek vuruşla değil saldırı sıklığı (`cd`), aynı anda saldıran sayısı ya da dalga düşman sayısıyla kapatılır; `DMG_MULT` yükseltilirse bu tablo yeniden hesaplanır.
+
+- **Saldırı sıklığı telafisi [Yönetici kararı]:** vuruşlar küçülünce ileri bölgelerin baskısı düşmemeli; oyun zor kalır, yalnızca tek vuruşla öldürmez. Telafi büyük tek vuruşla değil, daha sık saldırıyla yapılır.
+  - `enemy.gd` `ATK_RATE`: odanın bölgesine göre (`room_zone`, §13.1 gibi) saldırı bekleme süresini (`cd`) ve toparlanma süresini (`recover`) bölen çarpan. **Hazırlık (`windup`) süresine dokunulmaz** (okunabilirlik kalır).
+  - Başlangıç değeri: o bölgede eski ortalama taban vuruş / yeni ortalama taban vuruş (bölge varyantlarının 4 rolündeki hasarlı saldırılar, düz ortalama). `cd` ×0,6'nın altına inmez, yani çarpan en çok 1/0,6 = 1,67.
+  - Öğrenme kademesi bölgeleri (Koç, Boğa, İkizler) ve öğretici etkilenmez (çarpan 1,0). Kalan açık aynı anda saldıran sayısıyla kapatılmaz; Testçi baskıyı ölçer, Yönetici tabloyu ayarlar.
+
+| Bölge | Eski ort. vuruş | Yeni ort. vuruş | Oran | **ATK_RATE** |
+|---|---|---|---|---|
+| Yengeç | 17,0 | 13,3 | 1,28 | **1,28** |
+| Aslan | 18,0 | 12,4 | 1,45 | **1,45** |
+| Başak | 19,4 | 12,9 | 1,51 | **1,51** |
+| Terazi | 19,7 | 11,0 | 1,79 | **1,67** (tavan) |
+| Akrep | 17,7 | 15,3 | 1,16 | **1,16** |
+| Yay | 18,4 | 11,0 | 1,68 | **1,67** (tavan) |
+| Oğlak | 20,0 | 11,0 | 1,82 | **1,67** (tavan) |
+| Kova | 16,3 | 10,0 | 1,63 | **1,63** |
+| Balık | 16,9 | 8,0 | 2,11 | **1,67** (tavan) |
 
 ## 14. ÖĞRETİCİ ODA [CEO KARARI: onaylı özellik]
 
@@ -430,7 +527,7 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 ### 15.3 "Sıkmaması" için kurallar
 1. **Ani sıçrama yok:** ardışık iki odada düşman etkin hasarı ya da canı %20'den fazla artmaz; bölge geçişinde de aynı kural.
 2. **Ölüm adil olmalı:** her saldırı okunur (altın ya da kızıl uyarı, ses); hiçbir ölümcül saldırı uyarısız gelmez. Ekran dışından uyarısız mermi gelmez.
-3. **Tek vuruşta ölüm yok:** tam candaki kahramanı tek bir normal düşman saldırısı öldürmemeli (hedef: tek vuruş ≤ beklenen en yüksek canın %30'u; boss odasında ≤ %40, kodda tavan §13.4).
+3. **Tek vuruşta ölüm yok:** normal düşmanın tek saldırısı yeni profil canının ≤ %30'u (§13.8, kendi değerleriyle; mekanik tavan yok). Boss'ların büyük vuruşları kendi değerleriyle ayarlanır (§13.4).
 4. **Kalabalık sınırı:** aynı anda saldıran düşman sınırı (2/3) korunur; ekranda aynı anda okunması gereken kızıl uyarı sayısı sınırlı kalır.
 5. **İlerleme hissi:** her ölüm sonrası harcanacak toz olmalı; ilk saatte en az bir silah ve birkaç harita yıldızı açılabilmeli.
 6. **Tekrar sıkıcılığı:** aynı bölgedeki 4 dövüş odası farklı dalga dizilimleri sunar; ileri bölgelerde karışık gruplar çeşitlilik verir.
@@ -464,7 +561,7 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 - Boss canı İkizler > Yengeç, Terazi > Akrep = Yay; boss canı Koç→Balık ×2,7 iken oda düşmanı canı ×3,85, hasarı ×4,3; Aslan sonrası boss süreleri 31–47 sn düz; Balık baskısı Kova'dan düşük (T-06) → **§13.4.**
 - İleri bölgelerde ilk odadan %50–60 seçkin, iki özellik; Akrep 1. odada 3 seçkin (T-03) → **§13.3.**
 - Tehlike sıklığı Terazi 12 sn → Akrep 6,5 sn → **§13.5.**
-- **Tek vuruş riski** (taban 100 cana Balık'ta Kolos depremi ≈ 122; §13.2'deki yeni tablolarla Başak–Kova'da azalır, Balık'ta aynı) → açık; D5.
+- **Tek vuruş riski** (T-33/T-34: ilk odalarda canın %56–66'sı) → **§13.8 (CEO kararı).**
 - Aslan–Balık dalga tabloları neredeyse aynı (T-07) → bu turda kapsam dışı; §17'de öneri.
 
 ### 15.6 Değişiklik önerileri
@@ -474,7 +571,7 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 | D2 | `_early()` odanın bölgesine baksın | **[CEO KARARI]** → §13.1 |
 | D3 | Tehlike aralıkları yumuşasın | **[CEO KARARI]** → §13.5 (D3'ten daha yumuşak değerler) |
 | D4 | İlk 3 bölgede seçkinler tek özellik | **[CEO KARARI]** → §13.3 |
-| D5 | Tek vuruş tavanı: normal düşman saldırısı en yüksek canın %35'ini geçmesin | [ÖNERİ – Analist; CEO'ya sorulmadı, uygulanmayacak] |
+| D5 | Tek vuruş tavanı (mekanik) | **İptal [CEO KARARI]:** genel tavan yok; yerine §13.8 (saldırı değerleri) |
 | D6 | `BASE_HP` (100) ve `DASH_COOLDOWN` (3 sn) ölçüme kadar değişmesin; Koç–İkizler oda can kaybı %15'i aşarsa önce `DASH_COOLDOWN` 2,5 sn denensin | [ÖNERİ – Analist; CEO'ya sorulmadı, uygulanmayacak] |
 | D7 | Öğreticide parry penceresi ×2 | **[CEO KARARI]** → §14.4 |
 
@@ -489,7 +586,8 @@ Bütün denge ölçümleri bu profillerle, profil başına **3 tekrar**la yapıl
 
 - Silah Yıldız Kılıcı, retro kapalı, döngü 0, tek oyuncu (§15.2'deki koşul).
 - Bölge karşılaştırması bölgenin 1. odasıyla yapılır; Koç muaf (§13.2).
-- Boss eğrisi (`BOSS_DMG`) yeni profille ölçülür; tek vuruş tavanı her üç profilde kontrol edilir.
+- Boss eğrisi (`BOSS_DMG`) yeni profille ölçülür.
+- **Her ölçüm turunda tek vuruş kontrolü:** her profil için turun **en büyük 5 vuruşu** listelenir: kaynak düşman (bölge, rol, seçkin/özellik, karışık mı, boss odası mı), saldırı adı, hasar, kahramanın en yüksek canına oranı. Yeni profilde normal düşman vuruşu %30'u aşarsa bulgu açılır (§13.8).
 - Yarım harita (~506 bin toz) yalnızca azalan getiri (§13.7) kontrolü için kullanılır.
 
 ## 16. Görsel dil
@@ -529,7 +627,7 @@ Bütün denge ölçümleri bu profillerle, profil başına **3 tekrar**la yapıl
 1. Ana karakter kim?
 2. İkincil uzak atış olsun mu? (Kentaur Yayı kısmen karşılıyor.)
 3. Tam run (60 oda) tahminen 80–100 dk sürer; Hades'te bir run ~30–45 dk. Bölge başına oda sayısı ya da ara dönüş noktaları düşünülmeli mi?
-4. D5 ve D6 (§15.6), Testçi'nin yeni ölçümlerinden sonra.
+4. D6 (§15.6), Testçi'nin yeni ölçümlerinden sonra.
 
 ## 19. Rehberlik [CEO KARARI]
 

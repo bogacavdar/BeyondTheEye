@@ -213,6 +213,7 @@ var doors: Array = []          # [{node, type, pos, title}]
 var _t := 0.0
 var _next_wave_t := 1.4
 var _elites := 0
+const VOLATILE_DMG := {"libra": 13.0, "aquarius": 12.0, "pisces": 10.0}   # "patlayan" seçkin özelliği (GDD §13.8), diğerleri 14
 var tc = null   # dokunmatik kontroller (telefon)   # bu odada doğan seçkin sayısı (GDD §13.3)
 ## BOSS EĞRİSİ (GDD §13.4): taban can ve hasar çarpanı (retro/döngü/co-op çarpanları bunların üstüne)
 const BOSS_HP := {"aries": 1400.0, "taurus": 1800.0, "gemini": 2200.0, "cancer": 2500.0, "leo": 2900.0, "virgo": 3300.0,
@@ -2361,6 +2362,8 @@ func _mixed_zone() -> String:
 ## Derinliğe ve retro lanetlerine göre güç çarpanları
 func _tune_enemy(e) -> void:
 	var di := mini(local_i, 3)
+	if is_boss:
+		di = 0   # §13.4: boss odasındaki yardımcılar bölgenin 1. oda çarpanlarını alır (BOSS_DMG almaz)
 	var rt: Dictionary = GameData.retro
 	var hpm: float = float(_zt(HP_MULT, HP_MULT_T, HP_MULT_G, HP_MULT_C, HP_MULT_L, HP_MULT_V, HP_MULT_B, HP_MULT_S, HP_MULT_Y, HP_MULT_K, HP_MULT_Q, HP_MULT_P)[di])
 	var dmm: float = float(_zt(DMG_MULT, DMG_MULT_T, DMG_MULT_G, DMG_MULT_C, DMG_MULT_L, DMG_MULT_V, DMG_MULT_B, DMG_MULT_S, DMG_MULT_Y, DMG_MULT_K, DMG_MULT_Q, DMG_MULT_P)[di])
@@ -2420,7 +2423,7 @@ func _on_killed(e) -> void:
 			b.hero = hero
 			b.radius = 2.3
 			b.delay = 0.9
-			b.dmg = 14.0 * float(e.dmg_mult)
+			b.dmg = float(VOLATILE_DMG.get(zone, 14.0)) * float(e.dmg_mult)   # §13.8
 			b.col = Color(1.0, 0.45, 0.2)
 			add_child(b)
 			b.global_position = Vector3(e.global_position.x, 0.0, e.global_position.z)

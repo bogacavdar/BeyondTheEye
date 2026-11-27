@@ -155,6 +155,8 @@ func _ready() -> void:
 		_aq_variant()
 	elif zone == "pisces":
 		_pi_variant()
+	_apply_hit_table()
+	_apply_native_cap()
 	if zone == "tutorial":
 		var keep: Array = []
 		for a in attacks:
@@ -201,14 +203,16 @@ func _ready() -> void:
 			ch = 1
 		a["chain"] = ch
 	var tier := _tier()
+	var atk_rate := float(ATK_RATE.get(_tier_zone(), 1.0))
 	for a in attacks:
 		a["dmg"] = float(a["dmg"]) * dmg_mult * em * float(tier["dmg"])
 		a["windup"] = float(a["windup"]) * float(tier["gold"]) * windup_mult
 		if not bool(a["parry"]) and String(a["name"]) != "mirror":
 			# kırmızı (parry'lenemez) saldırılar hızlı ama okunur; ilk bölgelerde daha yavaş
 			a["windup"] = float(a["windup"]) * float(tier["red"])
-		a["recover"] = float(a["recover"]) * float(tier["recover"])
-		a["cd"] = float(a["cd"]) * float(tier["cd"])
+		# §13.8 Yönetici kararı: küçülen vuruşun açığı daha sık saldırıyla kapanır (hazırlığa dokunulmaz)
+		a["recover"] = float(a["recover"]) * float(tier["recover"]) / atk_rate
+		a["cd"] = float(a["cd"]) * float(tier["cd"]) / atk_rate
 	hp = max_hp
 	for a in attacks:
 		_cd[a["name"]] = randf_range(0.3, 1.2)
@@ -2674,6 +2678,77 @@ func _end_act() -> void:
 	_set_state("recover")
 
 
+## NORMAL DÜŞMAN TEK VURUŞ KURALI (GDD §13.8): bölge × rol × saldırı adı -> yeni taban hasar.
+## Bölge varyantının (ya da varyantta tanımlı değilse taban rolün) saldırı listesinin bu örneğe ait kopyasına uygulanır;
+## _setup_kind'deki değerler (öğretici ve tabloda olmayan bölgeler) değişmez.
+const HIT_TABLE := {
+	"aries": {"brute": {"smash": 23.0, "quake": 23.0}},
+	"taurus": {"shade": {"rend": 19.0}, "leaper": {"burrow": 19.0}, "brute": {"smash": 19.0, "fissure": 19.0}},
+	"gemini": {"shade": {"rend": 18.0}, "leaper": {"burrow": 18.0}, "brute": {"smash": 18.0, "quake": 18.0}},
+	"cancer": {"shade": {"claw": 14.0, "rend": 14.0}, "leaper": {"pulse": 14.0}, "brute": {"smash": 14.0}},
+	"leo": {"shade": {"claw": 12.0, "rend": 12.0}, "caster": {"sunbeam": 13.0}, "leaper": {"pounce": 13.0}, "brute": {"smash": 13.0}},
+	"virgo": {"shade": {"claw": 13.0, "reap": 13.0}, "caster": {"seals": 13.0}, "leaper": {"pounce": 13.0}, "brute": {"smash": 13.0, "quake": 13.0}},
+	"libra": {"shade": {"claw": 11.0, "rend": 11.0}, "caster": {"verdict": 11.0}, "leaper": {"claw": 11.0, "pounce": 11.0}, "brute": {"smash": 11.0, "quake": 11.0}},
+	"scorpio": {"shade": {"rend": 17.0}, "leaper": {"pounce": 17.0}, "brute": {"smash": 17.0}},
+	"sagittarius": {"shade": {"claw": 11.0, "rend": 11.0}, "leaper": {"claw": 11.0, "burrow": 11.0}, "brute": {"smash": 11.0, "ballista": 11.0}},
+	"capricorn": {"shade": {"claw": 11.0, "butt": 11.0}, "caster": {"icespikes": 11.0}, "leaper": {"ramcharge": 11.0}, "brute": {"smash": 11.0, "quake": 11.0}},
+	"aquarius": {"shade": {"claw": 10.0}, "caster": {"stormorb": 10.0}, "leaper": {"claw": 10.0, "urn": 10.0}, "brute": {"smash": 10.0, "pulse": 10.0}},
+	"pisces": {"shade": {"claw": 8.0, "ramcharge": 8.0}, "caster": {"lure": 8.0}, "leaper": {"claw": 8.0, "bubbles": 8.0}, "brute": {"smash": 8.0, "tidewave": 8.0}},
+}
+
+
+## Karışık (yabancı) yaratıklar (GDD §13.8): odanın bölgesindeki aynı rolün [altın, kızıl] en yüksek vuruşu.
+## Yerli rolde o renk yoksa öbür rengin değeri. HIT_TABLE uygulanmış değerlerden üretildi (zz betiği, Yazılımcı).
+const NATIVE_HIT := {
+	"aries": {"shade": [16.0, 22.0], "caster": [14.0, 14.0], "leaper": [12.0, 20.0], "brute": [23.0, 23.0]},
+	"taurus": {"shade": [16.0, 19.0], "caster": [11.0, 11.0], "leaper": [12.0, 19.0], "brute": [19.0, 19.0]},
+	"gemini": {"shade": [16.0, 18.0], "caster": [12.0, 12.0], "leaper": [12.0, 18.0], "brute": [18.0, 18.0]},
+	"cancer": {"shade": [14.0, 14.0], "caster": [14.0, 14.0], "leaper": [14.0, 14.0], "brute": [14.0, 10.0]},
+	"leo": {"shade": [12.0, 12.0], "caster": [13.0, 13.0], "leaper": [12.0, 13.0], "brute": [13.0, 12.0]},
+	"virgo": {"shade": [13.0, 13.0], "caster": [13.0, 13.0], "leaper": [12.0, 13.0], "brute": [13.0, 13.0]},
+	"libra": {"shade": [11.0, 11.0], "caster": [11.0, 11.0], "leaper": [11.0, 11.0], "brute": [11.0, 11.0]},
+	"scorpio": {"shade": [16.0, 17.0], "caster": [12.0, 12.0], "leaper": [12.0, 17.0], "brute": [17.0, 16.0]},
+	"sagittarius": {"shade": [11.0, 11.0], "caster": [11.0, 11.0], "leaper": [11.0, 11.0], "brute": [11.0, 11.0]},
+	"capricorn": {"shade": [11.0, 11.0], "caster": [11.0, 11.0], "leaper": [11.0, 11.0], "brute": [11.0, 11.0]},
+	"aquarius": {"shade": [10.0, 10.0], "caster": [10.0, 10.0], "leaper": [10.0, 10.0], "brute": [10.0, 10.0]},
+	"pisces": {"shade": [8.0, 8.0], "caster": [8.0, 8.0], "leaper": [8.0, 8.0], "brute": [8.0, 8.0]},
+}
+
+
+
+## SALDIRI SIKLIĞI (GDD §13.8 Yönetici kararı): odanın bölgesine göre bekleme (cd) ve toparlanma süresini böler.
+## Başlangıç: o bölgede eski ortalama vuruş / yeni ortalama vuruş; cd x0,6'nın altına inmez (en çok 1/0,6 = 1,67).
+## Öğrenme kademesi (Koç-İkizler) ve öğretici etkilenmez. Testçi baskıyı ölçüp ayarlar.
+const ATK_RATE := {"cancer": 1.28, "leo": 1.45, "virgo": 1.51, "libra": 1.67, "scorpio": 1.16,
+	"sagittarius": 1.67, "capricorn": 1.67, "aquarius": 1.63, "pisces": 1.67}
+
+
+func _apply_hit_table() -> void:
+	if pebble or not HIT_TABLE.has(zone):
+		return
+	var zt: Dictionary = HIT_TABLE[zone]
+	if not zt.has(kind):
+		return
+	var kt: Dictionary = zt[kind]
+	for a in attacks:
+		if kt.has(String(a["name"])):
+			a["dmg"] = float(kt[String(a["name"])])
+
+
+
+## Yabancı yaratık: saldırı başına dmg = min(dmg, yerli rolün aynı renkteki vuruşu); mekanik kendi kalır
+func _apply_native_cap() -> void:
+	if room_zone == "" or room_zone == zone or not NATIVE_HIT.has(room_zone):
+		return
+	var nk: Dictionary = NATIVE_HIT[room_zone]
+	if not nk.has(kind):
+		return
+	var pair: Array = nk[kind]
+	for a in attacks:
+		var cap := float(pair[0]) if bool(a["parry"]) else float(pair[1])
+		a["dmg"] = minf(float(a["dmg"]), cap)
+
+
 ## ÖĞRENME KADEMELERİ (GDD §13.1): odanın bölgesine göre (karışık gruplarda düşmanın kendi bölgesine değil)
 ## dmg: hasar · slots: aynı anda saldıran · chain: seri tavanı · gold/red: hazırlık · recover · cd: bekleme
 const TIER := {
@@ -3378,7 +3453,7 @@ func _shell_snap() -> void:
 		var v: Vector3 = hero.global_position - global_position
 		v.y = 0.0
 		if v.length() <= 2.4 + 0.3:
-			hero.take_damage(18.0 * dmg_mult, v.normalized() if v.length() > 0.05 else _face, false)
+			hero.take_damage(16.0 * dmg_mult, v.normalized() if v.length() > 0.05 else _face, false)   # §13.8: 18 -> 16
 
 
 ## Merkür Habercisi: kahramandan uzağa ışınlanır
@@ -3547,7 +3622,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 			bw.hero = hero
 			bw.radius = 4.0
 			bw.delay = 0.7
-			bw.dmg = 22.0 * dmg_mult
+			bw.dmg = 13.0 * dmg_mult   # §13.8 Karşı Ağırlık: 22 -> 13
 			bw.col = Color(1.0, 0.7, 0.4)
 			bw.eff = "knock"
 			get_parent().add_child(bw)
