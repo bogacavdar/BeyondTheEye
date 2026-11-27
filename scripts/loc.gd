@@ -39,6 +39,8 @@ const TR := {
 	"Each gate's symbol shows its reward. Choose your path.": "Her kapının simgesi ödülünü gösterir. Yolunu seç.",
 	"You fell, but the stars remember. Light a star in your Birth Chart.": "Düştün ama yıldızlar unutmaz. Doğum Haritanda bir yıldız yak.",
 	"OPEN BIRTH CHART": "DOĞUM HARİTASINI AÇ",
+	"MIRROR GUARD": "AYNA MUHAFIZI",
+	"While its mirror is up, light hits bounce back. A heavy attack shatters it.": "Aynası açıkken hafif vuruşlar sana döner. Ağır saldırı aynayı kırar.",
 	"WASD move   ·   Space dash   ·   E interact   ·   Esc pause": "WASD yürü   ·   Boşluk atıl   ·   E etkileşim   ·   Esc duraklat",
 	# --- gezegen lütufları
 	"BLESSING OF %s": "%s LÜTFU",

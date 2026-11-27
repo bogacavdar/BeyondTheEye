@@ -160,6 +160,10 @@ class LightWave extends Node3D:
 			d.y = 0.0
 			if d.length() < 0.5 + width * 0.8 + float(e.radius):
 				_hit.append(e)
+				if e.has_method("mirror_up") and e.mirror_up():
+					# delip geçen dalga yoluna devam eder; aynadan yarı genişlikte bir parça kahramana döner
+					e.spawn_reflect(global_position, speed, dmg, 1.4, max_dist, width * 0.5)
+					continue
 				e.take_hit(dmg, dir, 6.0, false)
 				load(SKFX).sparks(e.global_position + Vector3(0, 1.2, 0), col, 10, 0.4)
 				Fx.hitstop(0.03)
@@ -449,6 +453,11 @@ class Boomerang extends Node3D:
 			d.y = 0.0
 			if d.length() < 1.2 + float(e.radius):
 				list.append(e)
+				if e.has_method("mirror_up") and e.mirror_up():
+					# hilal aynayı kesmez: kahramana seken hilal olarak döner
+					e.spawn_reflect(global_position, speed, dmg, 1.4, range_m + 4.0, 0.5)
+					queue_free()
+					return
 				e.take_hit(dmg, d.normalized() if d.length() > 0.05 else dir, 4.0, false)
 				Sfx.play("hit", -7.0, 0.1, 30)
 		if _t > 4.0:
@@ -641,6 +650,11 @@ class Hook extends Node3D:
 				var d: Vector3 = e.global_position - global_position
 				d.y = 0.0
 				if d.length() < 0.6 + float(e.radius):
+					if e.has_method("mirror_up") and e.mirror_up():
+						# kanca çekmez, geri seker
+						e.spawn_reflect(global_position, speed, dmg, 1.0, range_m)
+						_back = true
+						break
 					_caught = e
 					e.take_hit(dmg, -dir, 0.0, true)
 					if not e.dead:
@@ -725,6 +739,11 @@ class Arrow extends Node3D:
 			d.y = 0.0
 			if d.length() < 0.55 + float(e.radius):
 				_hit.append(e)
+				if not heavy and e.has_method("mirror_up") and e.mirror_up():
+					# Ayna Muhafızı: ok durur, kahramana doğru seken ok doğar (§13.9.6)
+					e.spawn_reflect(global_position, speed, dmg, (0.8 * (2.2 if big else 1.0)) * 1.2, range_m)
+					queue_free()
+					return
 				e.take_hit(dmg, dir, kb, heavy, crit)
 				if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_ranged_hit"):
 					owner_node.on_ranged_hit(dmg, e)

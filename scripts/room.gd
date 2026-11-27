@@ -2338,6 +2338,12 @@ var _door_hint := false
 
 
 func _tick_hints() -> void:
+	if not bool(GameData.hints.get("mirror", false)):
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e.has_method("mirror_up") and e.mirror_up():
+				GameData.mark_hint("mirror")
+				hud.show_hint("MIRROR GUARD", "While its mirror is up, light hits bounce back. A heavy attack shatters it.", EnemyScript.MIRROR_COL, 7.0)
+				break
 	if not bool(GameData.hints.get("elements", false)) and hud.zone_el != "" and GameData.hero_el != "":
 		if Elements.mult(GameData.hero_el, GameData.hero_el_n, hud.zone_el) != 1.0:
 			GameData.mark_hint("elements")

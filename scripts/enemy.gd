@@ -90,6 +90,12 @@ var partner = null          # İkiz Gölge: eşi
 var _enraged := false
 var _blink_cd := 2.0        # Merkür Habercisi ışınlanma
 var _mirror_node: MeshInstance3D
+var _mirror_ring: MeshInstance3D
+var _mirror_dome: MeshInstance3D
+var _mirror_icon: Label3D
+var _mirror_mat: StandardMaterial3D
+var _mirror_a := 0.0          # ayna görünürlüğü (0-1), açılış/kapanış geçişi
+const MIRROR_COL := Color(0.95, 0.9, 1.0)
 var _shell_hits := 0         # Kabuk Askeri: kısa sürede alınan vuruş sayısı
 var _shell_win := 0.0
 var crowned := 0.0           # Güneş Rahibi'nin tacı: süre (hasar +%50)
@@ -1563,17 +1569,54 @@ func _build_mguard() -> void:
 	disk.radial_segments = 24
 	_mirror_node.mesh = disk
 	var mm := StandardMaterial3D.new()
-	mm.albedo_color = Color(0.85, 0.95, 1.0)
+	mm.albedo_color = Color(0.95, 0.9, 1.0)
 	mm.metallic = 1.0
 	mm.roughness = 0.05
 	mm.emission_enabled = true
-	mm.emission = Color(0.7, 0.9, 1.0)
-	mm.emission_energy_multiplier = 1.5
+	mm.emission = MIRROR_COL
+	mm.emission_energy_multiplier = 3.5
+	_mirror_mat = mm
 	_mirror_node.material_override = mm
 	_mirror_node.position = Vector3(0, 1.4, -0.85)
 	_mirror_node.rotation.x = PI * 0.5
 	_mirror_node.visible = false
 	vis.add_child(_mirror_node)
+	# T-42: altın kenar halkası (döner), arkada yarı saydam altın kubbe, başın üstünde büyük ◈ simgesi
+	_mirror_ring = MeshInstance3D.new()
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 0.86
+	ring_mesh.outer_radius = 1.0
+	ring_mesh.rings = 40
+	_mirror_ring.mesh = ring_mesh
+	_mirror_ring.material_override = Fx.emissive(Color(1.0, 0.85, 0.45), 4.0)
+	_mirror_node.add_child(_mirror_ring)
+	_mirror_dome = MeshInstance3D.new()
+	var dm := SphereMesh.new()
+	dm.radius = 1.3
+	dm.height = 2.6
+	_mirror_dome.mesh = dm
+	var dmat := StandardMaterial3D.new()
+	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	dmat.albedo_color = Color(1.0, 0.8, 0.35, 0.14)
+	_mirror_dome.material_override = dmat
+	_mirror_dome.position = Vector3(0, 1.3, 0)
+	_mirror_dome.visible = false
+	vis.add_child(_mirror_dome)
+	_mirror_icon = Label3D.new()
+	_mirror_icon.text = "\u25C8"
+	_mirror_icon.font = load("res://scripts/ui_style.gd").symbol_font()
+	_mirror_icon.font_size = 128
+	_mirror_icon.pixel_size = 0.008
+	_mirror_icon.modulate = Color(1.0, 0.88, 0.5)
+	_mirror_icon.outline_size = 14
+	_mirror_icon.outline_modulate = Color(0.1, 0.06, 0.0, 0.9)
+	_mirror_icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_mirror_icon.no_depth_test = true
+	_mirror_icon.render_priority = 3
+	_mirror_icon.visible = false
+	add_child(_mirror_icon)
 
 
 # ---- Ay Işıklı Kıyı görünüşleri
@@ -2818,8 +2861,11 @@ func _red_attackers() -> int:
 	for o in get_tree().get_nodes_in_group("enemies"):
 		if o == self or o.get("phase") != null or o.get("atk") == null:
 			continue
+		var oa = o.get("atk")
+		if not (oa is Dictionary):
+			continue
 		var st = o.get("state")
-		if (st == "windup" or st == "act") and not (o.atk as Dictionary).is_empty() and not bool(o.atk.get("parry", true)):
+		if (st == "windup" or st == "act") and not (oa as Dictionary).is_empty() and not bool(oa.get("parry", true)):
 			n += 1
 	return n
 
@@ -2869,6 +2915,9 @@ func _set_state(s: String) -> void:
 		_show_tele()
 		if String(atk["name"]) == "burrow" or String(atk["name"]) == "mirror":
 			tele.visible = false
+		if String(atk["name"]) == "mirror":
+			Sfx.play("parry", -2.0, 0.0, 0, 2.0)   # T-42: kristal açılış
+			Sfx.play("switch", -6.0, 0.0, 0, 1.6)
 		if kind == "brute":
 			Sfx.play("bruteroar", -6.0, 0.08, 0)
 		else:
@@ -3688,16 +3737,14 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		dmg *= 2.0
 		crit = true
 	# AYNA MUHAFIZI: ayna duruşunda hafif vuruşlar sana yansır; ağır vuruş aynayı kırar
-	if zone == "gemini" and kind == "brute" and (state == "act" or state == "windup") and String(atk.get("name", "")) == "mirror":
-		if heavy:
-			Sfx.play("crush", -4.0, 0.05, 0, 1.4)
-			Fx.flash_light(global_position + Vector3(0, 1.5, 0), Color(0.7, 0.9, 1.0), 6.0, 5.0, 0.3)
+	if mirror_up():
+		# yalnızca kahramanın AĞIR saldırısı (Kentaur Yayı ağır oku dahil) aynayı kırar; diğer her vuruş yansır
+		var true_heavy: bool = heavy and hero != null and is_instance_valid(hero) and String(hero.get("last_atk_kind")) == "heavy"
+		if true_heavy:
+			_shatter_mirror(dir)
 			stun(1.4)
 		else:
-			HitFx.impact(get_parent(), global_position + Vector3(0, 1.4, 0) - dir * 0.9, -dir, Color(0.75, 0.9, 1.0), true)
-			Sfx.play("parry", -6.0, 0.05, 40, 1.8)
-			if hero != null and is_instance_valid(hero) and not hero.dead:
-				hero.take_damage(dmg * 0.5, -dir, false)
+			_reflect_instant(dmg, dir)
 			return
 	var stunned_by_parry: bool = state == "stun" and _parried
 	var final := dmg * (2.0 if stunned_by_parry else 1.0)
@@ -3794,6 +3841,114 @@ func _stardust(p: Vector3, dir: Vector3, n: int) -> void:
 	s.radial_segments = 6
 	s.rings = 3
 	Fx._burst(p, (dir + Vector3(0, 0.5, 0)).normalized(), n, m, s, 2.0, 6.0, 45.0, -3.0, 0.6, 0.5, 1.4)
+
+
+## AYNA MUHAFIZI (GDD §13.9.6, T-42)
+func mirror_up() -> bool:
+	return zone == "gemini" and kind == "brute" and not dead and (state == "act" or state == "windup") \
+		and String(atk.get("name", "")) == "mirror"
+
+
+func _mirror_point() -> Vector3:
+	if _mirror_node != null and is_instance_valid(_mirror_node):
+		return _mirror_node.global_position
+	return global_position + Vector3(0, 1.4, 0)
+
+
+## Yansıyan hasar: kahramanın bu düşmana vereceği hasarın %10'u (element dahil), tavan yok
+func reflect_value(d: float) -> float:
+	var elm: float = Elements.mult(GameData.hero_el, GameData.hero_el_n, String(Elements.ZONE_EL.get(zone, "")))
+	return d * elm * 0.10
+
+
+func mirror_flash(at: Vector3) -> void:
+	Sfx.play("parry", -3.0, 0.03, 0, 2.2)
+	Fx.flash_light(at, MIRROR_COL, 6.0, 4.0, 0.2)
+	HitFx.impact(get_parent(), at, Vector3.UP, MIRROR_COL, true)
+	if _mirror_mat != null:
+		_mirror_mat.emission_energy_multiplier = 6.0
+
+
+## Yakın dövüş / alan vuruşu: anında yansır (hasar zaten element dahil gelir)
+func _reflect_instant(d: float, dir: Vector3) -> void:
+	var mp := _mirror_point()
+	mirror_flash(mp)
+	if hero == null or not is_instance_valid(hero) or hero.dead:
+		return
+	var v := d * 0.10
+	_beam(mp, hero.global_position + Vector3(0, 1.0, 0))
+	var res: String = hero.take_damage(v, -dir, false)
+	if res == "hit":
+		reflect_feedback(hero, v)
+
+
+## Yansıma isabeti: kahramanın üstünde altın halka, "↩" önekli altın sayı, kısa sarsıntı
+static func reflect_feedback(h, v: float) -> void:
+	var par: Node = h.get_parent()
+	Juice.ring_wave(par, h.global_position + Vector3(0, 1.0, 0), Color(1.0, 0.85, 0.45), 1.6, 0.3)
+	Fx.shake(0.25)
+	var l := Label3D.new()
+	l.text = "\u21A9 %d" % int(round(v))
+	l.font_size = 64
+	l.pixel_size = 0.008
+	l.modulate = Color(1.0, 0.85, 0.4)
+	l.outline_size = 12
+	l.outline_modulate = Color(0.1, 0.05, 0.0)
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	par.add_child(l)
+	l.global_position = h.global_position + Vector3(0, 2.4, 0)
+	var tw := l.create_tween()
+	tw.tween_property(l, "global_position:y", l.global_position.y + 1.0, 0.7)
+	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.7)
+	tw.tween_callback(l.queue_free)
+
+
+## Kalkandan kahramana 0,15 sn'lik altın ışın
+func _beam(a: Vector3, b: Vector3) -> void:
+	var m := MeshInstance3D.new()
+	var bx := BoxMesh.new()
+	bx.size = Vector3(0.08, 0.08, 1.0)
+	m.mesh = bx
+	m.material_override = Fx.emissive(Color(1.0, 0.85, 0.45), 8.0)
+	get_parent().add_child(m)
+	var l := a.distance_to(b)
+	m.global_position = (a + b) * 0.5
+	if l > 0.05:
+		m.look_at(b, Vector3.UP)
+	m.scale = Vector3(1, 1, l)
+	var tw := m.create_tween()
+	tw.tween_interval(0.15)
+	tw.tween_callback(m.queue_free)
+
+
+## Mermi aynaya çarptı: o anki kahraman konumuna düz giden seken mermi doğar (anında hasar yok)
+func spawn_reflect(at: Vector3, speed: float, dmg_raw: float, length: float, range_m: float, width := 0.08) -> void:
+	mirror_flash(at)
+	if hero == null or not is_instance_valid(hero):
+		return
+	var to: Vector3 = hero.global_position - at
+	to.y = 0.0
+	var rs := ReflectedShot.new()
+	rs.hero = hero
+	rs.dir = to.normalized() if to.length() > 0.05 else -_face
+	rs.speed = minf(speed, 22.0)
+	rs.dmg = reflect_value(dmg_raw)
+	rs.length = maxf(length, 0.6)
+	rs.width = width
+	rs.max_dist = range_m
+	get_parent().add_child(rs)
+	rs.global_position = Vector3(at.x, 1.0, at.z)
+
+
+## Ağır vuruş aynayı kırar: altın cam kırıkları, kırılma sesi
+func _shatter_mirror(dir: Vector3) -> void:
+	var mp := _mirror_point()
+	Sfx.play("crush", -2.0, 0.05, 0, 1.4)
+	Sfx.play("parry", -6.0, 0.05, 0, 1.2)
+	Fx.flash_light(mp, Color(1.0, 0.88, 0.5), 8.0, 6.0, 0.35)
+	_shards(mp, dir, 26)
+	_mirror_a = 0.0
 
 
 func _shards(p: Vector3, dir: Vector3, n: int) -> void:
@@ -4066,7 +4221,23 @@ func _animate(delta: float) -> void:
 		_sink = 0.0
 	hp_bar.visible = absf(_sink) < 0.5
 	if _mirror_node != null:
-		_mirror_node.visible = (state == "act" or state == "windup") and nm == "mirror"
+		var up := (state == "act" or state == "windup") and nm == "mirror"
+		# açılış 0,2 sn'de büyüyerek, kapanış 0,15 sn'de sönerek
+		_mirror_a = move_toward(_mirror_a, 1.0 if up else 0.0, delta / (0.2 if up else 0.15))
+		var on := _mirror_a > 0.01
+		_mirror_node.visible = on
+		_mirror_dome.visible = on
+		_mirror_icon.visible = on
+		if on:
+			var k := _mirror_a
+			_mirror_node.scale = Vector3.ONE * maxf(k, 0.05)
+			_mirror_dome.scale = Vector3.ONE * maxf(k, 0.05)   # vis zaten size_k ölçekli: yarıçap 1,3 × size_k
+			_mirror_ring.rotation.y += delta * 2.5
+			_mirror_mat.emission_energy_multiplier = 3.5 + 1.2 * sin(_t * 23.0) + 0.6 * sin(_t * 9.0)   # yansıyan ışık titreşimi
+			var pulse := 1.0 + 0.18 * sin(_t * TAU / 0.6)
+			_mirror_icon.scale = Vector3.ONE * pulse
+			_mirror_icon.modulate.a = k
+			_mirror_icon.position = Vector3(0, 2.6 * size_k + 0.5, 0)
 	if _sky:
 		arm_lz += sin(_t * (14.0 if state == "act" else 7.0)) * 0.5
 		arm_rz -= sin(_t * (14.0 if state == "act" else 7.0)) * 0.5
@@ -4095,6 +4266,58 @@ func _animate(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- kâhin mermisi
+
+## SEKEN MERMİ (Ayna Muhafızı): güdümsüz, düz gider; yalnızca kahramana çarpar (atılırken çarpmaz)
+class ReflectedShot extends Node3D:
+	var hero = null
+	var dir := Vector3.FORWARD
+	var speed := 18.0
+	var dmg := 1.0
+	var length := 1.0
+	var width := 0.08
+	var max_dist := 14.0
+	var _dist := 0.0
+
+	func _ready() -> void:
+		var m := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(maxf(width, 0.07), 0.07, length)
+		m.mesh = b
+		m.material_override = Fx.emissive(Color(0.95, 0.9, 1.0), 8.0)
+		add_child(m)
+		var core := MeshInstance3D.new()
+		var s := SphereMesh.new()
+		s.radius = 0.13
+		s.height = 0.26
+		core.mesh = s
+		core.material_override = Fx.emissive(Color(1.0, 0.9, 0.6), 10.0)
+		core.position = Vector3(0, 0, -length * 0.5)
+		add_child(core)
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.9, 0.7)
+		l.light_energy = 2.0
+		l.omni_range = 3.0
+		add_child(l)
+		load("res://scripts/skill_fx.gd").trail(self, Color(1.0, 0.85, 0.45), 30, 0.16, 0.45)
+		look_at(global_position + dir, Vector3.UP)
+
+	func _physics_process(delta: float) -> void:
+		var step := speed * delta
+		global_position += dir * step
+		_dist += step
+		if hero != null and is_instance_valid(hero) and not hero.dead:
+			var d: Vector3 = hero.global_position - global_position
+			d.y = 0.0
+			if d.length() < 0.55 + width * 0.5:
+				var res: String = hero.take_damage(dmg, dir, false)
+				if res == "hit":
+					load("res://scripts/enemy.gd").reflect_feedback(hero, dmg)
+				queue_free()
+				return
+		var flat := Vector2(global_position.x, global_position.z)
+		if _dist > max_dist or flat.length() > 12.5:
+			queue_free()
+
 
 class Bolt extends Node3D:
 	var col := Color(1.0, 0.2, 0.3)
