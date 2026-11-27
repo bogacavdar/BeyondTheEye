@@ -62,7 +62,7 @@ func _layout() -> void:
 			b["skill"] = int(arc[i][3])
 		_buttons.append(b)
 	_buttons.append({"action": "dash", "label": "»", "pos": Vector2(W - 100.0 * u, H - 440.0 * u), "r": 66.0 * u, "sub": "DASH"})
-	_buttons.append({"action": "interact", "label": "E", "pos": Vector2(W - 120.0 * u, H - 640.0 * u), "r": 66.0 * u, "sub": "USE"})
+	_buttons.append({"action": "interact", "label": "", "pos": Vector2(W - 120.0 * u, H - 640.0 * u), "r": 66.0 * u, "sub": "USE"})
 	_buttons.append({"action": "pause", "label": "II", "pos": Vector2(W - 80.0 * u, 160.0 * u), "r": 46.0 * u, "sub": ""})
 	_view.queue_redraw()
 

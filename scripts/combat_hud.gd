@@ -163,6 +163,35 @@ func _text(s: String, pos: Vector2, fsize: int, col: Color, center := true, f: F
 	draw_string(ff, Vector2(x, pos.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, col)
 
 
+## Cümle içindeki tuş adları (büyük harf dönüşümünden muaf: Türkçede "Shift" -> "SHİFT" olmasın)
+const KEY_NAMES := ["Shift"]
+
+
+## Yazıyı çizer; içindeki tuş adlarını İngilizce, geri kalanını oyunun diliyle şekillendirir
+func _text_keys(s: String, pos: Vector2, fsize: int, col: Color, keys: Array) -> void:
+	var tl := TextLine.new()
+	var lang := TranslationServer.get_locale()
+	var rest := s
+	while rest != "":
+		var best := -1
+		var bk := ""
+		for k in keys:
+			var i := rest.find(String(k))
+			if i >= 0 and (best < 0 or i < best):
+				best = i
+				bk = String(k)
+		if best < 0:
+			tl.add_string(rest, _font, fsize, lang)
+			break
+		if best > 0:
+			tl.add_string(rest.substr(0, best), _font, fsize, lang)
+		tl.add_string(bk, _font, fsize, "en")
+		rest = rest.substr(best + bk.length())
+	var top := Vector2(pos.x - tl.get_size().x * 0.5, pos.y - tl.get_line_ascent())
+	tl.draw_outline(get_canvas_item(), top, 6, Color(0.02, 0.03, 0.1, 0.85))
+	tl.draw(get_canvas_item(), top, col)
+
+
 ## Parlak arenalarda okunsun diye yazının arkasına koyu yarı saydam şerit (T-21)
 func _strip(s: String, pos: Vector2, fsize: int, lines := 1) -> void:
 	var w := _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + 60.0
@@ -303,7 +332,7 @@ func _draw() -> void:
 		if GameData.input_mode == "pad":
 			hint_txt = tr("X attack  ·  Y heavy  ·  B parry (gold warnings)  ·  A dash (red warnings)  ·  LT sprint  ·  LB RB RT skills")
 		if GameData.input_mode != "touch":
-			_text(hint_txt, Vector2(size.x * 0.5, size.y - 196.0), 16, _a(UI.CREAM, 0.85 * a))
+			_text_keys(hint_txt, Vector2(size.x * 0.5, size.y - 196.0), 16, _a(UI.CREAM, 0.85 * a), KEY_NAMES)
 
 
 ## Element bilgisi: senin elementin (lütuflardan) ve bölgenin elementi; üstünlük durumu
