@@ -24,6 +24,8 @@ var dmg_mult := 1.0
 var elite := false       # seçkin: altın haleli, çok daha güçlü
 var windup_mult := 1.0   # Plüton retrosu: daha hızlı hazırlık
 ## ÖĞRETİCİ (zone = "tutorial", GDD §14.3): yalnızca bir saldırı türü, yavaş, düşük can
+var room_zone := ""      # odanın bölgesi (room.gd verir): öğrenme kademeleri buna bakar (GDD §13.1)
+var room_local := 0      # odanın bölge içindeki sırası (0-3 dövüş, 4 boss)
 var tut_only := ""        # "gold": yalnız parry'lenebilir · "red": yalnız kızıl · "": ikisi de
 var tut_hp := 0.0         # > 0 ise en yüksek can
 var tut_min_hp := 0.0     # > 0 ise can bunun altına inmez (parry adımı: 3 parry'den önce ölmez)
@@ -192,19 +194,19 @@ func _ready() -> void:
 		elif nm == "fireball":
 			ch = 3
 		# ilk bölgelerde seriler kısa (öğrenme alanı)
-		if _early():
-			ch = mini(ch, 2)
+		ch = mini(ch, int(_tier()["chain"]))
 		if zone == "tutorial":
 			ch = 1
 		a["chain"] = ch
+	var tier := _tier()
 	for a in attacks:
-		a["dmg"] = float(a["dmg"]) * dmg_mult * em * (0.8 if _early() else 1.0)
-		a["windup"] = float(a["windup"]) * (1.0 if _early() else 0.92) * windup_mult
+		a["dmg"] = float(a["dmg"]) * dmg_mult * em * float(tier["dmg"])
+		a["windup"] = float(a["windup"]) * float(tier["gold"]) * windup_mult
 		if not bool(a["parry"]) and String(a["name"]) != "mirror":
 			# kırmızı (parry'lenemez) saldırılar hızlı ama okunur; ilk bölgelerde daha yavaş
-			a["windup"] = float(a["windup"]) * (0.85 if _early() else 0.65)
-		a["recover"] = float(a["recover"]) * (1.1 if _early() else 0.95)
-		a["cd"] = float(a["cd"]) * (1.15 if _early() else 0.95)
+			a["windup"] = float(a["windup"]) * float(tier["red"])
+		a["recover"] = float(a["recover"]) * float(tier["recover"])
+		a["cd"] = float(a["cd"]) * float(tier["cd"])
 	hp = max_hp
 	for a in attacks:
 		_cd[a["name"]] = randf_range(0.3, 1.2)
@@ -2663,15 +2665,43 @@ func _end_act() -> void:
 	_set_state("recover")
 
 
-## İlk üç bölge (Koç, Boğa, İkizler) öğrenme alanı: daha yavaş, daha az saldırgan
+## ÖĞRENME KADEMELERİ (GDD §13.1): odanın bölgesine göre (karışık gruplarda düşmanın kendi bölgesine değil)
+## dmg: hasar · slots: aynı anda saldıran · chain: seri tavanı · gold/red: hazırlık · recover · cd: bekleme
+const TIER := {
+	"learn": {"dmg": 0.8, "slots": 2, "chain": 2, "gold": 1.0, "red": 0.85, "recover": 1.1, "cd": 1.15},
+	"cancer": {"dmg": 0.9, "slots": 2, "chain": 2, "gold": 0.97, "red": 0.80, "recover": 1.05, "cd": 1.10},
+	"leo": {"dmg": 1.0, "slots": 3, "chain": 3, "gold": 0.95, "red": 0.72, "recover": 1.0, "cd": 1.02},
+	"full": {"dmg": 1.0, "slots": 3, "chain": 3, "gold": 0.92, "red": 0.65, "recover": 0.95, "cd": 0.95},
+}
+
+
+func _tier_zone() -> String:
+	return room_zone if room_zone != "" else zone
+
+
+func _tier() -> Dictionary:
+	var z := _tier_zone()
+	if z == "aries" or z == "taurus" or z == "gemini" or z == "tutorial":
+		return TIER["learn"]
+	if z == "cancer":
+		return TIER["cancer"]
+	if z == "leo":
+		return TIER["leo"]
+	return TIER["full"]
+
+
+## İlk üç bölge (Koç, Boğa, İkizler) ve öğretici öğrenme alanı: daha yavaş, daha az saldırgan
 func _early() -> bool:
-	return zone == "aries" or zone == "taurus" or zone == "gemini" or zone == "tutorial"
+	var z := _tier_zone()
+	return z == "aries" or z == "taurus" or z == "gemini" or z == "tutorial"
 
 
 ## SALDIRI SIRASI: aynı anda en fazla birkaç düşman saldırır (Hades gibi); diğerleri çevrede bekler.
 ## İlk bölgelerde 2, sonra 3 düşman.
 func _attack_slots_full() -> bool:
-	var cap := 2 if _early() else 3
+	var cap := int(_tier()["slots"])
+	if _tier_zone() == "leo" and room_local < 2:
+		cap = 2   # Aslan geçiş kademesi: oda 1-2'de 2, oda 3-4'te 3
 	var n := 0
 	for o in get_tree().get_nodes_in_group("enemies"):
 		if o == self or o.get("phase") != null:

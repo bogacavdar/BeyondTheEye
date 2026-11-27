@@ -43,7 +43,7 @@ const ARENA_R := 11.0
 const BOSS_DEPTH := 4
 ## Her derinlik: dalgalar listesi; her dalga: düşman tipleri
 const COMBAT := [
-	[["shade", "shade"], ["shade", "caster", "shade"]],
+	[["shade", "shade", "shade"], ["shade", "caster", "shade"]],   # GDD §13.5: 3+3
 	[["shade", "leaper", "caster"], ["brute", "shade", "shade"]],
 	[["shade", "leaper", "caster", "shade"], ["brute", "caster", "shade", "leaper"]],
 	[["brute", "shade", "caster", "leaper", "shade"], ["caster", "leaper", "shade", "shade", "brute"]],
@@ -94,7 +94,7 @@ const COMBAT_V := [
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "caster", "shade"]],
 ]
 const HP_MULT_V := [2.35, 2.5, 2.6, 2.75]
-const DMG_MULT_V := [2.5, 2.6, 2.72, 2.85]
+const DMG_MULT_V := [2.10, 2.18, 2.28, 2.40]   # GDD §13.2
 const ELITE_CHANCE_V := [0.4, 0.45, 0.5, 0.5]
 const COMBAT_B := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
@@ -103,7 +103,7 @@ const COMBAT_B := [
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
 const HP_MULT_B := [2.6, 2.75, 2.9, 3.05]
-const DMG_MULT_B := [2.8, 2.9, 3.0, 3.15]
+const DMG_MULT_B := [1.93, 2.00, 2.07, 2.17]   # GDD §13.2
 const ELITE_CHANCE_B := [0.45, 0.5, 0.5, 0.55]
 const COMBAT_S := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
@@ -112,7 +112,7 @@ const COMBAT_S := [
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
 const HP_MULT_S := [2.85, 3.0, 3.15, 3.3]
-const DMG_MULT_S := [3.1, 3.2, 3.3, 3.45]
+const DMG_MULT_S := [2.36, 2.43, 2.50, 2.62]   # GDD §13.2
 const ELITE_CHANCE_S := [0.5, 0.5, 0.55, 0.55]
 const COMBAT_Y := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
@@ -121,7 +121,7 @@ const COMBAT_Y := [
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
 const HP_MULT_Y := [3.1, 3.25, 3.4, 3.6]
-const DMG_MULT_Y := [3.4, 3.5, 3.6, 3.75]
+const DMG_MULT_Y := [2.82, 2.90, 2.99, 3.11]   # GDD §13.2
 const ELITE_CHANCE_Y := [0.5, 0.55, 0.55, 0.6]
 const COMBAT_K := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
@@ -130,7 +130,7 @@ const COMBAT_K := [
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
 const HP_MULT_K := [3.35, 3.5, 3.7, 3.9]
-const DMG_MULT_K := [3.7, 3.8, 3.95, 4.1]
+const DMG_MULT_K := [3.24, 3.33, 3.46, 3.59]   # GDD §13.2
 const ELITE_CHANCE_K := [0.55, 0.55, 0.6, 0.6]
 const COMBAT_Q := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
@@ -139,7 +139,7 @@ const COMBAT_Q := [
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
 const HP_MULT_Q := [3.6, 3.75, 3.95, 4.15]
-const DMG_MULT_Q := [4.0, 4.1, 4.25, 4.4]
+const DMG_MULT_Q := [3.64, 3.73, 3.87, 4.00]   # GDD §13.2
 const ELITE_CHANCE_Q := [0.55, 0.6, 0.6, 0.65]
 const COMBAT_P := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
@@ -212,6 +212,11 @@ var victory := false
 var doors: Array = []          # [{node, type, pos, title}]
 var _t := 0.0
 var _next_wave_t := 1.4
+var _elites := 0   # bu odada doğan seçkin sayısı (GDD §13.3)
+## BOSS EĞRİSİ (GDD §13.4): taban can ve hasar çarpanı (retro/döngü/co-op çarpanları bunların üstüne)
+const BOSS_HP := {"aries": 1400.0, "taurus": 1800.0, "gemini": 2200.0, "cancer": 2500.0, "leo": 2900.0, "virgo": 3300.0,
+	"libra": 3600.0, "scorpio": 3700.0, "sagittarius": 4300.0, "capricorn": 4900.0, "aquarius": 5400.0, "pisces": 6000.0}
+const BOSS_DMG := {"pisces": 1.6}
 
 
 func _ready() -> void:
@@ -2199,6 +2204,14 @@ func _process(delta: float) -> void:
 				best = dist
 				near = d
 				p2_near = h == hero2
+	# E kuralı (GDD §8): kapı menzilindeki kahramanda klavye E'si yalnızca etkileşimdir
+	for h in ([hero, hero2] if hero2 != null else [hero]):
+		var hn := false
+		for d in doors:
+			var dp2: Vector3 = d["pos"]
+			if Vector2(h.global_position.x - dp2.x, h.global_position.z - dp2.z).length() < 2.6:
+				hn = true
+		h.interact_near = hn
 	hud.prompt = String(near["title"]) if near != null else ""
 	if near != null:
 		hud.prompt_glyph = String(near["glyph"])
@@ -2253,18 +2266,25 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 	var e = EnemyScript.new()
 	e.kind = kind
 	e.zone = _mixed_zone()
+	e.room_zone = zone
+	e.room_local = local_i
 	e.hero = hero
 	_tune_enemy(e)
 	var di := mini(local_i, 3)
 	var rt: Dictionary = GameData.retro
 	var elite_ch := float(_zt(ELITE_CHANCE, ELITE_CHANCE_T, ELITE_CHANCE_G, ELITE_CHANCE_C, ELITE_CHANCE_L, ELITE_CHANCE_V, ELITE_CHANCE_B, ELITE_CHANCE_S, ELITE_CHANCE_Y, ELITE_CHANCE_K, ELITE_CHANCE_Q, ELITE_CHANCE_P)[di]) + 0.15 * float(Retro.rank(rt, "moon")) + 0.1 * float(GameData.run_cycle)
 	if room_i >= 1 or Retro.rank(rt, "moon") > 0:
-		e.elite = randf() < elite_ch
+		# seçkin sınırı: bölgenin 1. odasında en fazla 1, diğer odalarda en fazla 2 (GDD §13.3)
+		var cap := 1 if local_i == 0 else 2
+		if _elites < cap:
+			e.elite = randf() < elite_ch
+			if e.elite:
+				_elites += 1
 	if e.elite and room_i >= 2:
-		# ortak seçkin özellikleri: ileri bölgelerde iki tane
+		# ortak seçkin özellikleri: Koç-İkizler'de tek, Yengeç'ten itibaren iki (odanın bölgesine göre)
 		var pool: Array = ["shielded", "swift", "splitting", "healer", "volatile", "phantom"]
 		pool.shuffle()
-		var n := 2 if (ZONE_ORDER.find(zone) >= 3 or (ZONE_ORDER.find(zone) >= 1 and local_i >= 3)) else 1
+		var n := 2 if ZONE_ORDER.find(zone) >= 3 else 1
 		e.affixes = pool.slice(0, n)
 	e._bounds = ARENA_R - 0.5
 	add_child(e)
@@ -2375,6 +2395,8 @@ func _spawn_mini(src, pos: Vector3) -> void:
 	e.kind = String(src.kind)
 	e.zone = String(src.zone)
 	e.mini = true
+	e.room_zone = zone
+	e.room_local = local_i
 	e.hero = hero
 	_tune_enemy(e)
 	e._bounds = ARENA_R - 0.5
@@ -2392,6 +2414,8 @@ func _spawn_pebble(pos: Vector3) -> void:
 	e.kind = "shade"
 	e.zone = "taurus"
 	e.pebble = true
+	e.room_zone = zone
+	e.room_local = local_i
 	e.hero = hero
 	_tune_enemy(e)
 	e._bounds = ARENA_R - 0.5
@@ -2453,7 +2477,7 @@ func _physics_process(delta: float) -> void:
 ##  Yengeç: gelgit kıyıyı basar (iç daire güvenli) · Aslan: Zenit (gölgelere saklan) · Başak: dama ızgarası
 
 const HZ = preload("res://scripts/hazards.gd")
-const HAZARD_EVERY := {"aries": 11.0, "taurus": 10.0, "gemini": 10.0, "cancer": 13.0, "leo": 15.0, "virgo": 12.0, "libra": 12.0, "scorpio": 6.5, "sagittarius": 6.0, "capricorn": 7.0, "aquarius": 6.0, "pisces": 7.0}
+const HAZARD_EVERY := {"aries": 11.0, "taurus": 10.0, "gemini": 10.0, "cancer": 13.0, "leo": 15.0, "virgo": 12.0, "libra": 11.0, "scorpio": 10.0, "sagittarius": 9.0, "capricorn": 8.5, "aquarius": 8.0, "pisces": 7.5}   # GDD §13.5
 const HAZARD_DMG := {"aries": 1.0, "taurus": 1.15, "gemini": 1.3, "cancer": 1.45, "leo": 1.6, "virgo": 1.75, "libra": 1.9, "scorpio": 2.0, "sagittarius": 2.1, "capricorn": 2.25, "aquarius": 2.4, "pisces": 2.55}
 var _hazard_t := 6.0
 
@@ -2995,7 +3019,8 @@ func _spawn_boss() -> void:
 		boss = AriesScript.new()
 	boss.hero = hero
 	var rt: Dictionary = GameData.retro
-	boss.dmg_mult = (1.0 + 0.2 * float(Retro.rank(rt, "mars"))) * _cyc_dmg()
+	boss.max_hp = float(BOSS_HP.get(zone, boss.max_hp))
+	boss.dmg_mult = (1.0 + 0.2 * float(Retro.rank(rt, "mars"))) * _cyc_dmg() * float(BOSS_DMG.get(zone, 1.0))
 	boss.max_hp *= (1.0 + 0.25 * float(Retro.rank(rt, "jupiter"))) * _cyc_hp() * (1.6 if hero2 != null else 1.0)
 	boss.windup_mult = 1.0 - 0.12 * float(Retro.rank(rt, "pluto"))
 	boss.total_eclipse = Retro.rank(rt, "eclipse") > 0
