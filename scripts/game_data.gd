@@ -518,6 +518,7 @@ static func _load_slot(n: int) -> void:
 	weapons_open = cfg.get_value("yolculuk", "weapons_open", ["STAR SWORD"]) if ok else ["STAR SWORD"]
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
 	saved_run = cfg.get_value("yolculuk", "saved_run", {}) if ok else {}
+	_validate_weapons()
 	if ok and cfg.has_section_key("yolculuk", "tutorial_done"):
 		tutorial_done = bool(cfg.get_value("yolculuk", "tutorial_done", false))
 	elif ok:
@@ -525,6 +526,26 @@ static func _load_slot(n: int) -> void:
 		tutorial_done = stardust > 0 or not chart.is_empty() or not almanac.is_empty() or _any_boss_defeated()
 	else:
 		tutorial_done = false
+
+
+## T-09 (GDD §21): bilinmeyen silah kimlikleri atılır; seçili silah geçersiz ya da açık değilse Yıldız Kılıcı
+static func is_weapon_id(id: String) -> bool:
+	for w in STAR_WEAPONS:
+		if String(w["id"]) == id:
+			return true
+	return false
+
+
+static func _validate_weapons() -> void:
+	var keep: Array = []
+	for w in weapons_open:
+		if is_weapon_id(String(w)) and not keep.has(String(w)):
+			keep.append(String(w))
+	if keep.is_empty():
+		keep = ["STAR SWORD"]
+	weapons_open = keep
+	if not is_weapon_id(chosen_weapon) or not weapons_open.has(chosen_weapon):
+		chosen_weapon = "STAR SWORD"
 
 
 static func _any_boss_defeated() -> bool:
@@ -647,6 +668,7 @@ static func resume_run() -> void:
 	run_revives_used = int(saved_run.get("revives_used", 0))
 	run_unbroken_used = bool(saved_run.get("unbroken_used", false))
 	chosen_weapon = String(saved_run.get("weapon", chosen_weapon))
+	_validate_weapons()
 
 
 static func clear_saved_run() -> void:

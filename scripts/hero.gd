@@ -111,6 +111,8 @@ func _ready() -> void:
 
 ## Silahı eline al (Gözlemevinde sunaktan değiştirince de çağrılır)
 func equip(id: String) -> void:
+	if not GameData.is_weapon_id(id):
+		id = "STAR SWORD"   # T-09: kit ile kimlik hep aynı
 	weapon_id = id
 	kit = Kits.get_kit(weapon_id)
 	_col = kit["color"]
