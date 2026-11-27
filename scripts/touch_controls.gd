@@ -11,6 +11,8 @@ const UI = preload("res://scripts/ui_style.gd")
 
 var hub_mode := false          # gözlemevi: saldırı yerine etkileşim düğmesi
 var hero = null                # bekleme sürelerini göstermek için
+var show_use := false          # öğretici: dövüş düzeninde de KULLAN düğmesi (kapı adımı)
+var highlight: Array = []      # öğretici: etrafında altın halka parlayacak eylemler ("move" = sol çubuk)
 
 var _view: Control
 var _buttons: Array = []       # [{action, label, pos, r, sub}]
@@ -59,7 +61,7 @@ func _layout() -> void:
 			b["skill"] = int(arc[i][3])
 		_buttons.append(b)
 	_buttons.append({"action": "dash", "label": "»", "pos": Vector2(W - 100.0 * u, H - 440.0 * u), "r": 66.0 * u, "sub": "DASH"})
-	if hub_mode:
+	if hub_mode or show_use:
 		_buttons.append({"action": "interact", "label": "E", "pos": Vector2(W - 120.0 * u, H - 640.0 * u), "r": 66.0 * u, "sub": "USE"})
 	_buttons.append({"action": "pause", "label": "II", "pos": Vector2(W - 80.0 * u, 160.0 * u), "r": 46.0 * u, "sub": ""})
 	_view.queue_redraw()
@@ -273,6 +275,11 @@ func _draw_view() -> void:
 		var c := Vector2(250, s.y - 250)
 		_view.draw_arc(c, 120.0, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, 0.18), 2.0)
 		_view.draw_circle(c, 46.0, Color(gold.r, gold.g, gold.b, 0.15))
+	# öğretici vurgusu: sol çubuk
+	if highlight.has("move"):
+		var pulse0 := 0.5 + 0.5 * sin(_clock * 6.0)
+		var sc := _stick_c if _stick_idx != -999 else Vector2(250, _view.get_viewport_rect().size.y - 250)
+		_view.draw_arc(sc, 136.0 + 8.0 * pulse0, 0.0, TAU, 56, Color(gold.r, gold.g, gold.b, 0.6 + 0.4 * pulse0), 5.0)
 	# yetenek hedef göstergesi
 	for k in _skill_drag.keys():
 		var sd: Dictionary = _skill_drag[k]
@@ -301,6 +308,10 @@ func _draw_view() -> void:
 			rd = 1.0 if float(hero.dash_cd) <= 0.0 else 0.4
 		elif String(b["action"]) == "heavy" and hero != null and is_instance_valid(hero) and float(hero.heavy_cd_max) > 0.0:
 			rd = 1.0 - clampf(float(hero.heavy_cd) / float(hero.heavy_cd_max), 0.0, 1.0)
+		if highlight.has(String(b["action"])):
+			var pulse := 0.5 + 0.5 * sin(_clock * 6.0)
+			_view.draw_circle(p, r + 18.0 + 6.0 * pulse, Color(gold.r, gold.g, gold.b, 0.15 + 0.15 * pulse))
+			_view.draw_arc(p, r + 14.0 + 6.0 * pulse, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, 0.6 + 0.4 * pulse), 5.0)
 		_view.draw_circle(p, r, Color(0.02, 0.03, 0.1, 0.55 if on else 0.38))
 		if rd < 1.0:
 			_view.draw_arc(p, r - 6.0, -PI * 0.5, -PI * 0.5 + TAU * rd, 48, Color(gold.r, gold.g, gold.b, 0.8), 6.0)

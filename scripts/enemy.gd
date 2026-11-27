@@ -23,6 +23,10 @@ var hp_mult := 1.0        # oda derinliğine göre (room.gd verir)
 var dmg_mult := 1.0
 var elite := false       # seçkin: altın haleli, çok daha güçlü
 var windup_mult := 1.0   # Plüton retrosu: daha hızlı hazırlık
+## ÖĞRETİCİ (zone = "tutorial", GDD §14.3): yalnızca bir saldırı türü, yavaş, düşük can
+var tut_only := ""        # "gold": yalnız parry'lenebilir · "red": yalnız kızıl · "": ikisi de
+var tut_hp := 0.0         # > 0 ise en yüksek can
+var tut_min_hp := 0.0     # > 0 ise can bunun altına inmez (parry adımı: 3 parry'den önce ölmez)
 var max_hp := 90.0
 var hp := 90.0
 var radius := 0.45
@@ -147,6 +151,14 @@ func _ready() -> void:
 		_aq_variant()
 	elif zone == "pisces":
 		_pi_variant()
+	if zone == "tutorial":
+		var keep: Array = []
+		for a in attacks:
+			var gold := bool(a["parry"])
+			if tut_only == "" or (tut_only == "gold" and gold) or (tut_only == "red" and not gold):
+				keep.append(a)
+		if not keep.is_empty():
+			attacks = keep
 	if mini:
 		max_hp *= 0.35
 		size_k *= 0.7
@@ -165,6 +177,10 @@ func _ready() -> void:
 		_base_body = Color(0.7, 0.45, 0.15)
 	max_hp *= hp_mult
 	speed *= 1.06
+	if zone == "tutorial":
+		speed *= 0.6
+		if tut_hp > 0.0:
+			max_hp = tut_hp
 	# SERİ SALDIRILAR: bazı saldırılar 2-3 tur ard arda gelir (parry seriyi keser)
 	for a in attacks:
 		var nm := String(a["name"])
@@ -178,6 +194,8 @@ func _ready() -> void:
 		# ilk bölgelerde seriler kısa (öğrenme alanı)
 		if _early():
 			ch = mini(ch, 2)
+		if zone == "tutorial":
+			ch = 1
 		a["chain"] = ch
 	for a in attacks:
 		a["dmg"] = float(a["dmg"]) * dmg_mult * em * (0.8 if _early() else 1.0)
@@ -2647,7 +2665,7 @@ func _end_act() -> void:
 
 ## İlk üç bölge (Koç, Boğa, İkizler) öğrenme alanı: daha yavaş, daha az saldırgan
 func _early() -> bool:
-	return zone == "aries" or zone == "taurus" or zone == "gemini"
+	return zone == "aries" or zone == "taurus" or zone == "gemini" or zone == "tutorial"
 
 
 ## SALDIRI SIRASI: aynı anda en fazla birkaç düşman saldırır (Hades gibi); diğerleri çevrede bekler.
@@ -3372,6 +3390,8 @@ func _tick_burn(delta: float) -> void:
 		var d := _burn_acc
 		_burn_acc = 0.0
 		hp -= d
+		if tut_min_hp > 0.0:
+			hp = maxf(hp, tut_min_hp)
 		_flash = maxf(_flash, 0.35)
 		var m: StandardMaterial3D = Fx.emissive(Color(1.0, 0.45, 0.15), 6.0)
 		var s := SphereMesh.new()
@@ -3523,6 +3543,8 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 			_die(dir)
 		return
 	hp -= final
+	if tut_min_hp > 0.0:
+		hp = maxf(hp, tut_min_hp)
 	last_dealt = final
 	_flash = 1.0
 	# ÖLÜ TAKLİTÇİ: ölümcül vuruş yerine ölü taklidi (bir kez)

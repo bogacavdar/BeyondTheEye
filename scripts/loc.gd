@@ -24,6 +24,8 @@ const TR := {
 	"MAIN MENU": "ANA MENÜ",
 	"QUIT GAME": "OYUNDAN ÇIK",
 	"RETURN TO OBSERVATORY": "GÖZLEMEVİNE DÖN",
+	"SKIP TUTORIAL": "ÖĞRETİCİYİ ATLA",
+	"TRAINING": "ANTRENMAN",
 	"WASD move   ·   Space dash   ·   E interact   ·   Esc pause": "WASD yürü   ·   Boşluk atıl   ·   E etkileşim   ·   Esc duraklat",
 	# --- gezegen lütufları
 	"BLESSING OF %s": "%s LÜTFU",
@@ -748,6 +750,56 @@ const TR := {
 }
 
 
+## ÖĞRETİCİ ODA (GDD §14.7): aynı İngilizce sözcük oyunun başka yerinde başka çevriliyor ("ATTACK", "DASH"),
+## bu yüzden öğretici yazıları "tutorial" bağlamıyla yüklenir: tr(metin, "tutorial")
+const TUT := {
+	"WELCOME, TRAVELER": "HOŞ GELDİN, YOLCU",
+	"First, learn the ways of the stars": "Önce yıldızların yolunu öğren",
+	"MOVE": "YÜRÜ",
+	"Walk into the golden circle": "Altın halkanın içine yürü",
+	"ATTACK": "SALDIR",
+	"Strike the star stone three times in a row": "Yıldız taşına art arda üç kez vur",
+	"HEAVY ATTACK": "AĞIR SALDIRI",
+	"A heavy blow hits everything around you": "Ağır darbe çevrendeki her şeye vurur",
+	"DASH": "ATIL",
+	"Red warning: you can't block it. Dash through!": "Kızıl uyarı: karşılayamazsın. Atıl!",
+	"Dash as the red warning fills": "Kızıl uyarı dolarken atıl",
+	"Dash recharges when the ring fills": "Atılma, halka dolunca yeniden hazır",
+	"SPRINT": "KOŞ",
+	"Hold to sprint to the far circle": "Basılı tutup uzaktaki halkaya koş",
+	"PARRY": "PARRY",
+	"Gold warning: meet the blow with a parry": "Altın uyarı: darbeyi parry ile karşıla",
+	"Press as the gold warning fills": "Altın uyarı dolarken bas",
+	"Parried! It's stunned — strike now": "Karşıladın! Sersemledi — şimdi vur",
+	"STAR SKILLS": "YILDIZ YETENEKLERİ",
+	"Use all three skills": "Üç yeteneği de kullan",
+	"PRACTICE": "PROVA",
+	"Defeat both shades": "İki gölgeyi de yen",
+	"THE GATE": "KAPI",
+	"Step through the gate. Your journey begins": "Kapıdan geç. Yolculuğun başlıyor",
+	"Nice!": "Güzel!",
+	"They can't hurt you here. Try again.": "Burada sana zarar veremezler. Tekrar dene.",
+	"TUTORIAL COMPLETE": "ÖĞRETİCİ TAMAM",
+	"SKIP TUTORIAL": "ÖĞRETİCİYİ ATLA",
+	"%s: skip": "%s: atla",
+	"TRAINING": "ANTRENMAN",
+	# tuş metinleri (§14.5)
+	"Left stick": "Sol çubuk",
+	"Drag on the left side": "Sol tarafta sürükle",
+	"Left click": "Sol tık",
+	"Tap the right side": "Sağ tarafa dokun",
+	"Right click": "Sağ tık",
+	"HEAVY button": "AĞIR düğmesi",
+	"Space": "Boşluk",
+	"Double tap or »": "Çift dokun ya da »",
+	"Hold Space": "Boşluğu basılı tut",
+	"Push the stick all the way": "Çubuğu sonuna kadar it",
+	"PARRY button": "PARRY düğmesi",
+	"Skill buttons, drag to aim": "Yetenek düğmeleri, sürükleyip nişan al",
+	"USE button": "KULLAN düğmesi",
+}
+
+
 static func set_lang(code: String) -> void:
 	if not _loaded:
 		_loaded = true
@@ -755,6 +807,8 @@ static func set_lang(code: String) -> void:
 		tl.locale = "tr"
 		for k in TR:
 			tl.add_message(k, TR[k])
+		for k in TUT:
+			tl.add_message(k, TUT[k], &"tutorial")
 		TranslationServer.add_translation(tl)
 	TranslationServer.set_locale(code)
 

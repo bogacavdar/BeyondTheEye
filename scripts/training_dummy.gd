@@ -4,6 +4,8 @@ extends CharacterBody3D
 
 const HitFx = preload("res://scripts/hit_fx.gd")
 
+signal hit_taken(dmg: float, heavy: bool, crit: bool)   # öğretici odası dinler
+
 var kind := "dummy"
 var dead := false
 var radius := 0.6
@@ -114,6 +116,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	pt.tween_property(vis, "scale", base, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	HitFx.impact(get_parent(), global_position + Vector3(0, 1.3, 0) - dir * 0.3, dir, Color(1.0, 0.85, 0.5), heavy or crit)
 	HitFx.number(get_parent(), global_position + Vector3(0, 2.4, 0), dmg, crit)
+	hit_taken.emit(dmg, heavy, crit)
 
 
 func stun(_sec: float, _parried := false) -> void:

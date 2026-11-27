@@ -20,6 +20,8 @@ var room := 1
 var room_total := 3
 var reward := ""
 var hub_mode := false    # Gözlemevi: sadece yetenek çubuğu
+var tutorial_mode := false   # Öğretici Oda (GDD §14.3): oda/dalga/element/ödül yazıları ve ilk ipucu satırı gizli
+var tut_slots: Array = []    # öğretici: parlayacak yetenek çubuğu slotları (0-2 Q/E/R, 3 RMB, 4 SPACE, 5 SHIFT)
 var boss = null
 var _boss_shown := 1.0
 var prompt := ""
@@ -156,16 +158,18 @@ func _draw() -> void:
 			draw_arc(sp, 26.0, 0.0, TAU, 32, Color(1, 1, 1, 0.25), 4.0)
 			draw_arc(sp, 26.0, -PI * 0.5, -PI * 0.5 + TAU * pr, 32, gold, 5.0)
 			_text(tr("REVIVE"), sp + Vector2(0, 50), 15, UI.CREAM)
-	_text(tr("%d stardust") % dust, bx + Vector2(0, bh + 38.0), 20, UI.CREAM, false)
-	_draw_elements(bx + Vector2(0, bh + 68.0))
+	if not tutorial_mode:
+		_text(tr("%d stardust") % dust, bx + Vector2(0, bh + 38.0), 20, UI.CREAM, false)
+		_draw_elements(bx + Vector2(0, bh + 68.0))
 
 	# --- dalga
 	if boss != null and is_instance_valid(boss) and not boss.dead:
 		_draw_boss_bar()
-	else:
+	elif not tutorial_mode:
 		_text(tr("CHAMBER %d / %d") % [room, room_total], Vector2(size.x * 0.5, 44), 26, gold)
-	_draw_reward_and_boons()
-	if wave > 0 and boss == null:
+	if not tutorial_mode:
+		_draw_reward_and_boons()
+	if wave > 0 and boss == null and not tutorial_mode:
 		_text(tr("WAVE %d / %d") % [mini(wave, wave_total), wave_total], Vector2(size.x * 0.5, 74), 18, _a(UI.CREAM, 0.85))
 
 	if GameData.input_mode != "touch":
@@ -212,7 +216,7 @@ func _draw() -> void:
 		_text(tr("Light new stars in your Birth Chart and return stronger"), Vector2(size.x * 0.5, size.y * 0.45 + 100.0), 20, _a(gold, a * 0.85))
 
 	# --- kontroller (ilk saniyelerde)
-	if _t < 15.0:
+	if _t < 15.0 and not tutorial_mode:
 		var a := clampf(15.0 - _t, 0.0, 1.0)
 		var hint_txt := tr("LMB attack  ·  RMB heavy  ·  Shift parry (gold warnings)  ·  Space dash, hold to sprint (red warnings)  ·  Q E R skills")
 		if GameData.input_mode == "pad":
@@ -286,6 +290,11 @@ func _draw_slots() -> void:
 		else:
 			frac_cd = clampf(hero._parry_cd / hero.PARRY_COOLDOWN, 0.0, 1.0)
 		var is_ready := frac_cd <= 0.0
+		if tut_slots.has(i):
+			# öğretici: bu adımın slotu nefes alan altın bir haleyle parlar
+			var pulse := 0.5 + 0.5 * sin(_t * 6.0)
+			draw_circle(c, sw * 0.5 + 16.0 + 4.0 * pulse, _a(gold, 0.18 + 0.2 * pulse))
+			draw_arc(c, sw * 0.5 + 12.0 + 4.0 * pulse, 0.0, TAU, 48, _a(gold, 0.7 + 0.3 * pulse), 3.0, true)
 		draw_circle(c, sw * 0.5 + 3.0, Color(0.02, 0.03, 0.1, 0.9))
 		draw_circle(c, sw * 0.5, Color(0.05, 0.08, 0.2, 0.95))
 		var icon_kind := String(sl[2])
@@ -350,7 +359,14 @@ func _draw_prompt() -> void:
 	var fs := 32
 	var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var glyph_w := 56.0 if prompt_glyph != "" else 0.0
-	var key_w := 52.0
+	# etkileşim tuşu giriş kipine göre (GDD §14.5): E / X / KULLAN
+	var key := "E"
+	if GameData.input_mode == "pad":
+		key = "X"
+	elif GameData.input_mode == "touch":
+		key = tr("USE")
+	var kfs := 26 if key.length() <= 2 else 18
+	var key_w := maxf(52.0, _font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, kfs).x + 28.0)
 	var pad := 26.0
 	var w := pad + key_w + 18.0 + glyph_w + tw + pad
 	var h := 70.0
@@ -364,7 +380,7 @@ func _draw_prompt() -> void:
 	var kr := Rect2(kx, r.position.y + (h - 44.0) * 0.5, key_w - 8.0, 44.0)
 	draw_rect(kr, Color(0.1, 0.12, 0.3))
 	draw_rect(kr, gold, false, 2.0)
-	_text("E", kr.get_center() + Vector2(0, 10), 26, gold)
+	_text(key, kr.get_center() + Vector2(0, 10 if kfs == 26 else 7), kfs, gold)
 	var x := kx + key_w + 18.0
 	if prompt_glyph != "":
 		_text(prompt_glyph + "\uFE0E", Vector2(x + 22.0, r.position.y + h * 0.5 + 14.0), 38, prompt_color, true, _sym)

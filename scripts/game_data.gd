@@ -320,6 +320,9 @@ static var sagittarius_defeated := false     # Yay en az bir kez yenildi mi
 static var capricorn_defeated := false     # Oğlak en az bir kez yenildi mi
 static var aquarius_defeated := false     # Kova en az bir kez yenildi mi
 static var pisces_defeated := false     # Balık en az bir kez yenildi mi
+## ÖĞRETİCİ ODA (GDD §14): yuva başına; true olunca ilk run'dan önce öğretici çıkmaz
+static var tutorial_done := false
+static var tutorial_replay := false     # Gözlemevi ANTRENMAN durağından açıldı (run yok, bayrak değişmez)
 
 
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
@@ -471,6 +474,18 @@ static func _load_slot(n: int) -> void:
 	weapons_open = cfg.get_value("yolculuk", "weapons_open", ["STAR SWORD"]) if ok else ["STAR SWORD"]
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
 	saved_run = cfg.get_value("yolculuk", "saved_run", {}) if ok else {}
+	if ok and cfg.has_section_key("yolculuk", "tutorial_done"):
+		tutorial_done = bool(cfg.get_value("yolculuk", "tutorial_done", false))
+	elif ok:
+		# eski kayıt: anahtar yok; yuvada ilerleme varsa öğretici geçilmiş sayılır
+		tutorial_done = stardust > 0 or not chart.is_empty() or not almanac.is_empty() or _any_boss_defeated()
+	else:
+		tutorial_done = false
+
+
+static func _any_boss_defeated() -> bool:
+	return aries_defeated or taurus_defeated or gemini_defeated or cancer_defeated or leo_defeated or virgo_defeated \
+		or libra_defeated or scorpio_defeated or sagittarius_defeated or capricorn_defeated or aquarius_defeated or pisces_defeated
 
 
 ## Ana menüden bir yuva seçilince
@@ -559,6 +574,7 @@ static func go_save() -> void:
 	cfg.set_value("yolculuk", "weapons_open", weapons_open)
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
 	cfg.set_value("yolculuk", "saved_run", saved_run)
+	cfg.set_value("yolculuk", "tutorial_done", tutorial_done)
 	cfg.save(slot_path(slot))
 
 
@@ -630,6 +646,7 @@ static func reset_progress() -> void:
 	weapons_open = ["STAR SWORD"]
 	chosen_weapon = "STAR SWORD"
 	saved_run = {}
+	tutorial_done = false
 	go_save()
 
 

@@ -9,6 +9,7 @@ signal hp_changed(hp: float, max_hp: float)
 signal hurt
 signal died
 signal parried
+signal dodged(parryable: bool)   # atılma dokunulmazlığı sırasında gelen saldırı boşa çıktı (öğretici)
 
 const Weapons = preload("res://scripts/celestial_weapons.gd")
 const SlashFx = preload("res://scripts/slash_fx.gd")
@@ -41,6 +42,10 @@ var aim_point := Vector3.ZERO
 var skill_cd := [0.0, 0.0, 0.0]
 var state := "free"                  # free, attack, parry, cast, dead
 var sprinting := false
+var parry_mult := 1.0                # öğretici: parry penceresi 2 kat (GDD §14.4)
+var last_atk_kind := ""              # son başlatılan saldırı: combo / heavy / skill (öğretici)
+var last_hit_parryable := false      # son isabet alan saldırı altın mıydı (öğretici geri bildirimi)
+var _dash_if := 0.0                  # atılmanın dokunulmazlık süresi
 var _cast_t := 0.0
 var _atk: Dictionary = {}
 var _atk_t := 0.0
@@ -402,6 +407,7 @@ func _physics_process(delta: float) -> void:
 	dash_cd -= delta
 	_parry_cd -= delta
 	_invuln -= delta
+	_dash_if -= delta
 	_combo_reset -= delta
 	_crit_buff_t -= delta
 	heavy_cd = maxf(heavy_cd - delta, 0.0)
@@ -561,7 +567,7 @@ func _read_actions(move: Vector3) -> void:
 			return
 	if _jp("parry") and _parry_cd <= 0.0 and (state == "free" or _recovering()) and dash_t <= 0.0:
 		state = "parry"
-		_parry_t = PARRY_WINDOW * (1.0 + float(st["parry_window"]) / 100.0)
+		_parry_t = PARRY_WINDOW * (1.0 + float(st["parry_window"]) / 100.0) * parry_mult
 		_parry_cd = PARRY_COOLDOWN
 		Sfx.play("switch", -14.0, 0.05, 0, 0.7)
 		return
@@ -598,6 +604,7 @@ func _start_dash(dir: Vector3) -> void:
 	if wb.has("ds_trail"):
 		get_tree().create_timer(DASH_TIME + 0.02).timeout.connect(_dash_trail)
 	_invuln = maxf(_invuln, DASH_TIME + 0.08)
+	_dash_if = DASH_TIME + 0.08
 	_dash_hits.clear()
 	Sfx.play("dash", -10.0)
 
@@ -672,6 +679,7 @@ func _start_attack(a: Dictionary) -> void:
 		heavy_cd = heavy_cd_max
 	state = "attack"
 	_atk = a
+	last_atk_kind = "heavy" if _is_heavy(a) else "combo"
 	_atk_t = 0.0
 	_atk_hit = false
 	_queued = ""
@@ -929,6 +937,7 @@ func _use_skill(i: int) -> void:
 		if sk.has("count"):
 			sk["count"] = int(sk["count"]) + 3
 	if not _echoing:
+		last_atk_kind = "skill"
 		skill_cd[i] = SKILL_CD[i] * (1.0 - clampf(float(st.get("sk_cdr", 0.0)), 0.0, 60.0) / 100.0)
 		if wb.has("sk_empower"):
 			_emp_hits = 3
@@ -1217,6 +1226,8 @@ func take_damage(amount: float, from_dir: Vector3, parryable := true) -> String:
 		_on_parry(from_dir)
 		return "parried"
 	if _invuln > 0.0 or dash_t > 0.0:
+		if _dash_if > 0.0 or dash_t > 0.0:
+			dodged.emit(parryable)
 		return "miss"
 	if randf() * 100.0 < float(st["dodge"]):
 		Sfx.play("dash", -12.0, 0.0, 0, 1.8)
@@ -1253,6 +1264,7 @@ func take_damage(amount: float, from_dir: Vector3, parryable := true) -> String:
 		Fx.flash_light(global_position + Vector3(0, 1.5, 0), Color(1.0, 0.85, 0.5), 10.0, 10.0, 0.8)
 		Sfx.play("coin", -4.0, 0.0, 0, 0.5)
 	hp_changed.emit(hp, max_hp)
+	last_hit_parryable = parryable
 	hurt.emit()
 	if hp <= 0.0:
 		_die()

@@ -16,6 +16,7 @@ const PauseUI = preload("res://scripts/pause_ui.gd")
 const RetroUI = preload("res://scripts/retro_ui.gd")
 const Retro = preload("res://scripts/retro.gd")
 const ROOM_SCENE := "res://scenes/room.tscn"
+const TUTORIAL_SCENE := "res://scenes/tutorial.tscn"
 const AltarUI = preload("res://scripts/altar_ui.gd")
 const DummyScript = preload("res://scripts/training_dummy.gd")
 const CombatHud = preload("res://scripts/combat_hud.gd")
@@ -99,6 +100,8 @@ func _ready() -> void:
 	var dummy = DummyScript.new()
 	add_child(dummy)
 	dummy.global_position = Vector3(4.5, 0, -5.0)
+	# ANTRENMAN durağı (GDD §14.2): kuklanın yanında; öğreticiyi tekrar kipinde açar
+	_station("TRAINING", Vector3(3.4, 0, -1.4), _open_training)
 
 	_aim_moon()
 	_build_ui()
@@ -998,7 +1001,18 @@ func _start_with_rising(id: String) -> void:
 	GameData.run_rising = id
 	Sfx.play("dash", -4.0, 0.0, 0, 0.6)
 	Fx.shake(0.3)
+	# ÖĞRETİCİ (GDD §14.1): öğreticiyi görmemiş oyuncunun ilk tek kişilik run'ında, ilk odadan önce
+	if not GameData.tutorial_done and not GameData.coop and not Net.online():
+		GameData.tutorial_replay = false
+		get_tree().change_scene_to_file(TUTORIAL_SCENE)
+		return
 	get_tree().change_scene_to_file(ROOM_SCENE)
+
+
+## ANTRENMAN: öğreticiyi tekrar oynat (run başlamaz, bayrak değişmez, sonunda Gözlemevine dönülür)
+func _open_training() -> void:
+	GameData.tutorial_replay = true
+	get_tree().change_scene_to_file(TUTORIAL_SCENE)
 
 
 func _message(text: String, dur := 4.0) -> void:
