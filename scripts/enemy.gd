@@ -8,6 +8,7 @@ extends CharacterBody3D
 ## Kan yok: vurulunca yıldız tozu ve altın kırıkları saçılır. Başlarının üstünde can barı var.
 
 signal killed(enemy)
+signal attack_done(parryable: bool)   # yalnızca öğretici (zone "tutorial"): saldırının act'ı bitti (§14.4 adım 4)
 
 const Juice = preload("res://scripts/juice.gd")
 const Elements = preload("res://scripts/elements.gd")
@@ -28,7 +29,8 @@ var room_zone := ""      # odanın bölgesi (room.gd verir): öğrenme kademeler
 var room_local := 0      # odanın bölge içindeki sırası (0-3 dövüş, 4 boss)
 var tut_only := ""        # "gold": yalnız parry'lenebilir · "red": yalnız kızıl · "": ikisi de
 var tut_hp := 0.0         # > 0 ise en yüksek can
-var tut_min_hp := 0.0     # > 0 ise can bunun altına inmez (parry adımı: 3 parry'den önce ölmez)
+var tut_min_hp := 0.0
+var windup_t0 := 0.0      # son saldırının hazırlık başlangıcı (gerçek saat, sn)     # > 0 ise can bunun altına inmez (parry adımı: 3 parry'den önce ölmez)
 var max_hp := 90.0
 var hp := 90.0
 var radius := 0.45
@@ -2655,6 +2657,8 @@ func _wl() -> float:
 func _end_act() -> void:
 	if state != "act":
 		return
+	if zone == "tutorial":
+		attack_done.emit(bool(atk["parry"]))
 	var hero_ok: bool = hero != null and is_instance_valid(hero) and not hero.dead
 	if _chain_left > 0 and hero_ok:
 		_chain_left -= 1
@@ -2755,6 +2759,7 @@ func _set_state(s: String) -> void:
 		# vur-kaç: saldırıdan sonra geri sıçrar
 		_knock = -_face * 11.0
 	if s == "windup":
+		windup_t0 = Time.get_ticks_msec() / 1000.0
 		_show_tele()
 		if String(atk["name"]) == "burrow" or String(atk["name"]) == "mirror":
 			tele.visible = false

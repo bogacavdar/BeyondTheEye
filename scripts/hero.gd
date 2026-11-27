@@ -44,7 +44,9 @@ var state := "free"                  # free, attack, parry, cast, dead
 var sprinting := false
 var interact_near := false          # durak/kapı etkileşim menzilinde: klavye E'si 2. yeteneği atmaz (GDD §8)
 var parry_mult := 1.0                # öğretici: parry penceresi 2 kat (GDD §14.4)
-var last_atk_kind := ""              # son başlatılan saldırı: combo / heavy / skill (öğretici)
+var last_atk_kind := ""
+var last_combo_idx := -1             # son başlatılan kombo vuruşunun sırası (ağırda -1) (öğretici §14.4)
+var last_dash_t := -100.0            # son atılmanın başlangıcı (gerçek saat, sn) (öğretici §14.4)              # son başlatılan saldırı: combo / heavy / skill (öğretici)
 var last_hit_parryable := false      # son isabet alan saldırı altın mıydı (öğretici geri bildirimi)
 var _dash_if := 0.0                  # atılmanın dokunulmazlık süresi
 var _cast_t := 0.0
@@ -586,7 +588,9 @@ func _read_actions(move: Vector3) -> void:
 			_start_attack(kit["combo"][_combo_i])
 		elif state == "attack":
 			_queued = "fire"
-	if _jp("heavy") and heavy_cd <= 0.0:
+	# F kuralı (GDD §8): durak/kapı menzilinde klavye F'si yalnızca etkileşimdir (sağ/orta tık her zaman ağır)
+	var f_blocked := interact_near and pad_dev < 0 and Input.is_physical_key_pressed(KEY_F)
+	if _jp("heavy") and heavy_cd <= 0.0 and not f_blocked:
 		if state == "free" and dash_t <= 0.0:
 			_start_attack(kit["heavy"])
 		elif state == "attack":
@@ -610,6 +614,7 @@ func _start_dash(dir: Vector3) -> void:
 		get_tree().create_timer(DASH_TIME + 0.02).timeout.connect(_dash_trail)
 	_invuln = maxf(_invuln, DASH_TIME + 0.08)
 	_dash_if = DASH_TIME + 0.08
+	last_dash_t = Time.get_ticks_msec() / 1000.0
 	_dash_hits.clear()
 	Sfx.play("dash", -10.0)
 
@@ -685,6 +690,7 @@ func _start_attack(a: Dictionary) -> void:
 	state = "attack"
 	_atk = a
 	last_atk_kind = "heavy" if _is_heavy(a) else "combo"
+	last_combo_idx = -1 if _is_heavy(a) else _combo_i
 	_atk_t = 0.0
 	_atk_hit = false
 	_queued = ""

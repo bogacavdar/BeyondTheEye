@@ -87,6 +87,9 @@ var sprint_acc := 0.0
 var skills_used := [false, false, false]
 var _prev_cd := [0.0, 0.0, 0.0]
 var kills := 0
+var combo_prog := 0          # adım 2 göstergesi: zincirdeki son isabetin sırası + 1
+var _hurt_rt := -100.0       # son isabet alınan an (gerçek saat)
+var _dodged_rt := -100.0     # son dodged sinyali (gerçek saat)
 
 
 func _ready() -> void:
@@ -374,6 +377,11 @@ func _spawn_foe(p: Vector3, only: String, windup: float, min_hp := 0.0) -> void:
 	if to.length() > 0.1:
 		e._face = to.normalized()
 	e.killed.connect(_on_foe_killed)
+	e.attack_done.connect(_on_attack_done.bind(e))
+	if step == 4 and only == "red":
+		for a in e.attacks:
+			if not bool(a["parry"]):
+				a["cd"] = 2.5   # §14.4: bu adımda kızıl saldırı bekleme süresi 2,5 sn
 	foes.append(e)
 	Sfx.play("enemyattack", -14.0, 0.1, 120, 1.0)
 
@@ -406,6 +414,7 @@ func _begin(n: int) -> void:
 			_show_ring(Vector3(-3.5, 0, 0.5))
 		2:
 			combo_hits.clear()
+			combo_prog = 0
 			_spawn_dummy(Vector3(0, 0, 0))
 		3:
 			pass
@@ -477,19 +486,37 @@ func _on_dummy_hit(_dmg: float, _heavy: bool, _crit: bool) -> void:
 		return
 	var kind := String(hero.last_atk_kind)
 	if step == 2 and kind == "combo":
+		# §14.4 adım 2: kombonun 3. vuruşu (sıra 2) kuklaya değerse biter; zaman penceresi yok
+		var idx := int(hero.last_combo_idx)
+		combo_prog = idx + 1
+		_progress()
+		if idx == 2:
+			_success()
+			return
+		# yedek: oyun zamanıyla 2,0 sn içinde 3 kombo isabeti
 		var now := _clock
 		combo_hits.append(now)
-		while not combo_hits.is_empty() and now - float(combo_hits[0]) > 1.5:
+		while not combo_hits.is_empty() and now - float(combo_hits[0]) > 2.0:
 			combo_hits.pop_front()
-		_progress()
 		if combo_hits.size() >= 3:
 			_success()
 	elif step == 3 and kind == "heavy":
 		_success()
 
 
-func _on_dodged(parryable: bool) -> void:
-	if step != 4 or nice_t >= 0.0 or parryable:
+func _on_dodged(_parryable: bool) -> void:
+	_dodged_rt = Time.get_ticks_msec() / 1000.0
+
+
+## §14.4 adım 4: kızıl saldırı bitti. (a) kahramanı vurmadı ve (b) hazırlık başından act sonuna kadar atıldı ya da dodged geldiyse 1 başarı
+func _on_attack_done(parryable: bool, e) -> void:
+	if step != 4 or nice_t >= 0.0 or parryable or e == null or not is_instance_valid(e):
+		return
+	var t0: float = float(e.windup_t0)
+	var now := Time.get_ticks_msec() / 1000.0
+	var hit := _hurt_rt >= t0 and _hurt_rt <= now + 0.01
+	var dashed: bool = float(hero.last_dash_t) >= t0 or (_dodged_rt >= t0 and _dodged_rt <= now + 0.01)
+	if hit or not dashed:
 		return
 	dodges += 1
 	_progress()
@@ -523,6 +550,7 @@ func _on_foe_killed(_e) -> void:
 
 
 func _on_hero_hurt() -> void:
+	_hurt_rt = Time.get_ticks_msec() / 1000.0
 	hud.hurt_flash()
 	fb_line = "Press as the gold warning fills" if bool(hero.last_hit_parryable) else "Dash as the red warning fills"
 	fb_t = 2.6
@@ -594,6 +622,9 @@ func _process(delta: float) -> void:
 		1:
 			if flat < RING_R:
 				_success()
+		2:
+			if int(hero._combo_i) == 0 and String(hero.state) != "attack":
+				combo_prog = 0   # zincir boşta sıfırlandı
 		5:
 			if hero.sprinting:
 				sprint_acc += delta
@@ -734,6 +765,10 @@ func _draw_overlay() -> void:
 		# dokunmatik: rozet yok, ilgili ekran düğmesi parlar; metin yine üst-ortada
 		_text(_key(act), Vector2(cx, y + 6.0), 20, gold)
 		y += 36.0
+	if step == 2:
+		# §14.4: ilerleme göstergesi 1/3, 2/3, 3/3
+		_text("%d / 3" % combo_prog, Vector2(cx, y + 6.0), 20, gold)
+		y += 30.0
 	if step == 4:
 		_text(_t("Dash recharges when the ring fills"), Vector2(cx, y + 6.0), 18, Color(UI.CREAM.r, UI.CREAM.g, UI.CREAM.b, 0.85))
 		y += 30.0
