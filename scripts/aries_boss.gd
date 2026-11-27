@@ -40,14 +40,14 @@ var _phase_t0 := 0.0
 var phase := 1:
 	set(v):
 		phase = v
-		_phase_t0 = Time.get_ticks_msec() / 1000.0
+		_phase_t0 = Fx.unscaled_t
 
 
 ## Evre tabanı: evre başlayalı 6 sn olmadıysa can bu değerin altına inemez (son evrede 1, yani ölemez)
 func _phase_floor() -> float:
 	var i := phase - 1
 	var has_th := i >= 0 and i < phase_th.size()
-	if Time.get_ticks_msec() / 1000.0 - _phase_t0 >= PHASE_MIN_T:
+	if Fx.unscaled_t - _phase_t0 >= PHASE_MIN_T:
 		# süre doldu: can eşiğin hemen altına iner (sonraki evre başlar) ama fazla hasar sonraki evreye taşınmaz
 		return float(phase_th[i]) * max_hp - 1.0 if has_th else 0.0
 	if has_th:
@@ -351,7 +351,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		"intro":
 			if _st > 1.6:
-				_phase_t0 = Time.get_ticks_msec() / 1000.0   # 1. evre girişten sonra başlar
+				_phase_t0 = Fx.unscaled_t   # 1. evre girişten sonra başlar
 				_set_state("chase")
 		"roar":
 			# evre geçişi: kükrer, kısa süre dokunulmaz

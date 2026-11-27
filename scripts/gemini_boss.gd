@@ -25,13 +25,13 @@ var _phase_t0 := 0.0
 var phase := 1:
 	set(v):
 		phase = v
-		_phase_t0 = Time.get_ticks_msec() / 1000.0
+		_phase_t0 = Fx.unscaled_t
 
 
 func _phase_floor() -> float:
 	var i := phase - 1
 	var has_th := i >= 0 and i < phase_th.size()
-	if Time.get_ticks_msec() / 1000.0 - _phase_t0 >= PHASE_MIN_T:
+	if Fx.unscaled_t - _phase_t0 >= PHASE_MIN_T:
 		# süre doldu: can eşiğin hemen altına iner (sonraki evre başlar) ama fazla hasar sonraki evreye taşınmaz
 		return float(phase_th[i]) * max_hp - 1.0 if has_th else 0.0
 	if has_th:
@@ -54,7 +54,7 @@ var _spawned := false
 
 
 func _ready() -> void:
-	_phase_t0 = Time.get_ticks_msec() / 1000.0
+	_phase_t0 = Fx.unscaled_t
 	call_deferred("_spawn_twins")
 
 

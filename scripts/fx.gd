@@ -73,7 +73,14 @@ func reset() -> void:
 	_hitstop_until = 0
 
 
+## Ağır çekim/hitstop'tan etkilenmeyen oyun saati (sn). Duraklatınca durur. Gerçek oyunda gerçek zamana eşit,
+## --fixed-fps testlerinde kare sayısına bağlı (boss evre alt süresi §13.6 bunu kullanır)
+var unscaled_t := 0.0
+
+
 func _process(_delta: float) -> void:
+	if not get_tree().paused:
+		unscaled_t += _delta / maxf(Engine.time_scale, 0.001)
 	if _hitstop_until > 0 and Time.get_ticks_msec() >= _hitstop_until:
 		Engine.time_scale = 1.0
 		_hitstop_until = 0
