@@ -99,6 +99,7 @@ static func load_game() -> void:
 	if _loaded:
 		return
 	_loaded = true
+	_migrate_user_dir()
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) != OK:
 		return
@@ -378,10 +379,53 @@ static func slot_path(n: int) -> String:
 	return "user://beyond_the_eye_slot%d.cfg" % n
 
 
+## KAYIT TAŞIMA (GDD §20): proje adı NeonZombie → BeyondTheEye olunca masaüstünde user:// klasörü değişir.
+## Eski klasörün kökündeki dosyalar bir kez yeni klasöre KOPYALANIR (eski klasör yedek kalır);
+## yeni klasörde aynı adlı dosya varsa üzerine yazılmaz. Başarıyla bitince işaret dosyası yazılır.
+const MIGRATE_MARK := "migrated_from_neonzombie"
+static var _migrated := false
+
+
+static func _migrate_user_dir() -> void:
+	if _migrated:
+		return
+	_migrated = true
+	var new_dir := OS.get_user_data_dir()
+	var old_dir := new_dir.get_base_dir().path_join("NeonZombie")
+	if old_dir == new_dir or not DirAccess.dir_exists_absolute(old_dir):
+		return
+	var mark := new_dir.path_join(MIGRATE_MARK)
+	if FileAccess.file_exists(mark):
+		return
+	var da := DirAccess.open(old_dir)
+	if da == null:
+		return
+	DirAccess.make_dir_recursive_absolute(new_dir)
+	var copied: Array = []
+	var ok := true
+	for f in da.get_files():   # yalnızca kökteki dosyalar (shader_cache, vulkan gibi alt klasörler değil)
+		var dst := new_dir.path_join(f)
+		if FileAccess.file_exists(dst):
+			continue
+		if DirAccess.copy_absolute(old_dir.path_join(f), dst) == OK:
+			copied.append(f)
+		else:
+			ok = false
+	if not ok:
+		return   # işaret yazılmaz: bir sonraki açılışta yeniden denenir
+	var fa := FileAccess.open(mark, FileAccess.WRITE)
+	if fa != null:
+		fa.store_line(Time.get_datetime_string_from_system())
+		for f in copied:
+			fa.store_line(String(f))
+		fa.close()
+
+
 static func go_load() -> void:
 	if _go_loaded:
 		return
 	_go_loaded = true
+	_migrate_user_dir()
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) != OK:
 		# ilk açılış ya da eski tek dosyalı kayıt: ayarları ve ilerlemeyi 1. yuvaya taşı
