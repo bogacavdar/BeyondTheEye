@@ -8,10 +8,11 @@ extends CanvasLayer
 ## Her düğme bir giriş eylemine basar/bırakır; böylece oyunun geri kalanı klavyeyle aynı şekilde çalışır.
 
 const UI = preload("res://scripts/ui_style.gd")
+const CombatHud = preload("res://scripts/combat_hud.gd")
 
 var hub_mode := false          # gözlemevi: saldırı yerine etkileşim düğmesi
 var hero = null                # bekleme sürelerini göstermek için
-var show_use := false          # öğretici: dövüş düzeninde de KULLAN düğmesi (kapı adımı)
+var hud = null                 # dövüş odası: KULLAN düğmesi yalnızca kapı menzilinde (hud.prompt dolu) görünür (T-15)
 var highlight: Array = []      # öğretici: etrafında altın halka parlayacak eylemler ("move" = sol çubuk)
 
 var _view: Control
@@ -61,8 +62,7 @@ func _layout() -> void:
 			b["skill"] = int(arc[i][3])
 		_buttons.append(b)
 	_buttons.append({"action": "dash", "label": "»", "pos": Vector2(W - 100.0 * u, H - 440.0 * u), "r": 66.0 * u, "sub": "DASH"})
-	if hub_mode or show_use:
-		_buttons.append({"action": "interact", "label": "E", "pos": Vector2(W - 120.0 * u, H - 640.0 * u), "r": 66.0 * u, "sub": "USE"})
+	_buttons.append({"action": "interact", "label": "E", "pos": Vector2(W - 120.0 * u, H - 640.0 * u), "r": 66.0 * u, "sub": "USE"})
 	_buttons.append({"action": "pause", "label": "II", "pos": Vector2(W - 80.0 * u, 160.0 * u), "r": 46.0 * u, "sub": ""})
 	_view.queue_redraw()
 
@@ -209,9 +209,18 @@ func _release_skill(idx: int) -> void:
 	_pulse(String(_buttons[bi]["action"]))
 
 
+## KULLAN düğmesi: Gözlemevi'nde hep, dövüş odasında yalnızca etkileşim menzilinde (T-15)
+func _use_visible() -> bool:
+	if hub_mode:
+		return true
+	return hud != null and is_instance_valid(hud) and String(hud.prompt) != ""
+
+
 func _button_at(p: Vector2) -> int:
 	for i in _buttons.size():
 		var b: Dictionary = _buttons[i]
+		if String(b["action"]) == "interact" and not _use_visible():
+			continue
 		if p.distance_to(b["pos"]) <= float(b["r"]) * 1.15:
 			return i
 	return -1
@@ -297,6 +306,8 @@ func _draw_view() -> void:
 			_view.draw_circle(ts, 10.0, Color(1.0, 0.95, 0.7, 0.9))
 	for i in _buttons.size():
 		var b: Dictionary = _buttons[i]
+		if String(b["action"]) == "interact" and not _use_visible():
+			continue
 		var p: Vector2 = b["pos"]
 		var r: float = b["r"]
 		var on := _pressed.has(i)
@@ -317,6 +328,15 @@ func _draw_view() -> void:
 			_view.draw_arc(p, r - 6.0, -PI * 0.5, -PI * 0.5 + TAU * rd, 48, Color(gold.r, gold.g, gold.b, 0.8), 6.0)
 		_view.draw_arc(p, r, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, (0.95 if on else 0.6) * (1.0 if rd >= 1.0 else 0.5)), 3.0)
 		var lbl := String(b["label"])
+		var icon := ""
+		if String(b["action"]) == "heavy":
+			icon = "heavy"
+		elif b.has("skill") and hero != null and is_instance_valid(hero) and hero.get("kit") != null:
+			icon = String(hero.kit["skills"][int(b["skill"])]["type"])
+		if icon != "":
+			# T-16: ağır saldırı ve yetenek düğmelerinde HUD'daki simge
+			CombatHud.draw_icon(_view, icon, p, r * 0.42, Color(1.0, 0.95, 0.85, 0.95 * (1.0 if rd >= 1.0 else 0.55)))
+			lbl = ""
 		var fs := int(r * 0.6)
 		var f: Font = sym if lbl in ["⚔", "◈", "»", "»»"] else font
 		var w := f.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x

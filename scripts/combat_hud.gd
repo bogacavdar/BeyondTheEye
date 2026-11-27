@@ -94,12 +94,31 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func _text(s: String, pos: Vector2, fsize: int, col: Color, center := true, f: Font = null) -> void:
+func _text(s: String, pos: Vector2, fsize: int, col: Color, center := true, f: Font = null, key_name := false) -> void:
 	var ff := f if f != null else _font
+	if key_name:
+		# tuş adları dilin büyük harf kuralından muaf (Türkçede "Shift" -> "SHİFT" olmasın): İngilizce şekillendir
+		var tl := TextLine.new()
+		tl.add_string(s, ff, fsize, "en")
+		var x0 := pos.x - (tl.get_size().x * 0.5 if center else 0.0)
+		var top := Vector2(x0, pos.y - tl.get_line_ascent())
+		tl.draw_outline(get_canvas_item(), top, 6, Color(0.02, 0.03, 0.1, 0.85))
+		tl.draw(get_canvas_item(), top, col)
+		return
 	var w := ff.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 	var x := pos.x - (w * 0.5 if center else 0.0)
 	draw_string_outline(ff, Vector2(x, pos.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 6, Color(0.02, 0.03, 0.1, 0.85))
 	draw_string(ff, Vector2(x, pos.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, col)
+
+
+## Parlak arenalarda okunsun diye yazının arkasına koyu yarı saydam şerit (T-21)
+func _strip(s: String, pos: Vector2, fsize: int, lines := 1) -> void:
+	var w := _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + 60.0
+	_strip_rect(Rect2(pos.x - w * 0.5, pos.y - float(fsize) - 6.0, w, float(fsize) + 16.0 + (30.0 if lines > 1 else 0.0)))
+
+
+func _strip_rect(r: Rect2) -> void:
+	draw_rect(r, Color(0.01, 0.015, 0.05, 0.62))
 
 
 func _a(c: Color, a: float) -> Color:
@@ -158,19 +177,23 @@ func _draw() -> void:
 			draw_arc(sp, 26.0, 0.0, TAU, 32, Color(1, 1, 1, 0.25), 4.0)
 			draw_arc(sp, 26.0, -PI * 0.5, -PI * 0.5 + TAU * pr, 32, gold, 5.0)
 			_text(tr("REVIVE"), sp + Vector2(0, 50), 15, UI.CREAM)
-	if not tutorial_mode:
+	var carding := _card_t >= 0.0 and not _card.is_empty()   # T-18: boss kartı süresince sol üst yazılar ve boss çubuğu gizli
+	if not tutorial_mode and not carding:
 		_text(tr("%d stardust") % dust, bx + Vector2(0, bh + 38.0), 20, UI.CREAM, false)
 		_draw_elements(bx + Vector2(0, bh + 68.0))
 
 	# --- dalga
 	if boss != null and is_instance_valid(boss) and not boss.dead:
-		_draw_boss_bar()
+		if not carding:
+			_draw_boss_bar()
 	elif not tutorial_mode:
-		_text(tr("CHAMBER %d / %d") % [room, room_total], Vector2(size.x * 0.5, 44), 26, gold)
+		var ct := tr("CHAMBER %d / %d") % [room, room_total]
+		_strip(ct, Vector2(size.x * 0.5, 44), 26, 2 if wave > 0 else 1)
+		_text(ct, Vector2(size.x * 0.5, 44), 26, gold)
 	if not tutorial_mode:
 		_draw_reward_and_boons()
 	if wave > 0 and boss == null and not tutorial_mode:
-		_text(tr("WAVE %d / %d") % [mini(wave, wave_total), wave_total], Vector2(size.x * 0.5, 74), 18, _a(UI.CREAM, 0.85))
+		_text(tr("WAVE %d / %d") % [mini(wave, wave_total), wave_total], Vector2(size.x * 0.5, 74), 18, UI.CREAM)
 
 	if GameData.input_mode != "touch":
 		_draw_slots()
@@ -191,13 +214,18 @@ func _draw() -> void:
 		var ca := clampf(_card_t * 3.0, 0.0, 1.0) * clampf((3.2 - _card_t) * 2.0, 0.0, 1.0)
 		var cc: Color = _card["col"]
 		var cy := size.y * 0.3
-		draw_rect(Rect2(0, cy - 120, size.x, 225), Color(0.01, 0.015, 0.05, 0.6 * ca))
+		# T-18: şerit portreyi içine alır (1080p'de 320 px), üst kenar >= 150 px, portrenin sol kenarı >= 440 px
+		var k := size.y / 1080.0
+		var band_h := 320.0 * k
+		var band_top := maxf(150.0 * k, cy - band_h * 0.5)
+		draw_rect(Rect2(0, band_top, size.x, band_h), Color(0.01, 0.015, 0.05, 0.6 * ca))
 		var ptex = _card.get("tex")
 		if ptex != null:
-			var ph := 420.0
+			var ph := band_h
 			var pw: float = ph * float(ptex.get_width()) / float(maxi(ptex.get_height(), 1))
-			var slide := (1.0 - clampf(_card_t * 2.5, 0.0, 1.0)) * 120.0
-			draw_texture_rect(ptex, Rect2(size.x * 0.5 - 360.0 - pw - slide, cy - 250.0, pw, ph), false, Color(1, 1, 1, ca))
+			var slide := (1.0 - clampf(_card_t * 2.5, 0.0, 1.0)) * 120.0 * k
+			var px := maxf(440.0 * k, size.x * 0.5 - 360.0 * k - pw - slide)
+			draw_texture_rect(ptex, Rect2(px, band_top, pw, ph), false, Color(1, 1, 1, ca))
 		var parts := String(_card["title"]).split("  ·  ")
 		var gf := UI.symbol_font()
 		_text(String(_card["glyph"]) + "︎", Vector2(size.x * 0.5, cy - 30.0), 84, _a(cc, ca), true, gf)
@@ -311,18 +339,18 @@ func _draw_slots() -> void:
 			if pts.size() >= 3:
 				draw_colored_polygon(pts, Color(0.0, 0.0, 0.05, 0.55))
 		draw_arc(c, sw * 0.5, 0.0, TAU, 48, gold if is_ready else _a(gold, 0.45), 3.0 if is_ready else 1.5, true)
-		_key_badge(tr(String(sl[0])), c + Vector2(0, -sw * 0.5 - 2.0), is_ready)
+		_key_badge(tr(String(sl[0])), c + Vector2(0, -sw * 0.5 - 2.0), is_ready, String(sl[0]))
 		_name_box(name_txt, Vector2(c.x, y0 + sw + 10.0), sw + gap - 10.0, is_ready)
 
 
 ## Simgenin üstündeki tuş rozeti
-func _key_badge(t: String, center: Vector2, lit: bool) -> void:
+func _key_badge(t: String, center: Vector2, lit: bool, raw := "") -> void:
 	var fs := 14
 	var w := maxf(_font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 16.0, 76.0)
 	var r := Rect2(center.x - w * 0.5, center.y - 12.0, w, 24.0)
 	draw_rect(r, Color(0.08, 0.1, 0.26, 0.98))
 	draw_rect(r, UI.GOLD if lit else _a(UI.GOLD, 0.5), false, 1.5)
-	_text(t, Vector2(center.x, center.y + 6.0), fs, UI.CREAM)
+	_text(t, Vector2(center.x, center.y + 6.0), fs, UI.CREAM, true, null, t == raw)
 
 
 ## Simgenin altındaki çerçeveli ad kutusu (uzun adlar iki satıra bölünür)
@@ -359,14 +387,10 @@ func _draw_prompt() -> void:
 	var fs := 32
 	var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var glyph_w := 56.0 if prompt_glyph != "" else 0.0
-	# etkileşim tuşu giriş kipine göre (GDD §14.5): E / X / KULLAN
-	var key := "E"
-	if GameData.input_mode == "pad":
-		key = "X"
-	elif GameData.input_mode == "touch":
-		key = tr("USE")
-	var kfs := 26 if key.length() <= 2 else 18
-	var key_w := maxf(52.0, _font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, kfs).x + 28.0)
+	# etkileşim tuşu giriş kipine göre (T-14, §14.5): E / X; dokunmatikte tuş kutusu çizilmez (KULLAN düğmesi var)
+	var key := "X" if GameData.input_mode == "pad" else "E"
+	var show_key := GameData.input_mode != "touch"
+	var key_w := 52.0 if show_key else -18.0
 	var pad := 26.0
 	var w := pad + key_w + 18.0 + glyph_w + tw + pad
 	var h := 70.0
@@ -375,12 +399,12 @@ func _draw_prompt() -> void:
 	draw_rect(r.grow(6.0), Color(prompt_color.r, prompt_color.g, prompt_color.b, 0.18 * pulse))
 	draw_rect(r, Color(0.03, 0.045, 0.13, 0.95))
 	draw_rect(r, gold, false, 2.5)
-	# E tuşu
 	var kx := r.position.x + pad
-	var kr := Rect2(kx, r.position.y + (h - 44.0) * 0.5, key_w - 8.0, 44.0)
-	draw_rect(kr, Color(0.1, 0.12, 0.3))
-	draw_rect(kr, gold, false, 2.0)
-	_text(key, kr.get_center() + Vector2(0, 10 if kfs == 26 else 7), kfs, gold)
+	if show_key:
+		var kr := Rect2(kx, r.position.y + (h - 44.0) * 0.5, key_w - 8.0, 44.0)
+		draw_rect(kr, Color(0.1, 0.12, 0.3))
+		draw_rect(kr, gold, false, 2.0)
+		_text(key, kr.get_center() + Vector2(0, 10), 26, gold, true, null, true)
 	var x := kx + key_w + 18.0
 	if prompt_glyph != "":
 		_text(prompt_glyph + "\uFE0E", Vector2(x + 22.0, r.position.y + h * 0.5 + 14.0), 38, prompt_color, true, _sym)
@@ -426,21 +450,32 @@ func _draw_reward_and_boons() -> void:
 	var gold := UI.GOLD
 	var x := size.x - 40.0
 	var y := 46.0
+	var rname := ""   # §19.3 / T-21: simgenin altında ödülün adı
 	if reward.begins_with("boon:"):
 		var pl: Dictionary = Boons.PLANETS.get(reward.substr(5), {})
 		if not pl.is_empty():
 			var col: Color = pl["color"]
 			_text(tr("REWARD"), Vector2(x - 120, y), 14, _a(UI.CREAM, 0.7))
 			_text(String(pl["glyph"]) + "\uFE0E", Vector2(x - 20, y + 6), 32, col, true, _sym)
+			rname = tr("BLESSING OF %s") % tr(reward.substr(5).to_upper())
 	elif reward == "weapon":
 		_text(tr("REWARD"), Vector2(x - 120, y), 14, _a(UI.CREAM, 0.7))
 		_text("\u2605\uFE0E", Vector2(x - 20, y + 6), 30, hero.kit["color"] if hero != null else gold, true, _sym)
+		rname = tr("WEAPON MASTERY")
 	elif reward == "dust":
 		_text(tr("REWARD"), Vector2(x - 120, y), 14, _a(UI.CREAM, 0.7))
 		_text("\u2726\uFE0E", Vector2(x - 20, y + 6), 30, gold, true, _sym)
+		rname = tr("STARDUST")
+	elif reward == "rest":
+		_text(tr("REWARD"), Vector2(x - 120, y), 14, _a(UI.CREAM, 0.7))
+		rname = tr("SANCTUARY")
+	if rname != "":
+		var nw := _font.get_string_size(rname, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		_strip_rect(Rect2(x - nw - 10.0, y + 22.0, nw + 16.0, 24.0))
+		_text(rname, Vector2(x - nw, y + 40.0), 16, gold, false)
 	# alınan lütuflar: gezegen sembolleri sıra halinde
 	var bx := x - 20.0
-	var by := y + 50.0
+	var by := y + (78.0 if rname != "" else 50.0)
 	var i := 0
 	for id in GameData.run_boons:
 		var b := Boons.get_boon(String(id))
@@ -453,78 +488,94 @@ func _draw_reward_and_boons() -> void:
 
 ## Basit çizilmiş simgeler
 func _icon(kind: String, c: Vector2, r: float, col: Color) -> void:
+	draw_icon(self, kind, c, r, col)
+
+
+## Simge çizimi (HUD yetenek çubuğu ve dokunmatik düğmeler ortak kullanır, T-16)
+static func draw_icon(ci: CanvasItem, kind: String, c: Vector2, r: float, col: Color) -> void:
 	match kind:
 		"starfall":
 			# düşen yıldız: yıldız + kuyruk
-			draw_line(c + Vector2(-r * 1.0, -r * 1.0), c + Vector2(-r * 0.2, -r * 0.2), col, 2.0, true)
-			draw_line(c + Vector2(-r * 0.6, -r * 1.1), c + Vector2(0, -r * 0.4), _a(col, col.a * 0.6), 1.5, true)
-			draw_colored_polygon(_star(c + Vector2(r * 0.25, r * 0.25), r * 0.75, r * 0.32, 5), col)
+			ci.draw_line(c + Vector2(-r * 1.0, -r * 1.0), c + Vector2(-r * 0.2, -r * 0.2), col, 2.0, true)
+			ci.draw_line(c + Vector2(-r * 0.6, -r * 1.1), c + Vector2(0, -r * 0.4), _ca(col, col.a * 0.6), 1.5, true)
+			ci.draw_colored_polygon(_star(c + Vector2(r * 0.25, r * 0.25), r * 0.75, r * 0.32, 5), col)
 		"wave":
 			# hilal
-			draw_arc(c, r, -PI * 0.75, PI * 0.75, 24, col, 4.0, true)
-			draw_arc(c + Vector2(-r * 0.25, 0), r * 0.85, -PI * 0.6, PI * 0.6, 24, _a(col, col.a * 0.5), 2.0, true)
+			ci.draw_arc(c, r, -PI * 0.75, PI * 0.75, 24, col, 4.0, true)
+			ci.draw_arc(c + Vector2(-r * 0.25, 0), r * 0.85, -PI * 0.6, PI * 0.6, 24, _ca(col, col.a * 0.5), 2.0, true)
 		"path":
 			# birbirine bağlı üç yıldız
 			var p1 := c + Vector2(-r, r * 0.5)
 			var p2 := c + Vector2(0, -r * 0.6)
 			var p3 := c + Vector2(r, r * 0.3)
-			draw_line(p1, p2, col, 2.0, true)
-			draw_line(p2, p3, col, 2.0, true)
+			ci.draw_line(p1, p2, col, 2.0, true)
+			ci.draw_line(p2, p3, col, 2.0, true)
 			for p in [p1, p2, p3]:
-				draw_colored_polygon(_star(p, r * 0.35, r * 0.15, 4), col)
+				ci.draw_colored_polygon(_star(p, r * 0.35, r * 0.15, 4), col)
 		"boomerang":
-			draw_arc(c, r, -0.4, PI + 0.4, 24, col, 4.0, true)
-			draw_arc(c + Vector2(0, r * 0.35), r * 0.75, -0.2, PI + 0.2, 24, _a(col, col.a * 0.5), 2.0, true)
+			ci.draw_arc(c, r, -0.4, PI + 0.4, 24, col, 4.0, true)
+			ci.draw_arc(c + Vector2(0, r * 0.35), r * 0.75, -0.2, PI + 0.2, 24, _ca(col, col.a * 0.5), 2.0, true)
 		"vortex":
 			for k in 3:
-				draw_arc(c, r * (0.35 + 0.3 * float(k)), float(k) * 2.1, float(k) * 2.1 + 3.6, 20, col, 2.5, true)
+				ci.draw_arc(c, r * (0.35 + 0.3 * float(k)), float(k) * 2.1, float(k) * 2.1 + 3.6, 20, col, 2.5, true)
 		"eclipse":
-			draw_circle(c, r * 0.85, col)
-			draw_circle(c + Vector2(r * 0.35, -r * 0.15), r * 0.75, Color(0.05, 0.08, 0.2))
-			draw_arc(c, r * 1.05, 0.0, TAU, 32, _a(col, col.a * 0.6), 1.5, true)
-		"cone", "burst_self", "aura":
-			if kind == "cone":
-				var pts := PackedVector2Array([c + Vector2(-r, r * 0.1), c + Vector2(r, -r * 0.7), c + Vector2(r, r * 0.9)])
-				draw_colored_polygon(pts, _a(col, col.a * 0.8))
-			else:
-				draw_circle(c, r * 0.45, col)
-				for k in 8:
-					var a := TAU * float(k) / 8.0
-					draw_line(c + Vector2(cos(a), sin(a)) * r * 0.6, c + Vector2(cos(a), sin(a)) * r * 1.0, col, 2.0, true)
+			ci.draw_circle(c, r * 0.85, col)
+			ci.draw_circle(c + Vector2(r * 0.35, -r * 0.15), r * 0.75, Color(0.05, 0.08, 0.2))
+			ci.draw_arc(c, r * 1.05, 0.0, TAU, 32, _ca(col, col.a * 0.6), 1.5, true)
+		"cone":
+			# ileri püskürme
+			var pts := PackedVector2Array([c + Vector2(-r, r * 0.1), c + Vector2(r, -r * 0.7), c + Vector2(r, r * 0.9)])
+			ci.draw_colored_polygon(pts, _ca(col, col.a * 0.8))
+		"burst_self", "burst_aim":
+			# çevreye patlama: merkez + ışınlar
+			ci.draw_circle(c, r * 0.45, col)
+			for k in 8:
+				var a := TAU * float(k) / 8.0
+				ci.draw_line(c + Vector2(cos(a), sin(a)) * r * 0.6, c + Vector2(cos(a), sin(a)) * r * 1.0, col, 2.0, true)
+		"aura":
+			# hale: halka içinde nokta (T-21)
+			ci.draw_arc(c, r * 0.9, 0.0, TAU, 32, col, 3.0, true)
+			ci.draw_arc(c, r * 0.62, 0.0, TAU, 28, _ca(col, col.a * 0.5), 1.5, true)
+			ci.draw_circle(c, r * 0.26, col)
 		"charge", "leap", "disengage":
-			draw_line(c + Vector2(-r, r * 0.6), c + Vector2(r * 0.8, -r * 0.6), col, 3.5, true)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(r, -r * 0.75), c + Vector2(r * 0.3, -r * 0.65), c + Vector2(r * 0.75, -r * 0.05)]), col)
+			ci.draw_line(c + Vector2(-r, r * 0.6), c + Vector2(r * 0.8, -r * 0.6), col, 3.5, true)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(r, -r * 0.75), c + Vector2(r * 0.3, -r * 0.65), c + Vector2(r * 0.75, -r * 0.05)]), col)
 		"line":
 			for k in 4:
-				draw_circle(c + Vector2(-r + float(k) * r * 0.66, r * 0.4 - float(k) * r * 0.28), r * (0.14 + 0.05 * float(k)), col)
+				ci.draw_circle(c + Vector2(-r + float(k) * r * 0.66, r * 0.4 - float(k) * r * 0.28), r * (0.14 + 0.05 * float(k)), col)
 		"hook":
-			draw_line(c + Vector2(-r, r), c + Vector2(r * 0.2, -r * 0.2), col, 2.5, true)
-			draw_arc(c + Vector2(r * 0.45, -r * 0.2), r * 0.35, PI, TAU + 0.8, 16, col, 3.0, true)
+			ci.draw_line(c + Vector2(-r, r), c + Vector2(r * 0.2, -r * 0.2), col, 2.5, true)
+			ci.draw_arc(c + Vector2(r * 0.45, -r * 0.2), r * 0.35, PI, TAU + 0.8, 16, col, 3.0, true)
 		"orbit":
-			draw_arc(c, r * 0.85, 0.0, TAU, 32, _a(col, col.a * 0.6), 1.5, true)
-			draw_circle(c, r * 0.3, col)
-			draw_circle(c + Vector2(r * 0.85, 0), r * 0.22, col)
-			draw_circle(c - Vector2(r * 0.85, 0), r * 0.22, col)
+			ci.draw_arc(c, r * 0.85, 0.0, TAU, 32, _ca(col, col.a * 0.6), 1.5, true)
+			ci.draw_circle(c, r * 0.3, col)
+			ci.draw_circle(c + Vector2(r * 0.85, 0), r * 0.22, col)
+			ci.draw_circle(c - Vector2(r * 0.85, 0), r * 0.22, col)
 		"dash":
 			for k in 3:
 				var o := float(k) * r * 0.45
-				draw_line(c + Vector2(-r + o, -r * 0.6), c + Vector2(-r * 0.2 + o, 0), col, 2.5, true)
-				draw_line(c + Vector2(-r * 0.2 + o, 0), c + Vector2(-r + o, r * 0.6), col, 2.5, true)
+				ci.draw_line(c + Vector2(-r + o, -r * 0.6), c + Vector2(-r * 0.2 + o, 0), col, 2.5, true)
+				ci.draw_line(c + Vector2(-r * 0.2 + o, 0), c + Vector2(-r + o, r * 0.6), col, 2.5, true)
 		"heavy":
-			# ağır saldırı: merkezden saçılan darbe
-			draw_circle(c, r * 0.32, col)
-			for k in 8:
-				var a := TAU * float(k) / 8.0
-				draw_line(c + Vector2(cos(a), sin(a)) * r * 0.5, c + Vector2(cos(a), sin(a)) * r * (0.95 if k % 2 == 0 else 0.75), col, 2.5, true)
+			# ağır saldırı: aşağı inen kalın ok + yer çizgisi ("çakma", T-21)
+			ci.draw_line(c + Vector2(0, -r * 1.0), c + Vector2(0, r * 0.15), col, 5.0, true)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.55, r * 0.05), c + Vector2(r * 0.55, r * 0.05), c + Vector2(0, r * 0.65)]), col)
+			ci.draw_line(c + Vector2(-r * 1.0, r * 0.85), c + Vector2(r * 1.0, r * 0.85), col, 3.0, true)
+			ci.draw_line(c + Vector2(-r * 0.75, r * 0.85), c + Vector2(-r * 0.95, r * 0.55), _ca(col, col.a * 0.6), 1.5, true)
+			ci.draw_line(c + Vector2(r * 0.75, r * 0.85), c + Vector2(r * 0.95, r * 0.55), _ca(col, col.a * 0.6), 1.5, true)
 		"parry":
 			# kalkan
 			var pts := PackedVector2Array([c + Vector2(-r * 0.8, -r * 0.8), c + Vector2(r * 0.8, -r * 0.8), c + Vector2(r * 0.8, 0), c + Vector2(0, r), c + Vector2(-r * 0.8, 0)])
 			pts.append(pts[0])
-			draw_polyline(pts, col, 2.5, true)
-			draw_line(c + Vector2(0, -r * 0.6), c + Vector2(0, r * 0.6), col, 2.0, true)
+			ci.draw_polyline(pts, col, 2.5, true)
+			ci.draw_line(c + Vector2(0, -r * 0.6), c + Vector2(0, r * 0.6), col, 2.0, true)
 
 
-func _star(c: Vector2, ro: float, ri: float, n: int) -> PackedVector2Array:
+static func _ca(c: Color, a: float) -> Color:
+	return Color(c.r, c.g, c.b, a)
+
+
+static func _star(c: Vector2, ro: float, ri: float, n: int) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	for k in n * 2:
 		var a := -PI * 0.5 + float(k) * PI / float(n)

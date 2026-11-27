@@ -142,6 +142,7 @@ func _ready() -> void:
 	if GameData.show_touch():
 		tc = load("res://scripts/touch_controls.gd").new()
 		tc.hero = hero
+		tc.hud = hud
 		add_child(tc)
 	_aim_moon()
 	_begin(0)
@@ -431,9 +432,6 @@ func _begin(n: int) -> void:
 			_spawn_foe(Vector3(3.0, 0, -3.0), "", 1.8)
 		9:
 			_build_gate()
-			if tc != null:
-				tc.show_use = true
-				tc._layout()
 
 
 func _place_far_ring() -> void:
@@ -623,6 +621,7 @@ func _process(delta: float) -> void:
 				_success()
 		9:
 			var gd := Vector2(hp.x - GATE_POS.x, hp.z - GATE_POS.z).length()
+			hero.interact_near = gd < 2.8   # E kuralı (GDD §8)
 			if gd < 2.8:
 				hud.prompt = "THE GATE"
 				hud.prompt_glyph = "♈"
@@ -650,19 +649,35 @@ func _key(act: String) -> String:
 	return tr(String(KEYS[mode].get(act, "")), CTX)
 
 
+## Çevrilmemiş tuş adı mı (Shift, Esc, LB…)? Öyleyse büyük harf dönüşümünden muaf çizilir
+func _is_key_name(act: String) -> bool:
+	var mode := GameData.input_mode if KEYS.has(GameData.input_mode) else "mouse"
+	var raw := String(KEYS[mode].get(act, ""))
+	return tr(raw, CTX) == raw
+
+
 func _t(s: String) -> String:
 	return tr(s, CTX)
 
 
-func _text(s: String, pos: Vector2, fsize: int, col: Color, center := true, f: Font = null) -> void:
+func _text(s: String, pos: Vector2, fsize: int, col: Color, center := true, f: Font = null, key_name := false) -> void:
 	var ff := f if f != null else UI.font()
+	if key_name:
+		# tuş adı (çevrilmemiş: Shift, Esc, WASD…): dilin büyük harf kuralından muaf, İngilizce şekillendirilir
+		var tl := TextLine.new()
+		tl.add_string(s, ff, fsize, "en")
+		var x0 := pos.x - (tl.get_size().x * 0.5 if center else 0.0)
+		var top := Vector2(x0, pos.y - tl.get_line_ascent())
+		tl.draw_outline(overlay.get_canvas_item(), top, 7, Color(0.02, 0.03, 0.1, 0.9))
+		tl.draw(overlay.get_canvas_item(), top, col)
+		return
 	var w := ff.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 	var x := pos.x - (w * 0.5 if center else 0.0)
 	overlay.draw_string_outline(ff, Vector2(x, pos.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 7, Color(0.02, 0.03, 0.1, 0.9))
 	overlay.draw_string(ff, Vector2(x, pos.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, col)
 
 
-func _badge(t: String, center: Vector2) -> void:
+func _badge(t: String, center: Vector2, key_name := false) -> void:
 	var f := UI.font()
 	var fs := 22
 	var w := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 36.0
@@ -671,7 +686,7 @@ func _badge(t: String, center: Vector2) -> void:
 	overlay.draw_rect(r.grow(4.0 + 2.0 * pulse), Color(1.0, 0.8, 0.4, 0.12 + 0.12 * pulse))
 	overlay.draw_rect(r, Color(0.08, 0.1, 0.26, 0.97))
 	overlay.draw_rect(r, UI.GOLD, false, 2.0)
-	_text(t, Vector2(center.x, center.y + 8.0), fs, UI.CREAM)
+	_text(t, Vector2(center.x, center.y + 8.0), fs, UI.CREAM, true, null, key_name)
 
 
 func _draw_overlay() -> void:
@@ -713,7 +728,7 @@ func _draw_overlay() -> void:
 	y += 92.0
 	var act := String(st["act"])
 	if act != "" and GameData.input_mode != "touch":
-		_badge(_key(act), Vector2(cx, y))
+		_badge(_key(act), Vector2(cx, y), _is_key_name(act))
 		y += 50.0
 	elif act != "":
 		# dokunmatik: rozet yok, ilgili ekran düğmesi parlar; metin yine üst-ortada

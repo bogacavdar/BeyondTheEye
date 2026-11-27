@@ -42,6 +42,7 @@ var aim_point := Vector3.ZERO
 var skill_cd := [0.0, 0.0, 0.0]
 var state := "free"                  # free, attack, parry, cast, dead
 var sprinting := false
+var interact_near := false          # durak/kapı etkileşim menzilinde: klavye E'si 2. yeteneği atmaz (GDD §8)
 var parry_mult := 1.0                # öğretici: parry penceresi 2 kat (GDD §14.4)
 var last_atk_kind := ""              # son başlatılan saldırı: combo / heavy / skill (öğretici)
 var last_hit_parryable := false      # son isabet alan saldırı altın mıydı (öğretici geri bildirimi)
@@ -574,6 +575,8 @@ func _read_actions(move: Vector3) -> void:
 		Sfx.play("switch", -14.0, 0.05, 0, 0.7)
 		return
 	for i in 3:
+		if i == 1 and interact_near and pad_dev < 0 and Input.is_physical_key_pressed(KEY_E):
+			continue
 		if _jp("skill_%d" % (i + 1)) and float(skill_cd[i]) <= 0.0 and dash_t <= 0.0:
 			if state == "free" or _recovering():
 				_use_skill(i)

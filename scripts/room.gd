@@ -387,6 +387,7 @@ func _ready() -> void:
 	if GameData.show_touch():
 		var tc = load("res://scripts/touch_controls.gd").new()
 		tc.hero = hero
+		tc.hud = hud   # T-15: kapı menzilinde KULLAN düğmesi
 		add_child(tc)
 	# gök yoldaşı
 	var CompS = load("res://scripts/companion.gd")

@@ -98,10 +98,10 @@ func _ready() -> void:
 
 	# antrenman hedefi: silahı ve yetenekleri denemek için
 	var dummy = DummyScript.new()
+	dummy.position = Vector3(4.5, 0, -5.0)   # _home ağaca girerken alınır: konum add_child'dan önce
 	add_child(dummy)
-	dummy.global_position = Vector3(4.5, 0, -5.0)
 	# ANTRENMAN durağı (GDD §14.2): kuklanın yanında; öğreticiyi tekrar kipinde açar
-	_station("TRAINING", Vector3(3.4, 0, -1.4), _open_training)
+	_station("TRAINING", Vector3(4.2, 0, -2.2), _open_training)
 
 	_aim_moon()
 	_build_ui()
@@ -1065,6 +1065,7 @@ func _process(delta: float) -> void:
 
 	if _ui_open:
 		act_box.visible = false
+		player.interact_near = false
 		return
 
 	# yakındaki durak
@@ -1076,9 +1077,16 @@ func _process(delta: float) -> void:
 		if d < best:
 			best = d
 			near = s
+	player.interact_near = near != null   # E kuralı (GDD §8)
 	if near != null:
 		act_box.visible = true
-		act_label.text = "[ E ]   %s" % tr(String(near["title"]))
+		# T-14: tuş giriş kipine göre; dokunmatikte yalnız durak adı (KULLAN düğmesi var)
+		var key := "[ E ]   "
+		if GameData.input_mode == "pad":
+			key = "[ X ]   "
+		elif GameData.input_mode == "touch":
+			key = ""
+		act_label.text = key + tr(String(near["title"]))
 		act_box.modulate.a = 0.8 + 0.2 * sin(_t * 5.0)
 		if Input.is_action_just_pressed("interact"):
 			act_box.visible = false

@@ -2451,6 +2451,10 @@ func _place_tele() -> void:
 
 # ---------------------------------------------------------------- yapay zekâ
 
+func _process(_delta: float) -> void:
+	_tick_affix_label()
+
+
 func _physics_process(delta: float) -> void:
 	if puppet:
 		_puppet_tick(delta)
@@ -3294,20 +3298,67 @@ const AFFIX_COLS := {"shielded": Color(0.5, 1.0, 0.8), "swift": Color(0.6, 0.85,
 
 
 ## Seçkin özellikleri başının üstünde yazar
+var affix_lbl: Label3D = null
+
+
+## Seçkin etiketi (T-20): yalnız özellik adları (en fazla 2, "·" ile), kalın koyu dış çizgi ve hafif koyu zemin
 func _affix_label() -> void:
 	var lb := Label3D.new()
 	var parts: Array = []
-	for a in affixes:
+	for a in affixes.slice(0, 2):
 		parts.append(tr(String(AFFIX_NAMES.get(a, a))))
 	lb.text = " · ".join(parts)
 	lb.font_size = 44
 	lb.pixel_size = 0.005
-	lb.outline_size = 10
+	lb.outline_size = 14
+	lb.outline_modulate = Color(0.02, 0.02, 0.06, 1.0)
 	lb.modulate = AFFIX_COLS.get(affixes[0], Color.WHITE)
 	lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lb.no_depth_test = true
+	lb.render_priority = 2
+	lb.outline_render_priority = 1
 	lb.position = Vector3(0, 2.75 * size_k + (0.5 if kind == "caster" else 0.0), 0)
 	add_child(lb)
+	# koyu zemin: etiketin arkasında yarı saydam şerit
+	var f: Font = lb.font if lb.font != null else ThemeDB.fallback_font
+	var tw := f.get_string_size(lb.text, HORIZONTAL_ALIGNMENT_LEFT, -1, lb.font_size).x * lb.pixel_size
+	var bg := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(tw + 0.2, float(lb.font_size) * lb.pixel_size * 1.35)
+	bg.mesh = q
+	var bm := StandardMaterial3D.new()
+	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bm.albedo_color = Color(0.01, 0.015, 0.05, 0.45)
+	bm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	bm.no_depth_test = true
+	bm.render_priority = 0
+	bg.material_override = bm
+	bg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	lb.add_child(bg)
+	affix_lbl = lb
+
+
+## İki seçkin etiketi ekranda 70 px'ten yakınsa kahramana uzak olanın etiketi gizlenir (hale kalır)
+func _tick_affix_label() -> void:
+	if affix_lbl == null or dead:
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or hero == null or not is_instance_valid(hero):
+		return
+	var my := cam.unproject_position(affix_lbl.global_position)
+	var my_d: float = global_position.distance_to(hero.global_position)
+	var show := true
+	for o in get_tree().get_nodes_in_group("enemies"):
+		if o == self or o.dead or o.get("affix_lbl") == null:
+			continue
+		var ol: Label3D = o.affix_lbl
+		if cam.unproject_position(ol.global_position).distance_to(my) < 70.0:
+			var od: float = o.global_position.distance_to(hero.global_position)
+			if od < my_d or (is_equal_approx(od, my_d) and o.get_instance_id() < get_instance_id()):
+				show = false
+				break
+	affix_lbl.visible = show
 
 
 ## Kabuk Askeri: kabuktan çıkarken etrafına kıskaç vurur
