@@ -105,6 +105,7 @@ func _ready() -> void:
 
 	_aim_moon()
 	_build_ui()
+	_setup_guidance()
 	GameData.run_room = 0
 	GameData.run_hp = -1.0
 	GameData.run_reward = ""
@@ -541,7 +542,18 @@ func _station(title: String, pos: Vector3, action: Callable, floor_y := 0.04) ->
 	p.scale_amount_max = 1.2
 	p.position = pos + Vector3(0, floor_y + 0.01, 0)
 	add_child(p)
-	stations.append({"pos": pos, "title": title, "action": action, "ring": ring, "mat": m, "glow": 0.0})
+	# REHBERLİK (§19.1): durak ilk kez kullanılana kadar üstünde nabız atan küçük altın ✦
+	var mark: Label3D = null
+	if not bool(GameData.hints.get("station:" + title, false)):
+		mark = UI.label3d("\u2726\uFE0E", 72, UI.GOLD, 2.4)
+		mark.font = UI.symbol_font()
+		mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		mark.no_depth_test = true
+		mark.outline_size = 10
+		mark.outline_modulate = Color(0.02, 0.02, 0.06, 0.9)
+		add_child(mark)
+		mark.position = pos + Vector3(0, (5.6 if title == "THE GATE" else 3.4), 0)
+	stations.append({"pos": pos, "title": title, "action": action, "ring": ring, "mat": m, "glow": 0.0, "mark": mark})
 
 
 func _portal(pos: Vector3) -> void:
@@ -764,6 +776,9 @@ func _on_weapon_chosen(id: String) -> void:
 
 
 func _open_skill_tree() -> void:
+	_close_death_card()
+	if _trail_on and _trail_target.x < -5.0:
+		_hide_trail()   # Doğum Haritası'na giden iz (§19.4)
 	_ui_open = true
 	player.frozen = true
 	skill_ui.visible = true
@@ -985,6 +1000,11 @@ var rising_ui = null
 
 
 func _enter_portal() -> void:
+	# §19.1: yükselen ekranı açılınca iz ve satır kaybolur, hub_intro yazılır
+	if guide_box != null and guide_box.visible:
+		guide_box.visible = false
+		_hide_trail()
+		GameData.mark_hint("hub_intro")
 	# yükselen seçimi
 	if rising_ui == null:
 		rising_ui = load("res://scripts/rising_ui.gd").new()
@@ -1015,6 +1035,140 @@ func _open_training() -> void:
 	get_tree().change_scene_to_file(TUTORIAL_SCENE)
 
 
+## Durak kullanıldı: ✦ işareti kalkar (yuvaya yazılır), sonra durağın işi
+func _use_station(st: Dictionary) -> void:
+	var title := String(st["title"])
+	GameData.mark_hint("station:" + title)
+	var mk = st.get("mark")
+	if mk != null and is_instance_valid(mk):
+		mk.queue_free()
+	st["mark"] = null
+	st["action"].call()
+
+
+# ---------------------------------------------------------------- rehberlik (GDD §19.1, §19.4)
+var guide_line: Label
+var guide_box: PanelContainer
+var _trail_dots: Array = []
+var _trail_target := Vector3.ZERO
+var _trail_on := false
+var death_card: PanelContainer = null
+var _death_t := 0.0
+
+
+func _setup_guidance() -> void:
+	guide_box = PanelContainer.new()
+	var gs := UI.box(Color(UI.DEEP.r, UI.DEEP.g, UI.DEEP.b, 0.78), UI.GOLD, 1, 14)
+	gs.content_margin_top = 8
+	gs.content_margin_bottom = 8
+	guide_box.add_theme_stylebox_override("panel", gs)
+	guide_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	guide_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	guide_box.offset_top = 30.0
+	guide_line = UI.label(tr("Step through THE GATE to begin your journey"), 26, UI.GOLD, 6)
+	guide_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	guide_box.add_child(guide_line)
+	guide_box.visible = false
+	ui_layer.get_child(0).add_child(guide_box)
+	var dm := _glow(Color(1.0, 0.85, 0.45), 4.0)
+	var sm := SphereMesh.new()
+	sm.radius = 0.07
+	sm.height = 0.14
+	for i in 40:
+		var d := MeshInstance3D.new()
+		d.mesh = sm
+		d.material_override = dm
+		d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		d.visible = false
+		add_child(d)
+		_trail_dots.append(d)
+	if not bool(GameData.hints.get("hub_intro", false)):
+		guide_box.visible = true
+		_show_trail(Vector3(0, 0, -11.2))
+	if GameData.death_hint_pending:
+		GameData.death_hint_pending = false
+		if not bool(GameData.hints.get("first_death", false)):
+			_show_death_card()
+
+
+func _show_trail(target: Vector3) -> void:
+	_trail_target = target
+	_trail_on = true
+
+
+func _hide_trail() -> void:
+	_trail_on = false
+	for d in _trail_dots:
+		(d as Node3D).visible = false
+
+
+## Yerde akan altın ışık izi: kahramanın ayağından hedef durağa noktalı yıldız tozu, 1 sn'de bir aralık ileri akar
+func _tick_trail() -> void:
+	if not _trail_on:
+		return
+	var a := Vector3(player.global_position.x, 0.08, player.global_position.z)
+	var b := Vector3(_trail_target.x, 0.08, _trail_target.z)
+	var L := a.distance_to(b)
+	var gap := 0.7
+	var phase := fmod(_t, 1.0) * gap
+	for i in _trail_dots.size():
+		var d: Node3D = _trail_dots[i]
+		var dist := float(i) * gap + phase
+		if dist > L - 1.6 or dist < 0.6:
+			d.visible = false
+			continue
+		d.visible = true
+		d.position = a.lerp(b, dist / L) + Vector3(0, 0.04 * sin(_t * 3.0 + float(i)), 0)
+		var k := 0.7 + 0.5 * (1.0 - dist / L)
+		d.scale = Vector3.ONE * k
+
+
+## İlk ölümden sonra: kart + (toz yetiyorsa) DOĞUM HARİTASINI AÇ düğmesi; ayrıca Doğum Haritası'na ışık izi
+func _show_death_card() -> void:
+	GameData.mark_hint("first_death")
+	death_card = UI.panel()
+	death_card.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	death_card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	death_card.offset_top = 150.0
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 12)
+	death_card.add_child(vb)
+	var l := UI.label(tr("You fell, but the stars remember. Light a star in your Birth Chart."), 22, UI.CREAM, 4)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(l)
+	if GameData.stardust >= _cheapest_star():
+		var b := UI.button("OPEN BIRTH CHART", 22)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		b.pressed.connect(func():
+			_close_death_card()
+			_hide_trail()
+			_open_skill_tree())
+		vb.add_child(b)
+		if GameData.input_mode == "pad":
+			b.call_deferred("grab_focus")
+	ui_layer.get_child(0).add_child(death_card)
+	_death_t = 12.0
+	_show_trail(Vector3(-10.6, 0, 1.0))
+
+
+func _close_death_card() -> void:
+	if death_card != null and is_instance_valid(death_card):
+		death_card.queue_free()
+	death_card = null
+
+
+static func _cheapest_star() -> int:
+	var BC = load("res://scripts/birth_chart.gd")
+	var best := 1 << 30
+	for h in 12:
+		var ns: Array = BC.nodes(h)
+		for i in ns.size():
+			var stt: String = BC.state(GameData.chart, h, i)
+			if stt == "open" or stt == "owned":
+				best = mini(best, int(BC.cost(GameData.chart, h, i)))
+	return best
+
+
 func _message(text: String, dur := 4.0) -> void:
 	msg_label.text = text
 	msg_t = dur
@@ -1028,6 +1182,11 @@ func _process(delta: float) -> void:
 	var heat := Retro.heat(GameData.retro)
 	if heat > 0:
 		dust_label.text += "   ·   " + tr("RETRO %d") % heat
+	_tick_trail()
+	if death_card != null:
+		_death_t -= delta   # kart 12 sn sonra kapanır
+		if _death_t <= 0.0:
+			_close_death_card()
 	if msg_t > 0.0:
 		msg_t -= delta
 		msg_label.modulate.a = clampf(msg_t, 0.0, 1.0)
@@ -1053,6 +1212,10 @@ func _process(delta: float) -> void:
 
 	# durak halkaları: yavaş nefes, yakınken daha parlak
 	for st in stations:
+		var mk = st.get("mark")
+		if mk != null and is_instance_valid(mk):
+			var pz := 1.0 + 0.18 * sin(_t * 3.0 + float(st["pos"].x))
+			(mk as Node3D).scale = Vector3.ONE * pz
 		var spos: Vector3 = st["pos"]
 		var dist := Vector2(player.global_position.x - spos.x, player.global_position.z - spos.z).length()
 		var target := 1.0 if (dist < 3.8 and not _ui_open) else 0.0
@@ -1090,7 +1253,7 @@ func _process(delta: float) -> void:
 		act_box.modulate.a = 0.8 + 0.2 * sin(_t * 5.0)
 		if Input.is_action_just_pressed("interact"):
 			act_box.visible = false
-			near["action"].call()
+			_use_station(near)
 	else:
 		act_box.visible = false
 

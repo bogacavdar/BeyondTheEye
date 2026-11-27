@@ -2191,6 +2191,7 @@ func _process(delta: float) -> void:
 			else:
 				_on_cleared()
 
+	_tick_hints()
 	# kapılar
 	var near = null
 	var best := 2.6
@@ -2287,6 +2288,8 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 		pool.shuffle()
 		var n := 2 if ZONE_ORDER.find(zone) >= 3 else 1
 		e.affixes = pool.slice(0, n)
+		for af in e.affixes:
+			_affix_hint(String(af))
 	e._bounds = ARENA_R - 0.5
 	add_child(e)
 	e.global_position = pos
@@ -2304,6 +2307,49 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 			_lonely = null
 		else:
 			_lonely = e
+
+
+## REHBERLİK (GDD §19.2): seçkin özelliği ilk kez görülünce bir kerelik kart
+const AFFIX_HINT := {"shielded": "A ward absorbs damage first. Break it, then strike.",
+	"swift": "Faster and quicker to attack. Watch its warnings closely.",
+	"splitting": "Splits into two small copies when it dies.",
+	"healer": "Heals nearby foes. Take it down first.",
+	"volatile": "Explodes after death. Step out of the ring.",
+	"phantom": "Turns invisible while it hunts you."}
+
+
+func _affix_hint(af: String) -> void:
+	var key := "affix:" + af
+	if bool(GameData.hints.get(key, false)) or not AFFIX_HINT.has(af):
+		return
+	GameData.mark_hint(key)
+	hud.show_hint(String(EnemyScript.AFFIX_NAMES.get(af, af)), String(AFFIX_HINT[af]), EnemyScript.AFFIX_COLS.get(af, UI.GOLD), 6.0)
+
+
+## REHBERLİK (§19.2 element, §19.3 kapılar): her karede kontrol
+var _door_hint: Label3D = null
+
+
+func _tick_hints() -> void:
+	if not bool(GameData.hints.get("elements", false)) and hud.zone_el != "" and GameData.hero_el != "":
+		if Elements.mult(GameData.hero_el, GameData.hero_el_n, hud.zone_el) != 1.0:
+			GameData.mark_hint("elements")
+			hud.show_hint("ELEMENTS", "Water beats Fire, Fire beats Air, Air beats Earth, Earth beats Water. Your blessings set your element.", UI.GOLD, 7.0)
+	if _door_hint == null and not doors.is_empty() and not bool(GameData.hints.get("doors", false)):
+		var mid := Vector3.ZERO
+		for d in doors:
+			mid += d["pos"]
+		mid /= float(doors.size())
+		_door_hint = UI.label3d(tr("Each gate's symbol shows its reward. Choose your path."), 40, UI.GOLD, 1.6)
+		_door_hint.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_door_hint.no_depth_test = true
+		_door_hint.pixel_size = 0.006
+		_door_hint.render_priority = 4
+		_door_hint.outline_render_priority = 3
+		_door_hint.outline_size = 14
+		_door_hint.outline_modulate = Color(0.02, 0.02, 0.06, 1.0)
+		add_child(_door_hint)
+		_door_hint.global_position = mid + Vector3(0, 6.2, 0)
 
 
 const ZONE_ORDER := ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"]
@@ -2894,6 +2940,8 @@ func _save_hp2(heal: float) -> void:
 
 
 func _enter_door(type: String) -> void:
+	if _door_hint != null:
+		GameData.mark_hint("doors")   # §19.3: kapı seçilince yazılır
 	if type == "home":
 		_leave()
 		return
@@ -3417,6 +3465,7 @@ func net_run_over(death: bool) -> void:
 		return
 	ended = true
 	if death:
+		GameData.death_hint_pending = true
 		hud.death_screen(GameData.run_dust)
 		await get_tree().create_timer(3.5).timeout
 	_leave()
@@ -3425,6 +3474,7 @@ func net_run_over(death: bool) -> void:
 func _on_hero_died() -> void:
 	Net.send_run_over(true)
 	ended = true
+	GameData.death_hint_pending = true   # §19.4: Gözlemevi'nde Doğum Haritası kartı
 	GameData.last_run_msg = tr("The stars remember you. Gathered this run: %d stardust") % GameData.run_dust
 	GameData.go_save()
 	await get_tree().create_timer(1.0).timeout

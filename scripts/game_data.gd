@@ -323,7 +323,10 @@ static var aquarius_defeated := false     # Kova en az bir kez yenildi mi
 static var pisces_defeated := false     # Balık en az bir kez yenildi mi
 ## ÖĞRETİCİ ODA (GDD §14): yuva başına; true olunca ilk run'dan önce öğretici çıkmaz
 static var tutorial_done := false
-static var tutorial_replay := false     # Gözlemevi ANTRENMAN durağından açıldı (run yok, bayrak değişmez)
+static var tutorial_replay := false
+## REHBERLİK (GDD §19): yuva başına bir kez gösterilen ipuçları (anahtar -> true)
+static var hints := {}
+static var death_hint_pending := false   # run ölümle bitti: Gözlemevi'nde Doğum Haritası kartı (§19.4)     # Gözlemevi ANTRENMAN durağından açıldı (run yok, bayrak değişmez)
 
 
 ## Yeni bir run başlatır (Gözlemevi kapısından girerken)
@@ -519,11 +522,16 @@ static func _load_slot(n: int) -> void:
 	chosen_weapon = String(cfg.get_value("yolculuk", "chosen_weapon", "STAR SWORD")) if ok else "STAR SWORD"
 	saved_run = cfg.get_value("yolculuk", "saved_run", {}) if ok else {}
 	_validate_weapons()
+	hints = Dictionary(cfg.get_value("rehber", "seen", {})) if ok else {}
+	if ok and not cfg.has_section_key("rehber", "seen") and _has_progress():
+		# eski kayıt: ilerleme varsa Gözlemevi girişi (a) ve kapı ipucu (c) görülmüş sayılır
+		hints["hub_intro"] = true
+		hints["doors"] = true
 	if ok and cfg.has_section_key("yolculuk", "tutorial_done"):
 		tutorial_done = bool(cfg.get_value("yolculuk", "tutorial_done", false))
 	elif ok:
 		# eski kayıt: anahtar yok; yuvada ilerleme varsa öğretici geçilmiş sayılır
-		tutorial_done = stardust > 0 or not chart.is_empty() or not almanac.is_empty() or _any_boss_defeated()
+		tutorial_done = _has_progress()
 	else:
 		tutorial_done = false
 
@@ -546,6 +554,18 @@ static func _validate_weapons() -> void:
 	weapons_open = keep
 	if not is_weapon_id(chosen_weapon) or not weapons_open.has(chosen_weapon):
 		chosen_weapon = "STAR SWORD"
+
+
+static func _has_progress() -> bool:
+	return stardust > 0 or not chart.is_empty() or not almanac.is_empty() or _any_boss_defeated()
+
+
+## İpucunu görüldü işaretle ve yuvaya yaz
+static func mark_hint(key: String) -> void:
+	if bool(hints.get(key, false)):
+		return
+	hints[key] = true
+	go_save()
 
 
 static func _any_boss_defeated() -> bool:
@@ -640,6 +660,7 @@ static func go_save() -> void:
 	cfg.set_value("yolculuk", "chosen_weapon", chosen_weapon)
 	cfg.set_value("yolculuk", "saved_run", saved_run)
 	cfg.set_value("yolculuk", "tutorial_done", tutorial_done)
+	cfg.set_value("rehber", "seen", hints)
 	cfg.save(slot_path(slot))
 
 
@@ -713,6 +734,7 @@ static func reset_progress() -> void:
 	chosen_weapon = "STAR SWORD"
 	saved_run = {}
 	tutorial_done = false
+	hints = {}
 	go_save()
 
 

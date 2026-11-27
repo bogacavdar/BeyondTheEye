@@ -45,6 +45,57 @@ func _ready() -> void:
 	_sym = UI.symbol_font()
 
 
+## REHBERLİK KARTI (GDD §19.2): sağ ortada, oyunu durdurmaz; sıradaki kartlar arka arkaya gelir
+var _hint_q: Array = []
+var _hint: Dictionary = {}
+var _hint_t := 0.0
+
+
+func show_hint(title: String, text: String, col: Color, dur: float) -> void:
+	_hint_q.append({"title": title, "text": text, "col": col, "dur": dur})
+
+
+func _tick_hint(delta: float) -> void:
+	if not _hint.is_empty():
+		_hint_t += delta
+		if _hint_t >= float(_hint["dur"]):
+			_hint = {}
+	if _hint.is_empty() and not _hint_q.is_empty():
+		_hint = _hint_q.pop_front()
+		_hint_t = 0.0
+
+
+func _wrap(t: String, fs: int, max_w: float) -> Array:
+	var lines: Array = []
+	var line := ""
+	for wd in t.split(" "):
+		var test: String = wd if line == "" else line + " " + wd
+		if _font.get_string_size(test, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w and line != "":
+			lines.append(line)
+			line = wd
+		else:
+			line = test
+	if line != "":
+		lines.append(line)
+	return lines
+
+
+func _draw_hint() -> void:
+	if _hint.is_empty():
+		return
+	var a := clampf(_hint_t * 4.0, 0.0, 1.0) * clampf((float(_hint["dur"]) - _hint_t) * 2.0, 0.0, 1.0)
+	var w := 440.0
+	var lines := _wrap(tr(String(_hint["text"])), 17, w - 40.0)
+	var h := 62.0 + 24.0 * float(lines.size())
+	var r := Rect2(size.x - 40.0 - w, size.y * 0.42 - h * 0.5, w, h)
+	var col: Color = _hint["col"]
+	draw_rect(r, Color(0.02, 0.03, 0.1, 0.86 * a))
+	draw_rect(r, _a(col, 0.9 * a), false, 1.5)
+	_text(tr(String(_hint["title"])), Vector2(r.position.x + 20.0, r.position.y + 34.0), 22, _a(col, a), false)
+	for i in lines.size():
+		_text(String(lines[i]), Vector2(r.position.x + 20.0, r.position.y + 62.0 + 24.0 * float(i)), 17, _a(UI.CREAM, a), false)
+
+
 func hurt_flash() -> void:
 	_hurt = 1.0
 
@@ -83,6 +134,7 @@ func _process(delta: float) -> void:
 	size = vs
 	_hurt = maxf(_hurt - delta * 2.2, 0.0)
 	_banner_t = maxf(_banner_t - delta, 0.0)
+	_tick_hint(delta)
 	if _card_t >= 0.0:
 		_card_t += delta
 		if _card_t > 3.2:
@@ -201,6 +253,7 @@ func _draw() -> void:
 	# --- etkileşim ipucu
 	if prompt != "":
 		_draw_prompt()
+	_draw_hint()
 
 	# --- büyük duyuru
 	if _banner_t > 0.0:
