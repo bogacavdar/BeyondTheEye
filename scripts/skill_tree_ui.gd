@@ -545,12 +545,20 @@ func _draw_tooltip(n: Dictionary, i: int) -> void:
 		kind_txt = tr("CONSTELLATION POWER")
 	var desc := ""
 	var now := ""
+	var tot := ""
 	if kind == "minor":
 		var per := float(n["per"])
 		var unit := String(n["unit"])
 		desc = tr("%s %s per rank") % [BC.fmt_value(per, unit), tr(String(n["name"]))]
 		if rk > 0:
 			now = tr("Current: %s") % BC.fmt_value(per * rk, unit)
+		# §13.7 azalan getiri: haritadaki toplam ham değer ve etkin değer birlikte
+		var sk := String(n.get("stat", ""))
+		var HS = load("res://scripts/hero_stats.gd")
+		if HS.SOFT.has(sk):
+			var raw: float = HS.raw_total(chart, sk)
+			if raw > 0.0:
+				tot = tr("Total: %s (effective %s)") % [BC.fmt_value(raw, unit), BC.fmt_value(HS.effective(sk, raw), unit)]
 	else:
 		desc = tr(String(n["desc"]))
 	# alt bilgi: fiyat ayrı, büyük ve renkli bir kutuda
@@ -573,7 +581,7 @@ func _draw_tooltip(n: Dictionary, i: int) -> void:
 	var fs_desc := 20
 	var desc_lines := ceilf(_font.get_string_size(desc, HORIZONTAL_ALIGNMENT_LEFT, -1, fs_desc).x / (w - 44.0)) + 0.4
 	var foot_lines := ceilf(_font.get_string_size(foot, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x / (w - 44.0))
-	var h := 112.0 + desc_lines * fs_desc * 1.3 + (30.0 if now != "" else 0.0) + 20.0 + (52.0 if price >= 0 else 0.0) + foot_lines * 23.0
+	var h := 112.0 + desc_lines * fs_desc * 1.3 + (30.0 if now != "" else 0.0) + (28.0 if tot != "" else 0.0) + 20.0 + (52.0 if price >= 0 else 0.0) + foot_lines * 23.0
 	var pos := _mouse + Vector2(26, 20)
 	if pos.x + w > size.x - 10.0:
 		pos.x = _mouse.x - w - 26.0
@@ -595,6 +603,9 @@ func _draw_tooltip(n: Dictionary, i: int) -> void:
 	if now != "":
 		_text(now, Vector2(x, y), 20, Color(0.6, 1.0, 0.7), HORIZONTAL_ALIGNMENT_LEFT)
 		y += 30.0
+	if tot != "":
+		_text(tot, Vector2(x, y), 17, _alpha(UI.CREAM, 0.9), HORIZONTAL_ALIGNMENT_LEFT)
+		y += 28.0
 	draw_line(Vector2(x, y - 12.0), Vector2(pos.x + w - 22.0, y - 12.0), _alpha(gold, 0.4), 1.0)
 	y += 14.0
 	if price >= 0:

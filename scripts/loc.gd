@@ -641,6 +641,8 @@ const TR := {
 	"MAJOR STAR": "BÜYÜK YILDIZ",
 	"%s %s per rank": "Kademe başına %s %s",
 	"Current: %s": "Şu an: %s",
+	"Total: %s (effective %s)": "Toplam: %s (etkin %s)",
+	"effective": "etkin",
 	"Fully lit": "Tamamen yandı",
 	"Locked: light a star connected below it": "Kilitli: altındaki bağlı bir yıldızı yak",
 	"Click to light  ·  %d stardust": "Yakmak için tıkla  ·  %d yıldız tozu",

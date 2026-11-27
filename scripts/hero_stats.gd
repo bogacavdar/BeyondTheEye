@@ -7,6 +7,34 @@ const BC = preload("res://scripts/birth_chart.gd")
 const Boons = preload("res://scripts/boons.gd")
 
 
+## AZALAN GETİRİ (GDD §13.7): haritadan gelen hasar türü değerleri eşik T'den sonra yumuşak tavanla büyür.
+## etkin(b) = b (b <= T);  T + (b - T) / (1 + (b - T) / k) (b > T). Lütuf, tılsım, mühür ve yükselen tavanın dışında.
+const SOFT := {"damage": [12.0, 30.0], "combo_dmg": [10.0, 25.0], "finisher_dmg": [17.0, 30.0], "heavy_dmg": [10.0, 25.0],
+	"skill_dmg": [10.0, 25.0], "crit_dmg": [18.0, 40.0], "boss_dmg": [13.0, 20.0]}
+
+
+static func _soft(b: float, t: float, k: float) -> float:
+	if b <= t:
+		return b
+	return t + (b - t) / (1.0 + (b - t) / k)
+
+
+## Haritadan gelen ham toplam (küçük yıldızlar + ilgili büyük yıldızlar), azalan getiriden önce
+static func raw_total(chart: Dictionary, key: String) -> float:
+	var v := BC.stat_total(chart, key)
+	if key == "damage" and BC.has_power(chart, "Ascent"): v += 8.0
+	if key == "crit_dmg" and BC.has_power(chart, "Spotlight"): v += 25.0
+	if key == "boss_dmg" and BC.has_power(chart, "Kingslayer"): v += 15.0
+	return v
+
+
+## Haritadaki ham değerin etkin karşılığı (Doğum Haritası ekranı da kullanır)
+static func effective(key: String, raw: float) -> float:
+	if not SOFT.has(key):
+		return raw
+	return _soft(raw, float(SOFT[key][0]), float(SOFT[key][1]))
+
+
 ## boons: bu run'da alınan gezegen lütufları
 static func compute(chart: Dictionary, boons: Array = []) -> Dictionary:
 	var s := {}
@@ -50,6 +78,8 @@ static func compute(chart: Dictionary, boons: Array = []) -> Dictionary:
 	for f in ["burn", "rage", "dash_strike", "parry_empower", "extra_iframes"]:
 		s[f] = false
 	s["revives"] = float(s["revives"])
+	for sk in SOFT:
+		s[sk] = effective(String(sk), float(s[sk]))   # §13.7: lütuflardan önce
 	Boons.apply(s, boons)
 	s["dodge"] = minf(float(s["dodge"]), 40.0)
 	s["dmg_reduction"] = minf(float(s["dmg_reduction"]), 60.0)
