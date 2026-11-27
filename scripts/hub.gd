@@ -710,10 +710,18 @@ func _build_ui() -> void:
 		hint_txt = "Left stick move   ·   USE interact   ·   II pause"
 	elif Input.get_connected_joypads().size() > 0:
 		hint_txt = "Left stick move   ·   X interact   ·   A dash   ·   Start pause"
-	var hint := UI.label(hint_txt, 16, Color(0.85, 0.8, 0.6), 4)
+	var hint := UI.label(hint_txt, 16, UI.CREAM, 4)
+	# OYN-14: tuş satırının arkasında koyu yarı saydam şerit (DALGA/ODA yazılarındaki gibi)
+	var hs := StyleBoxFlat.new()
+	hs.bg_color = Color(0.01, 0.015, 0.05, 0.88)
+	hs.content_margin_left = 12
+	hs.content_margin_right = 12
+	hs.content_margin_top = 4
+	hs.content_margin_bottom = 4
+	hint.add_theme_stylebox_override("normal", hs)
 	hint.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	hint.offset_left = 40.0
-	hint.offset_top = 132.0
+	hint.offset_left = 28.0
+	hint.offset_top = 128.0
 	root.add_child(hint)
 
 	# yakındaki durak için ekranın altında açık bir etkileşim kutusu

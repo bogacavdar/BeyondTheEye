@@ -212,7 +212,8 @@ var victory := false
 var doors: Array = []          # [{node, type, pos, title}]
 var _t := 0.0
 var _next_wave_t := 1.4
-var _elites := 0   # bu odada doğan seçkin sayısı (GDD §13.3)
+var _elites := 0
+var tc = null   # dokunmatik kontroller (telefon)   # bu odada doğan seçkin sayısı (GDD §13.3)
 ## BOSS EĞRİSİ (GDD §13.4): taban can ve hasar çarpanı (retro/döngü/co-op çarpanları bunların üstüne)
 const BOSS_HP := {"aries": 1400.0, "taurus": 1800.0, "gemini": 2200.0, "cancer": 2500.0, "leo": 2900.0, "virgo": 3300.0,
 	"libra": 3600.0, "scorpio": 3700.0, "sagittarius": 4300.0, "capricorn": 4900.0, "aquarius": 5400.0, "pisces": 6000.0}
@@ -386,7 +387,7 @@ func _ready() -> void:
 	pause_ui.leave.connect(_abandon)
 	layer.add_child(pause_ui)
 	if GameData.show_touch():
-		var tc = load("res://scripts/touch_controls.gd").new()
+		tc = load("res://scripts/touch_controls.gd").new()
 		tc.hero = hero
 		tc.hud = hud   # T-15: kapı menzilinde KULLAN düğmesi
 		add_child(tc)
@@ -2178,6 +2179,10 @@ func _process(delta: float) -> void:
 		l.light_energy = 1.1 + 0.25 * sin(_t * 9.0 + ph) + 0.15 * sin(_t * 23.0 + ph * 2.0)
 	hud.dust = GameData.stardust
 	hud.wave = wave + 1
+	hud.cleared = cleared   # T-29: oda temizlenince DALGA yazısı gizlenir
+	if tc != null:
+		# T-29: kapılar çıkmış ve canlı düşman yokken saldırı yayı sönük ve dokunulmaz
+		tc.combat_idle = not doors.is_empty() and get_tree().get_node_count_in_group("enemies") == 0
 	if Net.is_client():
 		return   # client: dalgalar, kapılar ve ödüller host'ta işler
 	if ended:
@@ -2328,7 +2333,7 @@ func _affix_hint(af: String) -> void:
 
 
 ## REHBERLİK (§19.2 element, §19.3 kapılar): her karede kontrol
-var _door_hint: Label3D = null
+var _door_hint := false
 
 
 func _tick_hints() -> void:
@@ -2336,21 +2341,10 @@ func _tick_hints() -> void:
 		if Elements.mult(GameData.hero_el, GameData.hero_el_n, hud.zone_el) != 1.0:
 			GameData.mark_hint("elements")
 			hud.show_hint("ELEMENTS", "Water beats Fire, Fire beats Air, Air beats Earth, Earth beats Water. Your blessings set your element.", UI.GOLD, 7.0)
-	if _door_hint == null and not doors.is_empty() and not bool(GameData.hints.get("doors", false)):
-		var mid := Vector3.ZERO
-		for d in doors:
-			mid += d["pos"]
-		mid /= float(doors.size())
-		_door_hint = UI.label3d(tr("Each gate's symbol shows its reward. Choose your path."), 40, UI.GOLD, 1.6)
-		_door_hint.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		_door_hint.no_depth_test = true
-		_door_hint.pixel_size = 0.006
-		_door_hint.render_priority = 4
-		_door_hint.outline_render_priority = 3
-		_door_hint.outline_size = 14
-		_door_hint.outline_modulate = Color(0.02, 0.02, 0.06, 1.0)
-		add_child(_door_hint)
-		_door_hint.global_position = mid + Vector3(0, 6.2, 0)
+	if not _door_hint and not doors.is_empty() and not bool(GameData.hints.get("doors", false)):
+		# T-29: ipucu HUD'da, ODA şeridinin altında (dünyada değil)
+		_door_hint = true
+		hud.door_hint = "Each gate's symbol shows its reward. Choose your path."
 
 
 const ZONE_ORDER := ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"]
@@ -2941,7 +2935,8 @@ func _save_hp2(heal: float) -> void:
 
 
 func _enter_door(type: String) -> void:
-	if _door_hint != null:
+	if _door_hint:
+		hud.door_hint = ""
 		GameData.mark_hint("doors")   # §19.3: kapı seçilince yazılır
 	if type == "home":
 		_leave()

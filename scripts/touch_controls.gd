@@ -13,9 +13,12 @@ const CombatHud = preload("res://scripts/combat_hud.gd")
 var hub_mode := false          # gözlemevi: saldırı yerine etkileşim düğmesi
 var hero = null                # bekleme sürelerini göstermek için
 var hud = null                 # dövüş odası: KULLAN düğmesi yalnızca kapı menzilinde (hud.prompt dolu) görünür (T-15)
-var highlight: Array = []      # öğretici: etrafında altın halka parlayacak eylemler ("move" = sol çubuk)
+var highlight: Array = []
+var combat_idle := false       # T-29: kapılar çıkmış, düşman yok: saldırı yayı %25 saydam ve dokunulmaz
+const ARC_ACTIONS := ["heavy", "skill_1", "skill_2", "skill_3", "parry"]      # öğretici: etrafında altın halka parlayacak eylemler ("move" = sol çubuk)
 
 var _view: Control
+var _arc_view: Control
 var _buttons: Array = []       # [{action, label, pos, r, sub}]
 var _touch := {}               # parmak no -> düğme indeksi ya da -1 (çubuk)
 var _stick_idx := -999
@@ -40,6 +43,11 @@ func _ready() -> void:
 	_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_view.draw.connect(_draw_view)
 	add_child(_view)
+	_arc_view = Control.new()
+	_arc_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_arc_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_arc_view.draw.connect(_draw_arc_view)
+	add_child(_arc_view)
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 
@@ -65,6 +73,8 @@ func _layout() -> void:
 	_buttons.append({"action": "interact", "label": "", "pos": Vector2(W - 120.0 * u, H - 640.0 * u), "r": 66.0 * u, "sub": "USE"})
 	_buttons.append({"action": "pause", "label": "II", "pos": Vector2(W - 80.0 * u, 160.0 * u), "r": 46.0 * u, "sub": ""})
 	_view.queue_redraw()
+	if _arc_view != null:
+		_arc_view.queue_redraw()
 
 
 ## Telefon arka plana gidince ya da oyun duraklayınca basılı kalan her şeyi bırak
@@ -95,6 +105,8 @@ func _process(d: float) -> void:
 		_reset_all()
 	_was_paused = p
 	_view.queue_redraw()
+	if _arc_view != null:
+		_arc_view.queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
@@ -221,6 +233,8 @@ func _button_at(p: Vector2) -> int:
 		var b: Dictionary = _buttons[i]
 		if String(b["action"]) == "interact" and not _use_visible():
 			continue
+		if combat_idle and ARC_ACTIONS.has(String(b["action"])):
+			continue
 		if p.distance_to(b["pos"]) <= float(b["r"]) * 1.15:
 			return i
 	return -1
@@ -308,42 +322,74 @@ func _draw_view() -> void:
 		var b: Dictionary = _buttons[i]
 		if String(b["action"]) == "interact" and not _use_visible():
 			continue
-		var p: Vector2 = b["pos"]
-		var r: float = b["r"]
-		var on := _pressed.has(i)
-		var rd := 1.0
-		if b.has("skill") and hero != null and is_instance_valid(hero):
-			var idx: int = b["skill"]
-			rd = 1.0 - clampf(float(hero.skill_cd[idx]) / float(hero.SKILL_CD[idx]), 0.0, 1.0)
-		elif String(b["action"]) == "dash" and hero != null and is_instance_valid(hero) and hero.get("dash_cd") != null:
-			rd = 1.0 if float(hero.dash_cd) <= 0.0 else 0.4
-		elif String(b["action"]) == "heavy" and hero != null and is_instance_valid(hero) and float(hero.heavy_cd_max) > 0.0:
-			rd = 1.0 - clampf(float(hero.heavy_cd) / float(hero.heavy_cd_max), 0.0, 1.0)
-		if highlight.has(String(b["action"])):
-			var pulse := 0.5 + 0.5 * sin(_clock * 6.0)
-			_view.draw_circle(p, r + 18.0 + 6.0 * pulse, Color(gold.r, gold.g, gold.b, 0.15 + 0.15 * pulse))
-			_view.draw_arc(p, r + 14.0 + 6.0 * pulse, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, 0.6 + 0.4 * pulse), 5.0)
-		_view.draw_circle(p, r, Color(0.02, 0.03, 0.1, 0.55 if on else 0.38))
-		if rd < 1.0:
-			_view.draw_arc(p, r - 6.0, -PI * 0.5, -PI * 0.5 + TAU * rd, 48, Color(gold.r, gold.g, gold.b, 0.8), 6.0)
-		_view.draw_arc(p, r, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, (0.95 if on else 0.6) * (1.0 if rd >= 1.0 else 0.5)), 3.0)
-		var lbl := String(b["label"])
-		var icon := ""
-		if String(b["action"]) == "heavy":
-			icon = "heavy"
-		elif b.has("skill") and hero != null and is_instance_valid(hero) and hero.get("kit") != null:
-			icon = String(hero.kit["skills"][int(b["skill"])]["type"])
-		if icon != "":
-			# T-16: ağır saldırı ve yetenek düğmelerinde HUD'daki simge
-			CombatHud.draw_icon(_view, icon, p, r * 0.42, Color(1.0, 0.95, 0.85, 0.95 * (1.0 if rd >= 1.0 else 0.55)))
-			lbl = ""
-		var fs := int(r * 0.6)
-		var f: Font = sym if lbl in ["⚔", "◈", "»", "»»"] else font
-		var w := f.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		_view.draw_string(f, p + Vector2(-w * 0.5, fs * 0.35), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.95, 0.85, 0.95 * (1.0 if rd >= 1.0 else 0.55)))
-		var sub := tr(String(b["sub"]))
-		if b.has("skill") and hero != null and is_instance_valid(hero) and hero.get("kit") != null:
-			sub = tr(String(hero.kit["skills"][int(b["skill"])]["name"]))
-		if sub != "":
-			var sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-			_view.draw_string(font, p + Vector2(-sw * 0.5, r + 24.0), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(gold.r, gold.g, gold.b, 0.75))
+		if ARC_ACTIONS.has(String(b["action"])):
+			continue   # saldırı yayı ayrı katmanda (T-29: kapı zamanında %25 saydam)
+		_draw_button(_view, i)
+
+
+## Saldırı yayı: ayrı katman, kapı zamanında %25 saydam
+func _draw_arc_view() -> void:
+	if get_tree().paused:
+		return
+	_arc_view.modulate.a = 0.25 if combat_idle else 1.0
+	for i in _buttons.size():
+		if ARC_ACTIONS.has(String(_buttons[i]["action"])):
+			_draw_button(_arc_view, i)
+
+
+func _draw_button(cv: Control, i: int) -> void:
+	var gold := UI.GOLD
+	var font := UI.font()
+	var sym := UI.symbol_font()
+	var b: Dictionary = _buttons[i]
+	var p: Vector2 = b["pos"]
+	var r: float = b["r"]
+	var on := _pressed.has(i)
+	var rd := 1.0
+	if b.has("skill") and hero != null and is_instance_valid(hero):
+		var idx: int = b["skill"]
+		rd = 1.0 - clampf(float(hero.skill_cd[idx]) / float(hero.SKILL_CD[idx]), 0.0, 1.0)
+	elif String(b["action"]) == "dash" and hero != null and is_instance_valid(hero) and hero.get("dash_cd") != null:
+		rd = 1.0 if float(hero.dash_cd) <= 0.0 else 0.4
+	elif String(b["action"]) == "heavy" and hero != null and is_instance_valid(hero) and float(hero.heavy_cd_max) > 0.0:
+		rd = 1.0 - clampf(float(hero.heavy_cd) / float(hero.heavy_cd_max), 0.0, 1.0)
+	if highlight.has(String(b["action"])):
+		var pulse := 0.5 + 0.5 * sin(_clock * 6.0)
+		cv.draw_circle(p, r + 18.0 + 6.0 * pulse, Color(gold.r, gold.g, gold.b, 0.15 + 0.15 * pulse))
+		cv.draw_arc(p, r + 14.0 + 6.0 * pulse, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, 0.6 + 0.4 * pulse), 5.0)
+	cv.draw_circle(p, r, Color(0.02, 0.03, 0.1, 0.55 if on else 0.38))
+	if rd < 1.0:
+		cv.draw_arc(p, r - 6.0, -PI * 0.5, -PI * 0.5 + TAU * rd, 48, Color(gold.r, gold.g, gold.b, 0.8), 6.0)
+	cv.draw_arc(p, r, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, (0.95 if on else 0.6) * (1.0 if rd >= 1.0 else 0.5)), 3.0)
+	var lbl := String(b["label"])
+	var icon := ""
+	if String(b["action"]) == "heavy":
+		icon = "heavy"
+	elif b.has("skill") and hero != null and is_instance_valid(hero) and hero.get("kit") != null:
+		icon = String(hero.kit["skills"][int(b["skill"])]["type"])
+	if icon != "":
+		# T-16: ağır saldırı ve yetenek düğmelerinde HUD'daki simge
+		CombatHud.draw_icon(cv, icon, p, r * 0.42, Color(1.0, 0.95, 0.85, 0.95 * (1.0 if rd >= 1.0 else 0.55)))
+		lbl = ""
+	var fs := int(r * 0.6)
+	var f: Font = sym if lbl in ["⚔", "◈", "»", "»»"] else font
+	var w := f.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	cv.draw_string(f, p + Vector2(-w * 0.5, fs * 0.35), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.95, 0.85, 0.95 * (1.0 if rd >= 1.0 else 0.55)))
+	var sub := tr(String(b["sub"]))
+	if b.has("skill") and hero != null and is_instance_valid(hero) and hero.get("kit") != null:
+		sub = tr(String(hero.kit["skills"][int(b["skill"])]["name"]))
+	if sub != "":
+		# T-29: alt etiket en fazla 2r+16 px; sığmazsa yazı 14'e kadar küçülür, yine sığmazsa iki satır
+		var max_w := 2.0 * r + 16.0
+		var sfs := 18
+		while sfs > 14 and font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs).x > max_w:
+			sfs -= 1
+		var sub_lines: Array = [sub]
+		if font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs).x > max_w and sub.contains(" "):
+			var words := sub.split(" ")
+			var half := int(ceil(words.size() / 2.0))
+			sub_lines = [" ".join(words.slice(0, half)), " ".join(words.slice(half))]
+		for li in sub_lines.size():
+			var sl := String(sub_lines[li])
+			var sw := font.get_string_size(sl, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs).x
+			cv.draw_string(font, p + Vector2(-sw * 0.5, r + 22.0 + float(li) * (sfs + 2.0)), sl, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs, Color(gold.r, gold.g, gold.b, 0.75))

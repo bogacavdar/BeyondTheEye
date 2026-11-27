@@ -20,7 +20,9 @@ var room := 1
 var room_total := 3
 var reward := ""
 var hub_mode := false    # Gözlemevi: sadece yetenek çubuğu
-var tutorial_mode := false   # Öğretici Oda (GDD §14.3): oda/dalga/element/ödül yazıları ve ilk ipucu satırı gizli
+var tutorial_mode := false
+var cleared := false        # oda temizlendi (T-29: DALGA gizli)
+var door_hint := ""         # ilk kapı ipucu (§19.3, T-29: ODA şeridinin altında)   # Öğretici Oda (GDD §14.3): oda/dalga/element/ödül yazıları ve ilk ipucu satırı gizli
 var tut_slots: Array = []    # öğretici: parlayacak yetenek çubuğu slotları (0-2 Q/E/R, 3 RMB, 4 SPACE, 5 SHIFT)
 var boss = null
 var _boss_shown := 1.0
@@ -199,7 +201,7 @@ func _strip(s: String, pos: Vector2, fsize: int, lines := 1) -> void:
 
 
 func _strip_rect(r: Rect2) -> void:
-	draw_rect(r, Color(0.01, 0.015, 0.05, 0.62))
+	draw_rect(r, Color(0.01, 0.015, 0.05, 0.85))
 
 
 func _a(c: Color, a: float) -> Color:
@@ -269,16 +271,22 @@ func _draw() -> void:
 			_draw_boss_bar()
 	elif not tutorial_mode:
 		var ct := tr("CHAMBER %d / %d") % [room, room_total]
-		_strip(ct, Vector2(size.x * 0.5, 44), 26, 2 if wave > 0 else 1)
+		_strip(ct, Vector2(size.x * 0.5, 44), 26, 2 if (wave > 0 and not cleared) else 1)
 		_text(ct, Vector2(size.x * 0.5, 44), 26, gold)
 	if not tutorial_mode:
 		_draw_reward_and_boons()
-	if wave > 0 and boss == null and not tutorial_mode:
+	if wave > 0 and boss == null and not tutorial_mode and not cleared:
 		_text(tr("WAVE %d / %d") % [mini(wave, wave_total), wave_total], Vector2(size.x * 0.5, 74), 18, UI.CREAM)
 
 	if GameData.input_mode != "touch":
 		_draw_slots()
 
+	# --- ilk kapı ipucu (T-29): ODA şeridinin altında, 1080p'de üstten >= 120 px
+	if door_hint != "":
+		var dh := tr(door_hint)
+		var dy := maxf(120.0, 120.0 * size.y / 1080.0) + 14.0
+		_strip(dh, Vector2(size.x * 0.5, dy), 22)
+		_text(dh, Vector2(size.x * 0.5, dy), 22, UI.GOLD)
 	# --- etkileşim ipucu
 	if prompt != "":
 		_draw_prompt()
