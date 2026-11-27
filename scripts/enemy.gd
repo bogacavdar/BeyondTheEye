@@ -675,16 +675,17 @@ func _leo_variant() -> void:
 
 ## Sürü ve taç güçlendirmeleri
 func _buff() -> float:
+	# GDD §13.2 Aslan varyant düzeltmesi: taç +0,30, sürü +0,10 (en çok 2), toplam en çok ×1,40
 	var b := 1.0
 	if crowned > 0.0:
-		b += 0.5
+		b += 0.3
 	if zone == "leo" and kind == "shade":
 		var n := 0
 		for o in get_tree().get_nodes_in_group("enemies"):
 			if o != self and not o.dead and o.get("zone") == "leo" and o.get("kind") == "shade" and o.global_position.distance_to(global_position) < 6.0:
 				n += 1
-		b += 0.2 * float(mini(n, 3))
-	return b
+		b += 0.1 * float(mini(n, 2))
+	return minf(b, 1.4)
 
 
 func _tick_crown_caster(delta: float) -> void:
@@ -705,7 +706,7 @@ func _tick_crown_caster(delta: float) -> void:
 	if best == null:
 		_crown_cd = 1.0
 		return
-	_crown_cd = 8.0
+	_crown_cd = 11.0   # taç 8 sn sürer: 3 sn tacsız boşluk (§13.2)
 	best.give_crown(8.0)
 	var ln := SlashFx.make(0.0, TAU, 0.2, 1.2, Color(1.0, 0.8, 0.3), 0.3)
 	get_parent().add_child(ln)

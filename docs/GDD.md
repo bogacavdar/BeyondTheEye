@@ -1,6 +1,6 @@
 # GÖZÜN ÖTESİ: Oyun Tasarım Belgesi (GDD)
 
-> Sürüm: 0.5.1 · Son güncelleme: 27 Kasım 2026 (Testçi bulguları ve CEO denge/rehberlik kararları işlendi)
+> Sürüm: 0.5.2 · Son güncelleme: 27 Kasım 2026 (Testçi 2. tur ölçümleri; boss evre süresi, Doğum Haritası azalan getiri, F tuşu kararları)
 > Ekip: Boğaç (CEO: yön, test, astroloji) + Claude ajan ekibi (Analist, Yazılımcı, Testçi, Yönetici)
 > Adını Instagram kanalı @gozunotesi_'den alır ve görsel dili oradan gelir. İngilizce adı: **Beyond The Eye**.
 > Motor: Godot 4.7.2. Bu sürümdeki sayılar koddan doğrulandı (commit 1038b6e). Kod ile belge çelişirse önce bu belge güncellenir, sonra kod.
@@ -117,7 +117,7 @@ Run içinde **silah ustalığı** kapıları silaha özel geliştirmeler verir (
 - **E tuşu çakışması [CEO KARARI]:** E hem 2. yetenek hem etkileşim. Kural: bir **durak (Gözlemevi) ya da kapı (dövüş odası) etkileşim menzilindeyken** klavyedeki E **yalnızca etkileşim** yapar, 2. yeteneği atmaz. Menzil dışında (dövüşte) E 2. yetenektir. Kontrolcüde 2. yetenek RB olduğu için etkilenmez.
   - Menzil: Gözlemevi durakları 3,8 m (`hub.gd`, en yakın durak), dövüş kapıları 2,6 m (`room.gd`, `hud.prompt` dolu iken).
   - Uygulama: `hero.gd`'ye `var interact_near := false`. `hub.gd` ve `room.gd` her karede en yakın durak/kapı varsa true yapar (co-op'ta her kahraman için ayrı). `_read_actions` içinde `skill_2`, `interact_near and Input.is_physical_key_pressed(KEY_E)` ise atlanır.
-  - F (ağır saldırı + etkileşim) için ayrı karar verilmedi; bu turda değişmez.
+- **F tuşu [CEO KARARI]:** E kuralı F için de geçerli. Durak/kapı menzilindeyken (`interact_near`) F **yalnızca etkileşim** yapar, ağır saldırı başlatmaz; menzil dışında (dövüşte) F ağır saldırıdır. Uygulama: `_read_actions` içinde `heavy`, `interact_near and Input.is_physical_key_pressed(KEY_F)` ise atlanır. Sağ tık ve orta tık ağır saldırıyı her zaman yapar.
 - Diğer tuş/etiket hataları için kurallar: §21.
 
 ## 9. Gezegen lütufları ve run içi güçler [KOD]
@@ -173,26 +173,42 @@ Run içinde **silah ustalığı** kapıları silaha özel geliştirmeler verir (
 - Uygulama önerisi: `enemy.gd`'de `const TIER := {...}` ve `func _tier() -> Dictionary`; `_ready` içindeki `0.8 if _early()`, `1.0 if _early() else 0.92` vb. üçlü ifadeler bu tablodan okunur. `_attack_slots_full()` sınırı da buradan (Aslan için `room.local_i` gerekir: düşmana `e.room_local = local_i` verilir).
 - Bölüm başlıkları ve Koç–İkizler davranışı bugünküyle aynı kalır.
 
-### 13.2 Oda hasar tabloları (`room.gd DMG_MULT_*`, oda 1–4)
-Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tabloların yeniden yazılmasıyla düzelir. Ham çarpanlar bölgeden bölgeye düz artmaz, çünkü ileri bölge yaratıklarının kendi mekanikleri daha güçlü (Testçi ölçümü: Terazi'den sonra aynı çarpan ~%50 daha fazla baskı üretiyor). Hedef baskı eğrisi sütunda.
+### 13.2 Oda hasar tabloları (`room.gd DMG_MULT_*`, oda 1–4) [Yönetici kararı, CEO kapsamı: yumuşak geçiş]
+Ölçüt **ham baskı/sn** (savunmadan arındırılmış, §15.7 standardı; bölgenin 1. odası). Hedef: ardışık iki bölgenin oranı **1,00–1,30**. **Koç ölçütten muaftır** (Koç ısınma bölgesi; Koç→Boğa oranı değerlendirilmez). Koç'u ayrıca ölçmek gerekirse 4 odasının ortalaması alınır.
 
-| Bölge | Eski DMG_MULT | **Yeni DMG_MULT** | Hedef baskı/sn (yaklaşık) |
-|---|---|---|---|
-| Koç | 1,0 · 1,1 · 1,2 · 1,3 | aynı | ölçülsün |
-| Boğa | 1,3 · 1,38 · 1,46 · 1,55 | aynı | ölçülsün |
-| İkizler | 1,6 · 1,68 · 1,76 · 1,85 | aynı | ~12 (ölçülen) |
-| Yengeç | 1,9 · 1,98 · 2,06 · 2,15 | aynı (geçiş kademesi düşürür) | ~15–16 |
-| Aslan | 2,2 · 2,3 · 2,4 · 2,5 | aynı (geçiş kademesi düşürür) | ~20 |
-| Başak | 2,5 · 2,6 · 2,72 · 2,85 | **2,10 · 2,18 · 2,28 · 2,40** | ~26 |
-| Terazi | 2,8 · 2,9 · 3,0 · 3,15 | **1,93 · 2,00 · 2,07 · 2,17** | ~33 |
-| Akrep | 3,1 · 3,2 · 3,3 · 3,45 | **2,36 · 2,43 · 2,50 · 2,62** | ~41 |
-| Yay | 3,4 · 3,5 · 3,6 · 3,75 | **2,82 · 2,90 · 2,99 · 3,11** | ~49 |
-| Oğlak | 3,7 · 3,8 · 3,95 · 4,1 | **3,24 · 3,33 · 3,46 · 3,59** | ~56 |
-| Kova | 4,0 · 4,1 · 4,25 · 4,4 | **3,64 · 3,73 · 3,87 · 4,00** | ~63 |
-| Balık | 4,3 · 4,4 · 4,55 · 4,7 | aynı | ~72 (ölçülen) |
+| Bölge | 5c4f883 DMG_MULT | Ölçülen ham baskı (1. oda) | **Yeni DMG_MULT** | Hedef ham baskı | Oran |
+|---|---|---|---|---|---|
+| Koç | 1,0 · 1,1 · 1,2 · 1,3 | 3,1 | aynı | (muaf) | – |
+| Boğa | 1,3 · 1,38 · 1,46 · 1,55 | 8,9 | aynı | 8,9 | muaf |
+| İkizler | 1,6 · 1,68 · 1,76 · 1,85 | 9,3 | aynı | 9,3 | 1,04 |
+| Yengeç | 1,9 · 1,98 · 2,06 · 2,15 | 10,1 | aynı | 10,1 | 1,09 |
+| Aslan | 2,2 · 2,3 · 2,4 · 2,5 | **24,3** | **1,54 · 1,61 · 1,68 · 1,75** (+ varyant düzeltmesi, aşağıda) | ~12,5 | 1,24 |
+| Başak | 2,10 · 2,18 · 2,28 · 2,40 | 17,3 | **1,89 · 1,96 · 2,05 · 2,16** (×0,9) | ~15,6 | 1,25 |
+| Terazi | 1,93 · 2,00 · 2,07 · 2,17 | 15,2 | **2,41 · 2,50 · 2,59 · 2,71** (×1,25) | ~19,0 | 1,22 |
+| Akrep | 2,36 · 2,43 · 2,50 · 2,62 | **28,5** | **1,86 · 1,92 · 1,98 · 2,07** (×0,79) | ~22,5 | 1,18 |
+| Yay | 2,82 · 2,90 · 2,99 · 3,11 | 22,9 | aynı | 22,9 | 1,02 |
+| Oğlak | 3,24 · 3,33 · 3,46 · 3,59 | 24,1 | aynı | 24,1 | 1,05 |
+| Kova | 3,64 · 3,73 · 3,87 · 4,00 | 25,1 | aynı | 25,1 | 1,04 |
+| Balık | 4,3 · 4,4 · 4,55 · 4,7 | 25,6 | aynı | 25,6 | 1,02 |
+
+**Aslan varyant düzeltmesi (asıl sorun, `enemy.gd`):** Aslan bölgesinde iki güçlendirme üst üste biniyor ve sürekli açık kalıyor.
+- Sürü (`_buff`): Aslan Gölgesi'ne 6 m içindeki her Aslan Gölgesi için +%20 (en çok 3 → +%60).
+- Taç (`_tick_crown_caster`): Kâhin, 8 sn'de bir en yakın düşmana (Kolos'u yeğler) 8 sn'lik **+%50** taç veriyor. Bekleme süresi süreyle aynı olduğu için taç fiilen hiç düşmüyor.
+- Bir Aslan 1. odasında (2–3 Gölge + Kâhin) bir Gölge kolayca ×1,9 vuruyor.
+
+Yeni değerler:
+
+| Ayar | Eski | **Yeni** |
+|---|---|---|
+| sürü bonusu (yakın Aslan Gölgesi başına) | +0,20, en çok 3 | **+0,10, en çok 2** |
+| taç bonusu | +0,50 | **+0,30** |
+| taç bekleme (`_crown_cd = 8.0`) / süre (8 sn) | 8 / 8 | **11 / 8** (3 sn tacsız boşluk) |
+| `_buff()` toplam tavanı | yok | **≤ 1,40** |
+
+Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam etki ×0,51 (24,3 → ~12,5). Testçi düzeltmeden sonra Aslan'ı yeniden ölçer. Aslan hedefin altında kalırsa (<11) önce tablo ×0,8'e (1,76 · 1,84 · 1,92 · 2,0) çekilir, varyant düzeltmesi kalır.
 
 - HP tabloları (`HP_MULT_*`) bu turda değişmez.
-- Kabul ölçütü (Testçi): ardışık iki bölgenin baskı/sn oranı ≤ 1,30 ve ≥ 1,00. Sapma ±%10'u aşarsa Yönetici bu tablodaki sayıları günceller.
+- Kabul (Testçi): oranlar 1,00–1,30 içinde; bir bölge hedefinden ±%10 saparsa Yönetici o satırı günceller.
 
 ### 13.3 Seçkin sınırları
 - **Bir bölgenin 1. odasında en fazla 1 seçkin; diğer her odada en fazla 2 seçkin** (bütün dalgalar toplamı; boss odasındaki çağrılan yardımcılar da sayılır). Bölünen seçkinin küçük kopyaları ve Boğa taşçıkları seçkin değildir.
@@ -209,7 +225,19 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
 
 - Akrep ölünce Anka olarak %35 canla bir kez daha doğar (etkin ~4995); bu bölgenin bilinçli zirvesidir, taban can sırası yine artandır.
 - İkizler 2600 → 2200 (−%15): en uzun boss (T-06: 57 sn) kısalır.
-- **Boss hasarı:** yeni `const BOSS_DMG := {"pisces": 1.6}` (diğerleri 1,0), `boss.dmg_mult` ile çarpılır. Gerekçe: Kova baskısı 54/sn iken final Balık 36/sn (T-06). Hedef: Balık ≥ Kova. Diğer boss'ların baskısı ölçülünce Yönetici tabloyu tamamlar.
+- **Boss hasarı (`BOSS_DMG`) [Yönetici kararı, CEO kapsamı: boss eğrisi]:** final Balık en yüksek baskı; ardışık boss'larda baskı düşmez (oran 1,00–1,30). Ölçüm: yeni profil (§15.7), 5c4f883 (Balık 1,6 dahil).
+
+| Boss | Koç | Boğa | İkizler | Yengeç | Aslan | Başak | Terazi | Akrep | Yay | Oğlak | Kova | Balık |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Ölçülen ham baskı | 6,7 | 7,4 | 13,5 | 8,1 | 16,5 | 10,3 | 10,0 | 25,7 | 11,1 | 16,0 | 20,0 | 16,8 |
+| **Yeni BOSS_DMG** | 1,0 | 1,0 | **0,65** | **1,25** | **0,70** | **1,25** | **1,45** | **0,62** | **1,60** | **1,25** | **1,10** | **2,50** |
+| Hedef ham baskı | 6,7 | 7,4 | ~8,8 | ~10,1 | ~11,6 | ~12,9 | ~14,5 | ~15,9 | ~17,8 | ~20,0 | ~22,0 | ~26,3 |
+
+  `const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 1.25, "leo": 0.70, "virgo": 1.25, "libra": 1.45, "scorpio": 0.62, "sagittarius": 1.6, "capricorn": 1.25, "aquarius": 1.1, "pisces": 2.5}`. Testçi'nin önerisinden farkı: Balık 2,0 değil 2,5, çünkü Kova 1,1'de ~22 ve Balık en yüksek olmalı. Aslan boss'unun yavruları da sürü kuralına bağlıysa yukarıdaki varyant düzeltmesi boss'u da etkiler; Testçi yeniden ölçer.
+- **Boss tek vuruş tavanı (§15.3/3):** boss'ların en sert tek saldırıları ham 26–30 (Koç 30, Aslan 30, Yengeç 28, Oğlak 28, Balık 28). Yeni çarpanlarla Balık 28×2,5 = 70 ve Yay 24×1,6 ≈ 38 oluyor; 100 canlı kahramanda Balık kuralı bozuyor. Kural: **boss odasında** kahramanın aldığı tek bir vuruş, zırhtan önce, `0,40 × max_hp × (1 + 0,2 × Mars retrosu) × döngü hasar çarpanı` değerini aşamaz.
+  - Uygulama: `room.gd` boss odasında `hero.hit_cap_frac = 0.40` verir (normal odada 0, yani tavan yok). `hero.take_damage` başında `amount = minf(amount, hit_cap_frac × max_hp × retro_cyc)`, retro/döngü çarpanı room'dan verilir.
+  - Tavan boss'un yardımcılarına ve boss odasındaki tehlikelere de uygulanır (bunlar zaten daha düşük).
+  - Normal odalar için tavan yok (D5 onaylanmadı).
 - Hedef boss süreleri §15.2; Aslan sonrası boss süreleri düz kalmamalı (her boss bir öncekinden uzun ya da eşit).
 
 ### 13.5 Oda ve tehlike kuralları
@@ -225,6 +253,46 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
   (Eski: Terazi 12 → Akrep 6,5 → Yay 6 → Oğlak 7 → Kova 6 → Balık 7. Yengeç ve Aslan'ın uzun aralıkları tehlikelerinin büyüklüğünden, korunur.) `HAZARD_DMG` değişmez.
 - Koç'un ilk iki odasında seçkin yok (değişmez).
 - Can odalar arası taşınır; iyileşme kaynakları: Sığınak (%40), bölge geçişi (%30), döngü geçişi (%50), lütuflar/harita/tılsımlar.
+
+### 13.6 Boss evre alt süresi [CEO KARARI]
+- Kural: **her boss evresi en az 6 sn sürer.** Evrenin başlangıcından 6 sn geçmeden boss'un canı o evrenin bitiş eşiğinin altına inemez (son evrede 1 canın altına inemez, yani ölemez). Fazla hasar kaybolur, sonraki evreye taşınmaz. Yeni oyuncu bir evreyi zaten 6 sn'den uzun sürede bitirdiği için onu etkilemez; yalnızca deneyimli profillerde (boss 7–11 sn) boss'u en az 3 evre × 6 sn'ye çıkarır.
+- Evreler bugün her boss'ta aynı biçimde: `phase` değişkeni, `_damage()` (Gemini'de `_process`) içinde `hp < max_hp × eşik` kontrolü, `_enter_phase(p)`. Bütün boss'lar (Gemini hariç) `aries_boss.gd`'den türüyor.
+- **Uygulama (tek kural):**
+  1. `aries_boss.gd`: `const PHASE_MIN_T := 6.0`, `var phase_th: Array = [0.6, 0.25]` ve `var _phase_t0 := 0.0`. `phase` değişkenine setter: her atamada `_phase_t0 = Time.get_ticks_msec() / 1000.0`. Bu, alt sınıflardaki `_enter_phase` ve Akrep'in `phase = 3` ataması dahil her evre değişimini yakalar. Giriş (intro) bitişinde de `_phase_t0` sıfırlanır (1. evre girişten sonra başlar).
+  2. Yeni yardımcı `func _phase_floor() -> float`: `now - _phase_t0 < PHASE_MIN_T` ise taban = `phase_th[phase-1] × max_hp` (dizi bittiyse 1,0), değilse 0.
+  3. `_damage(d)` (base ve onu ezen her boss'ta) `hp -= d` satırından hemen sonra `hp = maxf(hp, _phase_floor())`. Akrep'te Anka doğuşundan sonraki evre de 6 sn kuralına uyar.
+  4. Eşikler: her boss `_init` içinde kendi `phase_th`'ını yazar. Koç `[0.6, 0.25]` (Tam Tutulma açıkken `[0.6, 0.25, 0.12]`); Akrep `[0.5]` (Anka evresi son evre); Boğa, Yengeç, Aslan, Başak, Terazi, Yay, Oğlak, Kova, Balık `[0.65, 0.3]`.
+  5. İkizler (`gemini_boss.gd`, `extends Node3D`): aynı setter ve `phase_th = [0.6, 0.3]`. Tabanı ikizler uygular: `gemini_twin.take_hit` içinde `final`, `boss.hp - final` tabandan aşağı inmeyecek kadar kırpılır (`boss` = ebeveyn İkizler düğümü).
+- Süre gerçek zamanla ölçülür (hitstop'tan etkilenmez); çevrim içi co-op'ta yalnızca host uygular.
+
+### 13.7 Doğum Haritası azalan getiri [CEO KARARI]
+- Hedef: ilk run'lardaki his (ilk ~10 bin toz) **aynen** kalır; ileri kademelerde **hasar**, **kritik hasarı** ve **boss hasarı** yıldızları giderek daha az verir. Hedef: yarım harita (~506 bin toz) hasar ≲ ×2,5, boss hasarı ≲ ×3.
+- "Hasar" kapsamı: `damage` ve türe özel hasar yıldızları (`combo_dmg`, `finisher_dmg`, `heavy_dmg`, `skill_dmg`; `calc_damage` içinde `damage`'a ekleniyorlar). Kritik şansı, can, zırh vb. etkilenmez.
+- Formül (yumuşak tavan, eşik T'ye kadar doğrusal): `etkin(b) = b` (b ≤ T); `etkin(b) = T + (b − T) / (1 + (b − T) / k)` (b > T).
+- Uygulanan değer: `hero_stats.gd compute` içinde haritadan gelen toplam (`stat_total` + büyük yıldızlar: Ascent, Spotlight, Kingslayer). Uygulama **gezegen lütuflarından (`Boons.apply`), tılsım, mühür ve yükselenden önce**; o kaynaklar tavanın dışında kalır.
+
+| Değer | T (eşik ≈ 10 bin toz) | k |
+|---|---|---|
+| damage | 12 | 30 |
+| combo_dmg | 10 | 25 |
+| finisher_dmg | 17 | 30 |
+| heavy_dmg | 10 | 25 |
+| skill_dmg | 10 | 25 |
+| crit_dmg | 18 | 40 |
+| boss_dmg | 13 | 20 |
+
+- Doğum Haritası ekranı yıldız/ev özetinde iki değeri de gösterir: `+58,9% (etkin +30,3%)`. Metin: EN "effective" → TR "etkin".
+- **Hesap** (Analist, headless Godot ile `birth_chart.gd` ve `hero_stats.gd` üzerinden). Harita: her adımda en ucuz açık yıldızın alındığı açgözlü dolum. Hasar göstergesi = `(1 + (damage + combo_dmg)/100) × (1 + kritik şansı × (0,5 + crit_dmg/100))`, haritasız değere (1,025) bölünür. Boss göstergesi buna `× (1 + boss_dmg/100)` eklenmiş halidir. Yalnızca harita; tılsım, mühür ve lütuflar hariç.
+
+| Toz | damage (ham → etkin) | combo | crit_dmg | boss_dmg | Hasar göstergesi (eski → **yeni**) | Boss göstergesi (eski → **yeni**) |
+|---|---|---|---|---|---|---|
+| 5 bin | 6,2 → 6,2 | 6,7 → 6,7 | 13,2 → 13,2 | 8,3 → 8,3 | ×1,15 → **×1,15** | ×1,24 → **×1,24** |
+| 10 bin | 11,7 → 11,7 | 9,0 → 9,0 | 17,8 → 17,8 | 13,3 → 13,3 | ×1,24 → **×1,24** | ×1,40 → **×1,40** |
+| 30 bin (deneyimli) | 17,5 → 16,6 | 18,7 → 16,5 | 32,7 → 28,7 | 23,2 → 19,8 | ×1,44 → **×1,40** | ×1,77 → **×1,68** |
+| 506 bin (yarım) | 58,9 → 30,3 | 65,2 → 27,2 | 130,3 → 47,5 | 70,9 → 27,9 | ×3,34 → **×1,98** | ×5,71 → **×2,53** |
+
+  (Kritik şansı tavansız: 5 bin %6,9 · 10 bin %7,6 · 30 bin %9,8 · 506 bin %29,3.)
+- Testçi'nin ölçtüğü yarım harita ×5,1 / ×8,7 tılsım, mühür ve lütufları da içeriyor; bu tavan yalnızca harita payını düşürür. Testçi uygulamadan sonra kendi yöntemiyle yeniden ölçer. Hedef ×2,5 / ×3 tutmazsa Yönetici önce `damage` ve `boss_dmg`'nin k değerini düşürür (k 30 → 20, 20 → 15), T değerleri değişmez.
 
 ## 14. ÖĞRETİCİ ODA [CEO KARARI: onaylı özellik]
 
@@ -257,15 +325,24 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
 |---|---|---|---|
 | 0 | Giriş | "HOŞ GELDİN, YOLCU" kartı (2,5 sn) | süre dolar |
 | 1 | Hareket | yerde altın halka belirir | halkanın içine girmek |
-| 2 | Saldırı kombosu | ortada eğitim kuklası | kuklaya 1,5 sn içinde 3 isabet (3'lü kombo) |
+| 2 | Saldırı kombosu | ortada eğitim kuklası | **kombonun 3. vuruşu (bitirici, kombo sırası 2) kuklaya isabet eder** (aşağıdaki kural) |
 | 3 | Ağır saldırı | aynı kukla | kuklaya **ağır** vuruş isabeti |
-| 4 | Atılma | öğretici Gölge yalnızca **kızıl** yırtma yapar | 2 kez kızıl saldırıyı **atılarak** boşa çıkarmak (atılma i-frame'i sırasında gelen saldırı). Yürüyerek kaçmak sayılmaz. Sonra Gölge yıldız tozuna dağılır. |
+| 4 | Atılma | öğretici Gölge yalnızca **kızıl** yırtma yapar, bu adımda ölmez | 2 kez kızıl saldırıyı **atılarak** boşa çıkarmak (aşağıdaki kural). Yürüyerek kaçmak sayılmaz. Sonra Gölge yıldız tozuna dağılır. |
 | 5 | Koşu | arenanın öbür ucunda halka | toplam 1,5 sn koşarak (Boşluk basılı) halkaya varmak |
 | 6 | Parry | öğretici Gölge yalnızca **altın** pençe yapar | 3 başarılı parry. Her parry'den sonra "Karşıladın! Sersemledi — şimdi vur" ; 3. parry'den sonra Gölge'yi öldürmek |
 | 7 | Yetenekler Q / E / R | kukla(lar); üç yeteneğin adı ekranda | üç yeteneğin her birini en az bir kez kullanmak (sırası serbest; kullanılan yetenek listede altınla işaretlenir) |
 | 8 | Kısa prova [CEO KARARI] | 2 öğretici Gölge, iki saldırı türü de açık, hasar yok | ikisini de yenmek |
 | 9 | Etkileşim / kapı | tek altın kapı açılır (Koç simgesi), HUD kapı ipucu | kapıya yaklaşıp etkileşim tuşu → "ÖĞRETİCİ TAMAM", bayrak yazılır, Koç Geçidi 1. oda |
 
+- **Adım 2 sağlam tanımı:** zaman penceresi yok. `hero.gd` `_start_attack` içinde `last_combo_idx = _combo_i` saklanır (ağırda −1). Kukla `hit_taken` aldığında `last_atk_kind == "combo"` ve `last_combo_idx == 2` ise adım biter. 2. sıraya varmak 0 ve 1 vuruşlarının aynı zincirde yapılmasını gerektirir; zincir yalnızca 0,45 sn boşta kalınca sıfırlanır. Bu yüzden hitstop (`time_scale` 0,03) ve bitiricinin uzun hazırlığı koşulu etkilemez.
+  - Yedek koşul: bitirici kuklayı ıskalarsa, kuklaya **oyun zamanıyla 2,0 sn** içinde 3 kombo isabeti de adımı bitirir.
+  - İlerleme göstergesi: "1/3, 2/3, 3/3" = zincirdeki son isabetin sırası + 1.
+- **Adım 4 sağlam tanımı:** `dodged` sinyali tek başına yetmez; oyuncu atılarak menzilden çıkarsa saldırı kahramana hiç ulaşmaz ve sayılmaz. Yeni kural: öğretici Gölge'nin her kızıl saldırısı bitince (`act` sonu) tutorial şuna bakar:
+  - (a) Saldırı kahramanı vurmadı (`hurt` gelmedi).
+  - (b) Kahraman, o saldırının hazırlık başlangıcından `act` sonuna kadarki aralıkta en az bir kez atıldı (`hero.dash_started` zamanı aralık içinde) ya da `dodged` geldi.
+  - (a) ve (b) birlikte sağlanıyorsa 1 başarı.
+  - Uygulama: `enemy.gd`'ye yalnızca `zone == "tutorial"` iken yayınlanan `signal attack_done(parryable: bool, hit: bool)` ve `windup_t0`; `hero.gd`'ye `var last_dash_t` (oyun saati).
+  - Gölge bu adımda ölmez (`tut_min_hp = 1`); saldırı menzili dışındaysa kahramana yürür, böylece her 4–5 sn'de bir kızıl saldırı gelir. Kızıl saldırı bekleme süresi bu adımda 2,5 sn'ye indirilir (rend `cd`), hazırlık ×1,8 kalır.
 - Başarısızlık geri bildirimi: kızıl saldırıda vurulursa "Kızıl uyarı dolarken atıl"; altın saldırıda vurulursa "Altın uyarı dolarken bas". Hata sayılmaz, adım sürer.
 - Atılma bekleme süresi (3 sn) 4. adımda HUD'daki dolan halkayla gösterilir; talimat altında "Atılma dolunca tekrar kullanılır" ipucu.
 - **Parry penceresi yalnızca öğreticide 2 katıdır** (0,17 sn → 0,34 sn); run'da normal değer geçerlidir. [CEO KARARI]
@@ -352,7 +429,7 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
 ### 15.3 "Sıkmaması" için kurallar
 1. **Ani sıçrama yok:** ardışık iki odada düşman etkin hasarı ya da canı %20'den fazla artmaz; bölge geçişinde de aynı kural.
 2. **Ölüm adil olmalı:** her saldırı okunur (altın ya da kızıl uyarı, ses); hiçbir ölümcül saldırı uyarısız gelmez. Ekran dışından uyarısız mermi gelmez.
-3. **Tek vuruşta ölüm yok:** tam candaki kahramanı tek bir normal düşman saldırısı öldürmemeli (hedef: tek vuruş ≤ beklenen en yüksek canın %30'u; boss'larda ≤ %40).
+3. **Tek vuruşta ölüm yok:** tam candaki kahramanı tek bir normal düşman saldırısı öldürmemeli (hedef: tek vuruş ≤ beklenen en yüksek canın %30'u; boss odasında ≤ %40, kodda tavan §13.4).
 4. **Kalabalık sınırı:** aynı anda saldıran düşman sınırı (2/3) korunur; ekranda aynı anda okunması gereken kızıl uyarı sayısı sınırlı kalır.
 5. **İlerleme hissi:** her ölüm sonrası harcanacak toz olmalı; ilk saatte en az bir silah ve birkaç harita yıldızı açılabilmeli.
 6. **Tekrar sıkıcılığı:** aynı bölgedeki 4 dövüş odası farklı dalga dizilimleri sunar; ileri bölgelerde karışık gruplar çeşitlilik verir.
@@ -400,6 +477,20 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
 | D6 | `BASE_HP` (100) ve `DASH_COOLDOWN` (3 sn) ölçüme kadar değişmesin; Koç–İkizler oda can kaybı %15'i aşarsa önce `DASH_COOLDOWN` 2,5 sn denensin | [ÖNERİ – Analist; CEO'ya sorulmadı, uygulanmayacak] |
 | D7 | Öğreticide parry penceresi ×2 | **[CEO KARARI]** → §14.4 |
 
+### 15.7 Denge ölçüm standardı [Yönetici kararı, test standardı]
+Bütün denge ölçümleri bu profillerle, profil başına **3 tekrar**la yapılır; sonuç ortalama ve en düşük/en yüksek değerle verilir. Ölçüt **ham baskı/sn**: kahramana gelen saldırıların savunmadan (zırh, kaçınma, kalkan, parry) arındırılmış toplam hasarı / dövüş süresi. Ayrıca oda süresi, can kaybı ve boss süresi ölçülür.
+
+| Profil | Doğum Haritası | Tılsım / mühür | Run içi lütuf sayısı | Kaçınma varsayımı (bot) |
+|---|---|---|---|---|
+| **Yeni** | 0 toz (boş) | yok | ≈ 2,55 × bölge sırası (Koç 1 → Balık 12) | %30 |
+| **Orta** | 5 bin toz | Yeni Ay (newmoon) tılsımı seviye 2 | ≈ 2,55 × bölge sırası | %50 |
+| **Deneyimli** | 30 bin toz | Tutulma (eclipse) tılsımı seviye 3 + Başak mührü seviye 3 | ≈ 2,55 × bölge sırası | %70 |
+
+- Silah Yıldız Kılıcı, retro kapalı, döngü 0, tek oyuncu (§15.2'deki koşul).
+- Bölge karşılaştırması bölgenin 1. odasıyla yapılır; Koç muaf (§13.2).
+- Boss eğrisi (`BOSS_DMG`) yeni profille ölçülür; tek vuruş tavanı her üç profilde kontrol edilir.
+- Yarım harita (~506 bin toz) yalnızca azalan getiri (§13.7) kontrolü için kullanılır.
+
 ## 16. Görsel dil
 
 - **Renkler:** koyu lacivert gece göğü + altın sarısı; ikinci ışık dolunayın soğuk beyazı. Uyarılar: altın-turuncu = parry, kızıl = kaç; düşman doğuşu mor halka.
@@ -429,6 +520,7 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
 | 15 | **Rehberlik** (§19) | ⏳ |
 | 16 | **Proje adı ve kayıt taşıma** (§20) | ⏳ |
 | 17 | Arayüz ve kod hataları (§21) | ⏳ |
+| 17a | Boss evre alt süresi (§13.6), Doğum Haritası azalan getiri (§13.7), F tuşu (§8) | ⏳ |
 | 18 | [ÖNERİ – CEO onayı gerekir] **Aslan–Balık dalga tablolarını ayrıştır** (T-07): bugün `COMBAT_L` … `COMBAT_P` neredeyse aynı. Her bölgeye kendi imzasını veren dizilim (ör. Akrep'te taklitçi/iğneci ağırlıklı, Yay'da okçu ağırlıklı, Kova'da hava yaratıkları) ve son odada bölgenin "elit dalgası". Bu turda kapsam dışı. | öneri |
 
 ## 18. Açık sorular
@@ -437,7 +529,6 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
 2. İkincil uzak atış olsun mu? (Kentaur Yayı kısmen karşılıyor.)
 3. Tam run (60 oda) tahminen 80–100 dk sürer; Hades'te bir run ~30–45 dk. Bölge başına oda sayısı ya da ara dönüş noktaları düşünülmeli mi?
 4. D5 ve D6 (§15.6), Testçi'nin yeni ölçümlerinden sonra.
-5. F tuşu da (ağır saldırı + etkileşim) E kuralına uysun mu? (§8)
 
 ## 19. Rehberlik [CEO KARARI]
 
@@ -508,6 +599,8 @@ Başak→Terazi sıçraması (T-05: +%55) ve ileri bölgelerdeki düzlük, tablo
 | **T-16** dokunmatik etiketleri | Ağır saldırı düğmesinde "Q" yerine HUD'daki ağır saldırı simgesi + altında AĞIR; yetenek düğmelerinde "1/2/3" yerine o yeteneğin HUD simgesi (`combat_hud._icon` ile aynı çizim, kit `type`'ına göre), altında yetenek adı (zaten var). |
 | **T-18** boss isim kartı portresi | Kart süresince (≈3 sn) sol üst HUD yazıları (toz, element) ve boss çubuğu gizlenir (can çubuğu kalır). Portre şeridin içinde durur: şerit yüksekliği portreye göre büyür (1080p'de 320 px), portrenin üst ve alt kenarı şeridin kenarlarına hizalı, üst kenar ≥ 150 px (can çubuğunun altı), sol kenar ≥ 440 px. Değerler 1080p içindir, ekran yüksekliğiyle ölçeklenir. |
 | **T-20** üst üste binen seçkin etiketleri | Seçkin etiketi kısa: yalnızca özellik adları, en fazla 2, `·` ile. Ekranda iki etiket birbirine 70 px'ten yakınsa kahramana uzak olanın etiketi gizlenir (halesi kalır). Etiket yazısına koyu dış çizgi (outline ≥ 12) ve hafif koyu zemin. |
+| **T-29** kapı ipucu ve dokunmatik çakışmaları | (1) Oda temizlenince "DALGA x/y" yazısı gizlenir. İlk kapı ipucu satırı (§19.3) ODA şeridinin altında, 1080p'de üstten ≥ 120 px'te durur; başka HUD yazısıyla kesişmez. (2) Dokunmatikte, kapılar çıkmışken ve odada canlı düşman yokken saldırı yayı (ağır, 3 yetenek, parry) %25 saydamlığa iner ve dokunuşu almaz; çubuk, atılma, KULLAN ve duraklat kalır. Yeni düşman doğarsa (boss yardımcıları vb.) yay geri gelir. (3) Dokunmatik düğme alt etiketi en fazla `2r + 16` px genişlikte: sığmazsa yazı boyutu en az 14'e küçülür, yine sığmazsa iki satıra bölünür (TR "TAKIMYILDIZI ADIMI" dahil). Etiketler komşu düğmenin dairesine binmez. |
+| **OYN-14** Gözlemevi tuş satırı | Gözlemevi sol üstündeki tuş ipucu satırının arkasına, DALGA/ODA yazılarındaki gibi koyu yarı saydam şerit (kontrast ≥ 4,5:1). |
 | **T-21** simge ve okunabilirlik | (1) **AĞIR SALDIRI** simgesi güneş ışını olmaz: aşağı inen kalın ok + yer çizgisi ("çakma"). **TAÇ** (Güneş Gürzü, `aura`) için halka içinde nokta (hale) kullanılır; `cone/burst_self/aura` ortak simgesi ayrılır. Kural: yetenek çubuğunda iki slot aynı simgeyi taşımaz. (2) "DALGA x/y" ve "ODA x/y" yazılarının arkasına koyu yarı saydam şerit (Kova gibi parlak arenalarda okunur; kontrast ≥ 4,5:1). (3) Ödül göstergesinde simgenin altında ödülün adı (§19.3); "ÖDÜL" yazısı kalır. ♂ gibi gezegen simgeleri anlamsız değil (ödül gezegenini gösterir) ama adsız okunmuyordu; adla birlikte doğru kullanım. |
 
 ---
