@@ -1,6 +1,6 @@
 # GÖZÜN ÖTESİ: Oyun Tasarım Belgesi (GDD)
 
-> Sürüm: 0.5.3 · Son güncelleme: 27 Kasım 2026 (normal düşman tek vuruş kuralı; mekanik hasar tavanı yok)
+> Sürüm: 0.5.4 · Son güncelleme: 27 Kasım 2026 (düşman gücü ve agresiflik artışı §13.9; Ayna Muhafızı yansıtması)
 > Ekip: Boğaç (CEO: yön, test, astroloji) + Claude ajan ekibi (Analist, Yazılımcı, Testçi, Yönetici)
 > Adını Instagram kanalı @gozunotesi_'den alır ve görsel dili oradan gelir. İngilizce adı: **Beyond The Eye**.
 > Motor: Godot 4.7.2. Bu sürümdeki sayılar koddan doğrulandı (commit 1038b6e). Kod ile belge çelişirse önce bu belge güncellenir, sonra kod.
@@ -375,7 +375,7 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
   - Uygulama: `enemy.gd`'de bölge × rol × renk (altın/kızıl) için yerli değer tablosu `NATIVE_HIT`; `_ready` içinde `room_zone != zone` ise saldırı başına `dmg = min(dmg, NATIVE_HIT[room_zone][kind][renk])`.
 - **Baskı uyarısı:** bu değerler ileri bölgelerde vuruşları yaklaşık yarıya indirir; §13.2'deki baskı/sn hedefleri düşer. Analist önerisi [Yönetici onayı gerekir]: baskı yeniden ölçülünce açık, büyük tek vuruşla değil saldırı sıklığı (`cd`), aynı anda saldıran sayısı ya da dalga düşman sayısıyla kapatılır; `DMG_MULT` yükseltilirse bu tablo yeniden hesaplanır.
 
-- **Saldırı sıklığı telafisi [Yönetici kararı]:** vuruşlar küçülünce ileri bölgelerin baskısı düşmemeli; oyun zor kalır, yalnızca tek vuruşla öldürmez. Telafi büyük tek vuruşla değil, daha sık saldırıyla yapılır.
+- **Saldırı sıklığı telafisi [Yönetici kararı] — 0.5.4'te KALDIRILDI (§13.9.5):** vuruşlar küçülünce ileri bölgelerin baskısı düşmemeli; oyun zor kalır, yalnızca tek vuruşla öldürmez. Telafi büyük tek vuruşla değil, daha sık saldırıyla yapılır.
   - `enemy.gd` `ATK_RATE`: odanın bölgesine göre (`room_zone`, §13.1 gibi) saldırı bekleme süresini (`cd`) ve toparlanma süresini (`recover`) bölen çarpan. **Hazırlık (`windup`) süresine dokunulmaz** (okunabilirlik kalır).
   - Başlangıç değeri: o bölgede eski ortalama taban vuruş / yeni ortalama taban vuruş (bölge varyantlarının 4 rolündeki hasarlı saldırılar, düz ortalama). `cd` ×0,6'nın altına inmez, yani çarpan en çok 1/0,6 = 1,67.
   - Öğrenme kademesi bölgeleri (Koç, Boğa, İkizler) ve öğretici etkilenmez (çarpan 1,0). Kalan açık aynı anda saldıran sayısıyla kapatılmaz; Testçi baskıyı ölçer, Yönetici tabloyu ayarlar.
@@ -391,6 +391,142 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 | Oğlak | 20,0 | 11,0 | 1,82 | **1,67** (tavan) |
 | Kova | 16,3 | 10,0 | 1,63 | **1,63** |
 | Balık | 16,9 | 8,0 | 2,11 | **1,67** (tavan) |
+
+### 13.9 Düşman gücü ve agresiflik [CEO KARARI]
+> CEO: "Düşmanların genel özellikleri artmalı: can, saldırı gücü vs., daha agresif olmalılar." Normal düşman tek vuruş kuralı (§13.8, yeni profil canının ≤ %30'u, mekanik tavan yok) aynen geçerli.
+> Testçi 4. tur (d7ddc32): ilk oda ham baskı Yengeç 10,5 · Aslan 11,2 · Başak 12,8 · Terazi 15,0 · Akrep 14,1 · Yay 14,0 · Oğlak 15,9 · Kova 16,9 · Balık 14,4 (50b98f2'de 13,9 · 17,0 · 16,9 · 22,7 · 21,7 · 22,6 · 26,0 · 27,8 · 30,8). `ATK_RATE` etkisiz: darboğaz aynı anda saldıran sınırı. Deneyimli profil Akrep'ten sonra ilk odalarda %1–4, boss'larda %0–1 can kaybediyor.
+> **Koç, Boğa, İkizler (öğrenme bölgeleri) bu bölümden hiç etkilenmez.** Bütün kurallar odanın bölgesine (`room_zone`) bakar.
+
+#### 13.9.1 Can (`room.gd HP_MULT_*`)
+Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,15 · Başak ×1,20 · Terazi ×1,25 · Akrep ×1,30 · Yay ×1,35 · Oğlak ×1,40 · Kova ×1,45 · Balık ×1,50. Seçkin ×1,6 ve co-op ×1,5 üstüne gelir.
+
+| Bölge | Eski | **Yeni (oda 1–4)** |
+|---|---|---|
+| Yengeç | 1,85 · 1,95 · 2,05 · 2,15 | **2,04 · 2,15 · 2,26 · 2,37** |
+| Aslan | 2,1 · 2,2 · 2,3 · 2,45 | **2,42 · 2,53 · 2,65 · 2,82** |
+| Başak | 2,35 · 2,5 · 2,6 · 2,75 | **2,82 · 3,00 · 3,12 · 3,30** |
+| Terazi | 2,6 · 2,75 · 2,9 · 3,05 | **3,25 · 3,44 · 3,63 · 3,81** |
+| Akrep | 2,85 · 3,0 · 3,15 · 3,3 | **3,71 · 3,90 · 4,10 · 4,29** |
+| Yay | 3,1 · 3,25 · 3,4 · 3,6 | **4,19 · 4,39 · 4,59 · 4,86** |
+| Oğlak | 3,35 · 3,5 · 3,7 · 3,9 | **4,69 · 4,90 · 5,18 · 5,46** |
+| Kova | 3,6 · 3,75 · 3,95 · 4,15 | **5,22 · 5,44 · 5,73 · 6,02** |
+| Balık | 3,85 · 4,0 · 4,2 · 4,4 | **5,78 · 6,00 · 6,30 · 6,60** |
+
+- Kabul (Testçi): deneyimli profil Akrep–Balık ilk odalarında belirgin can kaybı (hedef ≥ %8). Yeni profilde oda süresi §15.2 üst sınırını (%10 pay ile) aşan bölgenin çarpanı Yönetici tarafından 0,05 adımlarla düşürülür.
+
+#### 13.9.2 Saldırı gücü
+Üç adım; üçü de §13.8 kuralını korur (en kötü durum: bölgenin 4. oda çarpanı).
+
+**(a) Seçkinler daha sert vurmaz (Yengeç'ten itibaren).** Seçkin hasar çarpanı (`em`) Yengeç–Balık odalarında 1,25 → **1,00**; can ×1,6, özellikler ve hale aynı kalır. Koç–İkizler'de 1,25 kalır.
+- Gerekçe: §13.8'deki B, "her vuruş seçkin olabilir" varsayımıyla ×1,25 düşük hesaplanmıştı; bu yüzden sıradan düşmanlar canın ancak ~%22–24'ünü vuruyordu. Seçkinin farkı dayanıklılık ve özellikleri olur, bütün düşmanlar kurala yakın vurur.
+
+**(b) Oda içi hasar eğrisi düzleşir.** Oda 4 değeri (B hesabının dayanağı) aynı kalır, oda 1–3 ona yaklaşır: `DMG_MULT_z = M4 × [0,95 · 0,97 · 0,99 · 1,00]`.
+
+| Bölge | Yeni DMG_MULT (oda 1–4) |
+|---|---|
+| Yengeç | 2,04 · 2,09 · 2,13 · 2,15 |
+| Aslan | 1,66 · 1,70 · 1,73 · 1,75 |
+| Başak | 2,05 · 2,10 · 2,14 · 2,16 |
+| Terazi | 2,57 · 2,63 · 2,68 · 2,71 |
+| Akrep | 1,97 · 2,01 · 2,05 · 2,07 |
+| Yay | 2,95 · 3,02 · 3,08 · 3,11 |
+| Oğlak | 3,41 · 3,48 · 3,55 · 3,59 |
+| Kova | 3,80 · 3,88 · 3,96 · 4,00 |
+| Balık | 4,47 · 4,56 · 4,65 · 4,70 |
+
+**(c) Bölge vuruş değeri.** Yengeç'ten itibaren rol ve saldırı adına göre tablo (`HIT_TABLE`/`NATIVE_HIT`) yerine **tek bölge değeri**: o odadaki her normal düşmanın hasarlı her saldırısı (dmg > 0; `mirror`, `blink` gibi 0 hasarlılar hariç), düşmanın kökeni (yerli ya da karışık) ne olursa olsun, `ZONE_HIT[room_zone]` taban değerini alır. Yeni izin verilen tavan: `B' = 0,30 × can / (M4 × kademe hasarı × güçlendirme)` (seçkin çarpanı artık yok).
+
+| Bölge | Referans can | B' | **ZONE_HIT** | Tahmini ham baskı (1. oda) | Oran |
+|---|---|---|---|---|---|
+| İkizler (değişmez) | 115 | – | – | 9,3 (ölçülen) | – |
+| Yengeç | 115 | 17,8 | **15** | ~11,5 | 1,24 |
+| Aslan | 125 | 15,3 Gölge (sürü+taç ×1,40) · 16,5 diğer (taç ×1,30) | **15 Gölge · 16 diğer** | ~13,8 | 1,20 |
+| Başak | 125 | 17,4 | **17** | ~16,5 | 1,20 |
+| Terazi | 125 | 13,8 | **13** | ~17,1 | 1,04 |
+| Akrep | 150 | 21,7 | **18** | ~18,2 | 1,06 |
+| Yay | 150 | 14,5 | **14** | ~19,3 | 1,06 |
+| Oğlak | 170 | 14,2 | **13** | ~20,5 | 1,06 |
+| Kova | 170 | 12,75 | **12** | ~22,0 | 1,07 |
+| Balık | 187 (Testçi) | 11,9 | **11** | ~21,2 | 0,96 (aşağıda) |
+
+- ZONE_HIT bazı bölgelerde B''nin altında seçildi (Yengeç, Akrep, Oğlak). Böylece ardışık oran 1,00–1,30 içinde kalır.
+- Tahmin; şu çarpanlarla yapıldı:
+  - (a) seçkin farkının kalkması: ×0,95
+  - (b) 1. oda düzleşmesi: ×1,04–1,08
+  - (c) vuruş artışı: yeni değer / eski ortalama
+  - §13.9.5 ATK_RATE'in kalkması: ×0,95
+  - §13.9.3 dördüncü saldıran (Akrep'ten itibaren): ×1,15 varsayım
+- Testçi ölçer. Ardışık oran 1,00'ın altına düşerse önce düşen bölgenin ZONE_HIT'i B' içinde 1 artırılır; B' doluysa §13.9.4 seçkin oranı, sonra Yönetici'ye bildirilir.
+- **Balık açığı:** B' Balık'ı Kova'nın altında (~0,96) tutuyor, çünkü M4 = 4,7 çok büyük. Açık ölçümde kalırsa: [ÖNERİ – CEO onayı gerekir] Balık'ta aynı anda saldıran 5 (kızıl yine en çok 2).
+- Ek hasar kaynakları aynı kalır (kabuk kıskacı 16, Karşı Ağırlık 13, patlayan özelliği §13.8); seçkin çarpanı almadıkları için kural içinde.
+- **T-41 (Terazi Atlayan pençesi 38,6 = %31):** tek bölge değeri her saldırıya uygulandığı için eksik satır sorunu ortadan kalkar; tablo satırı eklemeye gerek yok. Tek bölge değeri uygulanmadan önce düzeltilecekse: `HIT_TABLE` her bölgede, o bölgede görünebilen her rolün (taban rol dahil) her hasarlı saldırısını içermeli; Terazi Atlayan için `claw 11`.
+- **T-40 (Aslan tacı Aslan dışına taşınıyor):** tacı **yalnızca Aslan odalarında** ver (`_tick_crown_caster` yalnızca `room_zone == "leo"` iken çalışır; karışık Aslan Kâhini başka bölgede sadece güneş ışınını atar).
+  - Gerekçe: taç Aslan bölgesinin kimliği (Güneş Kral'ın sarayı) ve orada B hesabında var.
+  - Alternatif olan Aslan sonrası bütün bölgelerin B'sini ×1,30 ile hesaplamak, tacın nadiren göründüğü 7 bölgede bütün vuruşları ~%23 düşürür. Bu, CEO'nun "daha güçlü" isteğine ters.
+
+#### 13.9.3 Agresiflik: aynı anda saldıran
+| Odanın bölgesi | Aynı anda saldıran (`slots`) | Aynı anda kızıl saldırı |
+|---|---|---|
+| Koç–İkizler | 2 (değişmez) | en çok 2 |
+| Yengeç | 2 (değişmez) | en çok 2 |
+| Aslan | oda 1–2: 2 · oda 3–4: 3 (değişmez) | en çok 2 |
+| Başak, Terazi | 3 (değişmez) | en çok 2 |
+| **Akrep → Balık** | **4** | **en çok 2** |
+
+- Not: CEO metni "Yengeç–Terazi 3 kalır" diyor; kodda Yengeç 2, Aslan 2/3. "Kalır" ifadesine göre değiştirilmedi. Yengeç'in de 3 olması isteniyorsa ayrıca söylenmeli; Yengeç 3 olursa İkizler→Yengeç oranı 1,30'u aşabilir.
+- Kızıl sınırı (okunabilirlik): bir düşman saldırı seçerken, odada `windup`/`act` durumunda parry'lenemeyen saldırısı olan düşman sayısı ≥ 2 ise kızıl saldırılar aday listesinden çıkar. Altın saldırısı yoksa düşman kısa bekler (`_global_cd` 0,25–0,5 sn, bugünkü sınır davranışı gibi). Bütün bölgelerde geçerli.
+- **Hazırlık (`windup`) değişmez.**
+- Uygulama: `TIER`'e `"late"` kademesi (Akrep–Balık): `full` ile aynı, yalnızca `slots: 4`.
+
+#### 13.9.4 Seçkin oranı (`ELITE_CHANCE_*`)
+Oda başı sınırlar (§13.3: 1. odada 1, diğer odalarda 2; ilk 3 bölgede tek özellik) aynen kalır. Yeni oranlar seçkinlerin dalgalarda daha erken ve daha sık çıkmasını sağlar.
+
+| Bölge | Eski | **Yeni (oda 1–4)** |
+|---|---|---|
+| Yengeç | 0,30 · 0,35 · 0,40 · 0,40 | **0,35 · 0,40 · 0,45 · 0,45** |
+| Aslan | 0,35 · 0,40 · 0,45 · 0,45 | **0,40 · 0,45 · 0,50 · 0,50** |
+| Başak | 0,40 · 0,45 · 0,50 · 0,50 | **0,45 · 0,50 · 0,55 · 0,55** |
+| Terazi | 0,45 · 0,50 · 0,50 · 0,55 | **0,50 · 0,55 · 0,55 · 0,60** |
+| Akrep | 0,50 · 0,50 · 0,55 · 0,55 | **0,60 · 0,60 · 0,65 · 0,65** |
+| Yay | 0,50 · 0,55 · 0,55 · 0,60 | **0,60 · 0,65 · 0,65 · 0,70** |
+| Oğlak | 0,55 · 0,55 · 0,60 · 0,60 | **0,65 · 0,65 · 0,70 · 0,70** |
+| Kova | 0,55 · 0,60 · 0,60 · 0,65 | **0,65 · 0,70 · 0,70 · 0,75** |
+| Balık | 0,60 · 0,60 · 0,65 · 0,70 | **0,70 · 0,70 · 0,75 · 0,80** |
+
+#### 13.9.5 ATK_RATE kaldırılır
+- `enemy.gd` `ATK_RATE` ve `_ready` içindeki `/ atk_rate` bölmesi silinir; `cd` ve `recover` yalnızca `TIER`'den gelir.
+- Gerekçe: Testçi ölçümü `cd`'yi ek yarıya indirmenin baskıyı yalnızca +%5 artırdığını gösterdi. Düşmanlar saldırı sırasına (`slots`) takılıyor, sık saldırı hak beklemeye dönüşüyor. `cd` ×0,6 düşmanları aralıksız saldıran makinelere çevirip okunabilirliği bozuyor. Etki §13.9.3'teki dördüncü saldırana devredildi.
+
+#### 13.9.6 Ayna Muhafızı yansıtması (T-42) [CEO KARARI]
+İkizler Kolos'u (`gemini` + `brute`, saldırı `mirror`; karışık gruplarla ileri bölgelerde de görünür). Bugün ayna duruşunda hafif vuruşun hasarının %50'si kahramana dönüyor, ağır vuruş aynayı kırıp düşmanı 1,4 sn sersemletiyor (`enemy.gd take_hit`).
+- **Yansıtma (CEO son hali, öncekileri geçersiz kılar):** kalkan açıkken (`mirror` hazırlığı ve `act`) gelen **hafif** vuruş düşmana hasar vermez. Kahramanın o vuruşta vereceği hasarın (yansıtma noktasındaki `dmg`) **%10'u** kahramana döner. **Tavan yok**; §13.8'in %30 sınırı bu mekaniğe uygulanmaz. Retro/NG+ çarpanı eklenmez.
+  - **Ağır vuruş** (Kentaur Yayı'nın ağır oku dahil, `heavy = true`) aynayı kırar, düşmanı 1,4 sn sersemletir (değişmez), yansıtma olmaz.
+  - **Yakın dövüş ve alan vuruşları anında yansır:** kombo, atılma vuruşu ve yer/alan yetenekleri (Yıldız Yağmuru, Ok Yağmuru, Çarpma, Takımyıldızı Adımı, patlama/hale/yörünge/girdap/koni/hat yetenekleri). Kod: `hero.take_damage(dmg * 0.10, -dir, false)`. Yörünge ve hale gibi tik vuran yeteneklerde her tik ayrı yansır.
+  - **Mermiler geri seker (anında hasar yok):** mermi kalkana çarpınca durur. Aynı hız ve doğrultuda, **o anki kahraman konumuna** doğru düz giden (güdümsüz) bir "seken mermi" doğar.
+    - Seken mermi kahramana çarparsa, orijinal merminin o düşmana vereceği hasarın %10'unu verir. Kahraman atılır ya da kenara kaçarsa hiç hasar almaz.
+    - Seken mermi menzili kadar (ya da arena kenarına kadar) gider, düşmanlara çarpmaz, kaybolur.
+  - **Mermi sayılanlar** (`star_skills.gd` sınıfları):
+
+| Mermi | Kaynak | Seken davranış |
+|---|---|---|
+| `Arrow` | Kentaur Yayı hafif okları ve kombo okları | ok geri döner |
+| `LightWave` | Işık Dalgası, Kuyruklu Yıldız Atışı, Delici Yıldız | delip geçen dalga: kalkana çarpan dalga o düşmanda durmaz, yoluna devam eder; aynadan ayrıca küçük bir yansıma parçası (dalga genişliğinin yarısı) kahramana döner |
+| `Boomerang` | Hilal Biçişi | o düşmanda geri döner, kalkanı kesmez; kahramana dönen yolu seken mermi sayılır |
+| `Hook` | Zincir Kancası | kanca çekmez, geri seker; kahramana değerse %10 hasar |
+
+  - **Mermi sayılmayanlar** (gökten düşen, yerde ya da kahramanın çevresinde oluşanlar): `Starfall`, `Burst`, `Aura`, `Orbit`, `Vortex`, `FlameCone`, `LineStrike`, `ConstellationPath` ve atılma vuruşu. Bunlar anında yansır.
+  - **Seken merminin okunurluğu:** ayna rengi (altın-gümüş, `Color(0.95, 0.9, 1.0)`) parlak iz. Mermi boyu orijinalin en az 1,2 katı. Yansıma anında kalkanda parlama ve kristal ses (`parry`, perde 2,2). Seken mermi kahramanın göremeyeceği kadar hızlı olmamalı: hızı en çok 22 m/sn, gerekirse yavaşlatılır.
+  - Yansıtmalar "en büyük 5 vuruş" listesinde ayrı kaynak olarak görünür (§15.7).
+- **Belirginlik (zorunlu):**
+  1. **Açılış:** `mirror` hazırlığı başlarken kristal ses (`parry`, perde 2,0, −2 dB) + kısa "çın" (`switch`, perde 1,6). Düşmanın önünde parlak altın-gümüş ayna kalkanı 0,2 sn'de büyüyerek açılır (mevcut `_mirror_node` disk: altın kenarlı, emisyon ≥ 3, kenarı yavaşça dönen parıltılı halka; arkasında yarı saydam altın kubbe, yarıçap 1,3 × `size_k`).
+  2. **Süre boyunca:** düşmanın başının üstünde büyük altın **◈ ayna simgesi** (Label3D, billboard, derinlik testi yok, yazı boyu ≥ 96, 0,6 sn'de bir nabız). Ayrıca kahramana bakan yüzde yansıyan ışık titreşimi. Kalkan bitince simge 0,15 sn'de söner.
+  3. **Yansıma anı:** kalkandan kahramana uzanan 0,15 sn'lik altın ışın çizgisi. Kahramanın üstünde altın geri tepme halkası (`Juice.ring_wave`, 1,6 m). Hasar sayısı "↩" önekiyle altın renkte. Kısa kamera sarsıntısı (0,25). Kahramana küçük geri itme (`-dir`, 6).
+  4. **Kırılma (ağır vuruş):** ayna cam kırıkları gibi altın parçalara dağılır, kırılma sesi (`crush`), simge söner.
+  5. İlk görüldüğünde rehberlik kartı (§19.2 biçimi), anahtar `hints["mirror"]`:
+
+| EN | TR |
+|---|---|
+| MIRROR GUARD · While its mirror is up, light hits bounce back. A heavy attack shatters it. | AYNA MUHAFIZI · Aynası açıkken hafif vuruşlar sana döner. Ağır saldırı aynayı kırar. |
 
 ## 14. ÖĞRETİCİ ODA [CEO KARARI: onaylı özellik]
 
@@ -587,6 +723,7 @@ Bütün denge ölçümleri bu profillerle, profil başına **3 tekrar**la yapıl
 - Silah Yıldız Kılıcı, retro kapalı, döngü 0, tek oyuncu (§15.2'deki koşul).
 - Bölge karşılaştırması bölgenin 1. odasıyla yapılır; Koç muaf (§13.2).
 - Boss eğrisi (`BOSS_DMG`) yeni profille ölçülür.
+- Ayna Muhafızı yansımaları en büyük 5 vuruş listesinde ayrı kaynak olarak görünür ("mirror yansıması"); §13.8 kuralına tabi değildir (CEO, T-42).
 - **Her ölçüm turunda tek vuruş kontrolü:** her profil için turun **en büyük 5 vuruşu** listelenir: kaynak düşman (bölge, rol, seçkin/özellik, karışık mı, boss odası mı), saldırı adı, hasar, kahramanın en yüksek canına oranı. Yeni profilde normal düşman vuruşu %30'u aşarsa bulgu açılır (§13.8).
 - Yarım harita (~506 bin toz) yalnızca azalan getiri (§13.7) kontrolü için kullanılır.
 

@@ -75,81 +75,81 @@ const COMBAT_C := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_C := [1.85, 1.95, 2.05, 2.15]
-const DMG_MULT_C := [1.9, 1.98, 2.06, 2.15]
-const ELITE_CHANCE_C := [0.3, 0.35, 0.4, 0.4]
+const HP_MULT_C := [2.04, 2.15, 2.26, 2.37]   # GDD §13.9 (0.5.4)
+const DMG_MULT_C := [2.04, 2.09, 2.13, 2.15]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_C := [0.35, 0.40, 0.45, 0.45]   # GDD §13.9 (0.5.4)
 const COMBAT_L := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "shade", "caster"], ["brute", "caster", "leaper", "shade"], ["leaper", "leaper", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["shade", "shade", "shade", "caster", "caster"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "shade"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_L := [2.1, 2.2, 2.3, 2.45]
-const DMG_MULT_L := [1.54, 1.61, 1.68, 1.75]   # GDD §13.2 (0.5.2)
-const ELITE_CHANCE_L := [0.35, 0.4, 0.45, 0.45]
+const HP_MULT_L := [2.42, 2.53, 2.65, 2.82]   # GDD §13.9 (0.5.4)
+const DMG_MULT_L := [1.66, 1.70, 1.73, 1.75]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_L := [0.40, 0.45, 0.50, 0.50]   # GDD §13.9 (0.5.4)
 const COMBAT_V := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "caster", "leaper"]],
 	[["shade", "leaper", "leaper", "caster"], ["brute", "caster", "shade", "shade"], ["leaper", "caster", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "caster", "shade"]],
 ]
-const HP_MULT_V := [2.35, 2.5, 2.6, 2.75]
-const DMG_MULT_V := [1.89, 1.96, 2.05, 2.16]   # GDD §13.2 (0.5.2)
-const ELITE_CHANCE_V := [0.4, 0.45, 0.5, 0.5]
+const HP_MULT_V := [2.82, 3.00, 3.12, 3.30]   # GDD §13.9 (0.5.4)
+const DMG_MULT_V := [2.05, 2.10, 2.14, 2.16]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_V := [0.45, 0.50, 0.55, 0.55]   # GDD §13.9 (0.5.4)
 const COMBAT_B := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "shade"], ["leaper", "leaper", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "shade", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_B := [2.6, 2.75, 2.9, 3.05]
-const DMG_MULT_B := [2.41, 2.50, 2.59, 2.71]   # GDD §13.2 (0.5.2)
-const ELITE_CHANCE_B := [0.45, 0.5, 0.5, 0.55]
+const HP_MULT_B := [3.25, 3.44, 3.63, 3.81]   # GDD §13.9 (0.5.4)
+const DMG_MULT_B := [2.57, 2.63, 2.68, 2.71]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_B := [0.50, 0.55, 0.55, 0.60]   # GDD §13.9 (0.5.4)
 const COMBAT_S := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_S := [2.85, 3.0, 3.15, 3.3]
-const DMG_MULT_S := [1.86, 1.92, 1.98, 2.07]   # GDD §13.2 (0.5.2)
-const ELITE_CHANCE_S := [0.5, 0.5, 0.55, 0.55]
+const HP_MULT_S := [3.71, 3.90, 4.10, 4.29]   # GDD §13.9 (0.5.4)
+const DMG_MULT_S := [1.97, 2.01, 2.05, 2.07]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_S := [0.60, 0.60, 0.65, 0.65]   # GDD §13.9 (0.5.4)
 const COMBAT_Y := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_Y := [3.1, 3.25, 3.4, 3.6]
-const DMG_MULT_Y := [2.82, 2.90, 2.99, 3.11]   # GDD §13.2
-const ELITE_CHANCE_Y := [0.5, 0.55, 0.55, 0.6]
+const HP_MULT_Y := [4.19, 4.39, 4.59, 4.86]   # GDD §13.9 (0.5.4)
+const DMG_MULT_Y := [2.95, 3.02, 3.08, 3.11]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_Y := [0.60, 0.65, 0.65, 0.70]   # GDD §13.9 (0.5.4)
 const COMBAT_K := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_K := [3.35, 3.5, 3.7, 3.9]
-const DMG_MULT_K := [3.24, 3.33, 3.46, 3.59]   # GDD §13.2
-const ELITE_CHANCE_K := [0.55, 0.55, 0.6, 0.6]
+const HP_MULT_K := [4.69, 4.90, 5.18, 5.46]   # GDD §13.9 (0.5.4)
+const DMG_MULT_K := [3.41, 3.48, 3.55, 3.59]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_K := [0.65, 0.65, 0.70, 0.70]   # GDD §13.9 (0.5.4)
 const COMBAT_Q := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_Q := [3.6, 3.75, 3.95, 4.15]
-const DMG_MULT_Q := [3.64, 3.73, 3.87, 4.00]   # GDD §13.2
-const ELITE_CHANCE_Q := [0.55, 0.6, 0.6, 0.65]
+const HP_MULT_Q := [5.22, 5.44, 5.73, 6.02]   # GDD §13.9 (0.5.4)
+const DMG_MULT_Q := [3.80, 3.88, 3.96, 4.00]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_Q := [0.65, 0.70, 0.70, 0.75]   # GDD §13.9 (0.5.4)
 const COMBAT_P := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_P := [3.85, 4.0, 4.2, 4.4]
-const DMG_MULT_P := [4.3, 4.4, 4.55, 4.7]
-const ELITE_CHANCE_P := [0.6, 0.6, 0.65, 0.7]
+const HP_MULT_P := [5.78, 6.00, 6.30, 6.60]   # GDD §13.9 (0.5.4)
+const DMG_MULT_P := [4.47, 4.56, 4.65, 4.70]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_P := [0.70, 0.70, 0.75, 0.80]   # GDD §13.9 (0.5.4)
 const PI_DUST := 1100
 const PI_FIRST_BONUS := 2000
 const AQ_DUST := 940

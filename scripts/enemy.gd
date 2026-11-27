@@ -157,6 +157,7 @@ func _ready() -> void:
 		_pi_variant()
 	_apply_hit_table()
 	_apply_native_cap()
+	_apply_zone_hit()
 	if zone == "tutorial":
 		var keep: Array = []
 		for a in attacks:
@@ -175,7 +176,7 @@ func _ready() -> void:
 	# zorluk: derinlik çarpanları, daha kısa hazırlık ve daha sık saldırı
 	var em := 1.0
 	if elite:
-		em = 1.25
+		em = 1.25 if _early() else 1.0   # §13.9.2(a): Yengeç'ten itibaren seçkin daha sert vurmaz
 		max_hp *= 1.6
 		size_k *= 1.15
 		radius *= 1.15
@@ -203,16 +204,14 @@ func _ready() -> void:
 			ch = 1
 		a["chain"] = ch
 	var tier := _tier()
-	var atk_rate := float(ATK_RATE.get(_tier_zone(), 1.0))
 	for a in attacks:
 		a["dmg"] = float(a["dmg"]) * dmg_mult * em * float(tier["dmg"])
 		a["windup"] = float(a["windup"]) * float(tier["gold"]) * windup_mult
 		if not bool(a["parry"]) and String(a["name"]) != "mirror":
 			# kırmızı (parry'lenemez) saldırılar hızlı ama okunur; ilk bölgelerde daha yavaş
 			a["windup"] = float(a["windup"]) * float(tier["red"])
-		# §13.8 Yönetici kararı: küçülen vuruşun açığı daha sık saldırıyla kapanır (hazırlığa dokunulmaz)
-		a["recover"] = float(a["recover"]) * float(tier["recover"]) / atk_rate
-		a["cd"] = float(a["cd"]) * float(tier["cd"]) / atk_rate
+		a["recover"] = float(a["recover"]) * float(tier["recover"])
+		a["cd"] = float(a["cd"]) * float(tier["cd"])
 	hp = max_hp
 	for a in attacks:
 		_cd[a["name"]] = randf_range(0.3, 1.2)
@@ -2489,7 +2488,8 @@ func _physics_process(delta: float) -> void:
 	if _dodge_cd > 0.0:
 		_dodge_cd -= delta
 	if zone == "leo" and kind == "caster":
-		_tick_crown_caster(delta)
+		if _tier_zone() == "leo":
+			_tick_crown_caster(delta)   # T-40: taç yalnızca Aslan odalarında
 	if crowned > 0.0:
 		crowned -= delta
 		if _crown_node != null:
@@ -2716,11 +2716,22 @@ const NATIVE_HIT := {
 
 
 
-## SALDIRI SIKLIĞI (GDD §13.8 Yönetici kararı): odanın bölgesine göre bekleme (cd) ve toparlanma süresini böler.
-## Başlangıç: o bölgede eski ortalama vuruş / yeni ortalama vuruş; cd x0,6'nın altına inmez (en çok 1/0,6 = 1,67).
-## Öğrenme kademesi (Koç-İkizler) ve öğretici etkilenmez. Testçi baskıyı ölçüp ayarlar.
-const ATK_RATE := {"cancer": 1.28, "leo": 1.45, "virgo": 1.51, "libra": 1.67, "scorpio": 1.16,
-	"sagittarius": 1.67, "capricorn": 1.67, "aquarius": 1.63, "pisces": 1.67}
+## BÖLGE VURUŞ DEĞERİ (GDD §13.9.2c): Yengeç'ten itibaren odadaki her normal düşmanın hasarlı her saldırısı
+## (kökeni ne olursa olsun) bu taban değeri alır. Aslan: Gölge 15, diğer roller 16. Koç-İkizler HIT_TABLE/NATIVE_HIT ile.
+const ZONE_HIT := {"cancer": 15.0, "leo": 16.0, "virgo": 17.0, "libra": 13.0, "scorpio": 18.0, "sagittarius": 14.0,
+	"capricorn": 13.0, "aquarius": 12.0, "pisces": 11.0}
+
+
+func _apply_zone_hit() -> void:
+	var rz := _tier_zone()
+	if not ZONE_HIT.has(rz) or pebble:
+		return
+	var v := float(ZONE_HIT[rz])
+	if rz == "leo" and kind == "shade":
+		v = 15.0
+	for a in attacks:
+		if float(a["dmg"]) > 0.0:
+			a["dmg"] = v
 
 
 func _apply_hit_table() -> void:
@@ -2756,6 +2767,7 @@ const TIER := {
 	"cancer": {"dmg": 0.9, "slots": 2, "chain": 2, "gold": 0.97, "red": 0.80, "recover": 1.05, "cd": 1.10},
 	"leo": {"dmg": 1.0, "slots": 3, "chain": 3, "gold": 0.95, "red": 0.72, "recover": 1.0, "cd": 1.02},
 	"full": {"dmg": 1.0, "slots": 3, "chain": 3, "gold": 0.92, "red": 0.65, "recover": 0.95, "cd": 0.95},
+	"late": {"dmg": 1.0, "slots": 4, "chain": 3, "gold": 0.92, "red": 0.65, "recover": 0.95, "cd": 0.95},   # §13.9.3 Akrep-Balık
 }
 
 
@@ -2771,6 +2783,8 @@ func _tier() -> Dictionary:
 		return TIER["cancer"]
 	if z == "leo":
 		return TIER["leo"]
+	if z == "scorpio" or z == "sagittarius" or z == "capricorn" or z == "aquarius" or z == "pisces":
+		return TIER["late"]
 	return TIER["full"]
 
 
@@ -2798,17 +2812,34 @@ func _attack_slots_full() -> bool:
 	return false
 
 
+## Odada şu an hazırlıkta ya da vuruş anında olan kızıl (parry'lenemez) saldırı sayısı
+func _red_attackers() -> int:
+	var n := 0
+	for o in get_tree().get_nodes_in_group("enemies"):
+		if o == self or o.get("phase") != null or o.get("atk") == null:
+			continue
+		var st = o.get("state")
+		if (st == "windup" or st == "act") and not (o.atk as Dictionary).is_empty() and not bool(o.atk.get("parry", true)):
+			n += 1
+	return n
+
+
 func _pick_attack(dist: float, dir_to: Vector3) -> void:
 	if _attack_slots_full():
 		_global_cd = randf_range(0.25, 0.5)
 		return
 	var total := 0.0
 	var cands: Array = []
+	var red_full := _red_attackers() >= 2   # §13.9.3: aynı anda en çok 2 kızıl saldırı
 	for a in attacks:
+		if red_full and not bool(a["parry"]):
+			continue
 		if float(_cd[a["name"]]) <= 0.0 and dist >= float(a["min"]) and dist <= float(a["max"]):
 			cands.append(a)
 			total += float(a["weight"])
 	if cands.is_empty():
+		if red_full:
+			_global_cd = randf_range(0.25, 0.5)
 		return
 	var r := randf() * total
 	for a in cands:
