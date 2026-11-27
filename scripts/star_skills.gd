@@ -744,6 +744,8 @@ class Arrow extends Node3D:
 					e.spawn_reflect(global_position, speed, dmg, (0.8 * (2.2 if big else 1.0)) * 1.2, range_m)
 					queue_free()
 					return
+				if "hit_src" in e:
+					e.hit_src = "arrow"   # T-52: ağır ok aynayı kendi bayrağıyla kırar
 				e.take_hit(dmg, dir, kb, heavy, crit)
 				if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_ranged_hit"):
 					owner_node.on_ranged_hit(dmg, e)

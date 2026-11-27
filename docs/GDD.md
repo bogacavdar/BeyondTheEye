@@ -230,7 +230,8 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 | Boss | Koç | Boğa | İkizler | Yengeç | Aslan | Başak | Terazi | Akrep | Yay | Oğlak | Kova | Balık |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Ölçülen ham baskı | 6,7 | 7,4 | 13,5 | 8,1 | 16,5 | 10,3 | 10,0 | 25,7 | 11,1 | 16,0 | 20,0 | 16,8 |
-| **Yeni BOSS_DMG** | 1,0 | 1,0 | **0,65** | **1,25** | **0,70** | **1,25** | **1,45** | **0,62** | **1,60** | **1,25** | **1,10** | **2,50** |
+| ~~Yeni BOSS_DMG~~ | 1,0 | 1,0 | 0,65 | 1,25 | 0,70 | 1,25 | 1,45 | 0,62 | 1,60 | 1,25 | 1,10 | 2,50 |
+| **BOSS_DMG (Testçi 5. tur, Yönetici kararı)** | 1,0 | 1,0 | **0,65** | **0,97** | **0,81** | **1,15** | **1,15** | **0,71** | **1,40** | **1,50** | **1,10** | **2,50** |
 | Hedef ham baskı | 6,7 | 7,4 | ~8,8 | ~10,1 | ~11,6 | ~12,9 | ~14,5 | ~15,9 | ~17,8 | ~20,0 | ~22,0 | ~26,3 |
 
   `const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 1.25, "leo": 0.70, "virgo": 1.25, "libra": 1.45, "scorpio": 0.62, "sagittarius": 1.6, "capricorn": 1.25, "aquarius": 1.1, "pisces": 2.5}`. Testçi'nin önerisinden farkı: Balık 2,0 değil 2,5, çünkü Kova 1,1'de ~22 ve Balık en yüksek olmalı. Aslan boss'unun yavruları da sürü kuralına bağlıysa yukarıdaki varyant düzeltmesi boss'u da etkiler; Testçi yeniden ölçer.
@@ -250,6 +251,25 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 | 11 | 10 | 10 | 13 | 15 | 12 | 11 | 10 | 9 | 8,5 | 8 | 7,5 |
 
   (Eski: Terazi 12 → Akrep 6,5 → Yay 6 → Oğlak 7 → Kova 6 → Balık 7. Yengeç ve Aslan'ın uzun aralıkları tehlikelerinin büyüklüğünden, korunur.) `HAZARD_DMG` değişmez.
+- **Zemin tehlikeleri de §13.8 kuralına tabi [CEO KARARI, Testçi 5. tur]:** tek tehlike vuruşu, o bölgenin yeni profil referans canının en çok **%30**'u. Genel tavan mekaniği yoktur; uyum `HAZARD_DMG` ve tehlike taban değerleriyle sağlanır. Ölçüm: her bölgenin 4. odası (`local_i = 3`, çarpan ×1,36), zırhsız kahraman, tehlike üstüne yürütülerek; 0,6 sn dokunulmazlık nedeniyle aynı olaydaki üst üste patlamalar tek vuruş sayılır.
+
+| Bölge | Ref. can | Sınır (%30) | En büyük tehlike (taban × HAZARD_DMG) | Ölçülen en büyük vuruş | %ref |
+|---|---|---|---|---|---|
+| Koç | 100 | 30,0 | lav fışkırması 10 × 1,0 | 13,6 | %14 |
+| Boğa | 100 | 30,0 | diken 8 × 1,15 | 12,5 | %12 |
+| İkizler | 115 | 34,5 | rüzgâr (hasarsız) | 0 | 0 |
+| Yengeç | 115 | 34,5 | gelgit 5/sn × 1,45 | 9,9/sn hesap (sürekli; 3 sn'de ~30) | %9/sn (%26/olay) |
+| Aslan | 125 | 37,5 | Zenit 12 × 1,6 | 26,1 | %21 |
+| Başak | 125 | 37,5 | ızgara 10 × 1,75 | 23,8 | %19 |
+| Terazi | 125 | 37,5 | hüküm 10 × 1,9 | 25,8 | %21 |
+| Akrep | 150 | 45,0 | asit 8 (+zehir %30) × 2,0 | 21,8 | %15 |
+| Yay | 150 | 45,0 | ok yağmuru 9 × 2,1 | 25,7 | %17 |
+| Oğlak | 170 | 51,0 | çığ 11 × 2,25 | 33,7 | %20 |
+| Kova | 170 | 51,0 | yıldırım 11 × 2,4 | 35,9 | %21 |
+| Balık | 187 | 56,1 | rüya köpüğü 10 × 2,55 | 34,7 | %19 |
+
+  Bütün bölgeler sınırın altında; `HAZARD_DMG` değişmedi. Testçi 5. turda Balık 58,1 · Kova 49 · Oğlak 44 · Yay 42 ölçtü; bu değerler bu kodda (tek tehlike vuruşu olarak) üretilemedi. Testçi'nin ölçtüğü değerin kaynağı (tehlike + düşman vuruşu aynı anda, boss odası saldırıları ya da başka bir çarpan) yeniden ölçümde ayrılmalı.
+
 - Koç'un ilk iki odasında seçkin yok (değişmez).
 - Can odalar arası taşınır; iyileşme kaynakları: Sığınak (%40), bölge geçişi (%30), döngü geçişi (%50), lütuflar/harita/tılsımlar.
 
@@ -333,7 +353,7 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 | İkizler | Atlayan | burrow | 22 | **18** |
 | İkizler | Kolos | smash / quake | 24 / 26 | **18 / 18** |
 | Yengeç | Gölge (taban) | claw / rend | 16 / 22 | **14 / 14** |
-| Yengeç | Gölge | kabuk kıskacı (`_shell_snap`, 18 × dmg_mult) | 18 | **16** |
+| Yengeç | Gölge | kabuk kıskacı (`_shell_snap`, 18 × dmg_mult) | 18 | **16** (Yengeç+ odalarda `ZONE_HIT`, §13.9.2c, T-45) |
 | Yengeç | Atlayan | pulse | 16 | **14** |
 | Yengeç | Kolos | smash | 24 | **14** |
 | Aslan | Gölge (taban) | claw / rend | 16 / 22 | **12 / 12** |
@@ -403,11 +423,11 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 | Bölge | Eski | **Yeni (oda 1–4)** |
 |---|---|---|
 | Yengeç | 1,85 · 1,95 · 2,05 · 2,15 | **2,04 · 2,15 · 2,26 · 2,37** |
-| Aslan | 2,1 · 2,2 · 2,3 · 2,45 | **2,42 · 2,53 · 2,65 · 2,82** |
-| Başak | 2,35 · 2,5 · 2,6 · 2,75 | **2,82 · 3,00 · 3,12 · 3,30** |
+| Aslan | 2,1 · 2,2 · 2,3 · 2,45 | ~~2,42 · 2,53 · 2,65 · 2,82~~ **2,22 · 2,32 · 2,43 · 2,59** (×0,92, Yönetici kararı, Testçi 5. tur) |
+| Başak | 2,35 · 2,5 · 2,6 · 2,75 | ~~2,82 · 3,00 · 3,12 · 3,30~~ **2,59 · 2,76 · 2,87 · 3,04** (×0,92, Yönetici kararı, Testçi 5. tur) |
 | Terazi | 2,6 · 2,75 · 2,9 · 3,05 | **3,25 · 3,44 · 3,63 · 3,81** |
 | Akrep | 2,85 · 3,0 · 3,15 · 3,3 | **3,71 · 3,90 · 4,10 · 4,29** |
-| Yay | 3,1 · 3,25 · 3,4 · 3,6 | **4,19 · 4,39 · 4,59 · 4,86** |
+| Yay | 3,1 · 3,25 · 3,4 · 3,6 | ~~4,19 · 4,39 · 4,59 · 4,86~~ **5,03 · 5,27 · 5,51 · 5,83** (×1,20, Yönetici kararı, Testçi 5. tur) |
 | Oğlak | 3,35 · 3,5 · 3,7 · 3,9 | **4,69 · 4,90 · 5,18 · 5,46** |
 | Kova | 3,6 · 3,75 · 3,95 · 4,15 | **5,22 · 5,44 · 5,73 · 6,02** |
 | Balık | 3,85 · 4,0 · 4,2 · 4,4 | **5,78 · 6,00 · 6,30 · 6,60** |
@@ -439,9 +459,9 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 | Bölge | Referans can | B' | **ZONE_HIT** | Tahmini ham baskı (1. oda) | Oran |
 |---|---|---|---|---|---|
 | İkizler (değişmez) | 115 | – | – | 9,3 (ölçülen) | – |
-| Yengeç | 115 | 17,8 | **15** | ~11,5 | 1,24 |
-| Aslan | 125 | 15,3 Gölge (sürü+taç ×1,40) · 16,5 diğer (taç ×1,30) | **15 Gölge · 16 diğer** | ~13,8 | 1,20 |
-| Başak | 125 | 17,4 | **17** | ~16,5 | 1,20 |
+| Yengeç | 115 | 17,8 | ~~15~~ **12** | ~11,5 | 1,24 |
+| Aslan | 125 | 15,3 Gölge (sürü+taç ×1,40) · 16,5 diğer (taç ×1,30) | ~~15 Gölge · 16 diğer~~ **14 Gölge · 15 diğer** | ~13,8 | 1,20 |
+| Başak | 125 | 17,4 | ~~17~~ **15** | ~16,5 | 1,20 |
 | Terazi | 125 | 13,8 | **13** | ~17,1 | 1,04 |
 | Akrep | 150 | 21,7 | **18** | ~18,2 | 1,06 |
 | Yay | 150 | 14,5 | **14** | ~19,3 | 1,06 |
@@ -450,6 +470,7 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 | Balık | 187 (Testçi) | 11,9 | **11** | ~21,2 | 0,96 (aşağıda) |
 
 - ZONE_HIT bazı bölgelerde B''nin altında seçildi (Yengeç, Akrep, Oğlak). Böylece ardışık oran 1,00–1,30 içinde kalır.
+- **Yönetici kararı, Testçi 5. tur:** ZONE_HIT Yengeç 15→12, Aslan Gölge 15→14 / diğer 16→15, Başak 17→15 (tablodaki "Tahmini ham baskı" ve "Oran" sütunları eski değerlere göredir; Testçi yeniden ölçer). Kabuk Askeri'nin kıskacı (`_shell_snap`, T-45) Yengeç ve sonrasında `ZONE_HIT[room_zone] × dmg_mult` vurur; Koç–İkizler'de 16 × dmg_mult kalır.
 - Tahmin; şu çarpanlarla yapıldı:
   - (a) seçkin farkının kalkması: ×0,95
   - (b) 1. oda düzleşmesi: ×1,04–1,08
@@ -468,12 +489,11 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 | Odanın bölgesi | Aynı anda saldıran (`slots`) | Aynı anda kızıl saldırı |
 |---|---|---|
 | Koç–İkizler | 2 (değişmez) | en çok 2 |
-| Yengeç | 2 (değişmez) | en çok 2 |
-| Aslan | oda 1–2: 2 · oda 3–4: 3 (değişmez) | en çok 2 |
-| Başak, Terazi | 3 (değişmez) | en çok 2 |
-| **Akrep → Balık** | **4** | **en çok 2** |
+| **Yengeç → Balık** | **4** (bütün odalar; Aslan'ın 2/3 oda kuralı kalktı) | **en çok 2** |
 
-- Not: CEO metni "Yengeç–Terazi 3 kalır" diyor; kodda Yengeç 2, Aslan 2/3. "Kalır" ifadesine göre değiştirilmedi. Yengeç'in de 3 olması isteniyorsa ayrıca söylenmeli; Yengeç 3 olursa İkizler→Yengeç oranı 1,30'u aşabilir.
+- **[CEO KARARI, Testçi 5. tur]** Aynı anda 4 saldıran Akrep yerine **Yengeç'ten** itibaren geçerli (`TIER` cancer/leo/full/late `slots = 4`; Aslan'ın oda 1–2'de 2 kuralı kaldırıldı). Kızıl saldırı aynı anda en çok 2 kuralı aynen. Önceki tablo: Yengeç 2 · Aslan 2/3 · Başak–Terazi 3 · Akrep–Balık 4.
+
+- (Eski not, yukarıdaki CEO kararıyla geçersiz:) CEO metni "Yengeç–Terazi 3 kalır" diyor; kodda Yengeç 2, Aslan 2/3. "Kalır" ifadesine göre değiştirilmedi. Yengeç'in de 3 olması isteniyorsa ayrıca söylenmeli; Yengeç 3 olursa İkizler→Yengeç oranı 1,30'u aşabilir.
 - Kızıl sınırı (okunabilirlik): bir düşman saldırı seçerken, odada `windup`/`act` durumunda parry'lenemeyen saldırısı olan düşman sayısı ≥ 2 ise kızıl saldırılar aday listesinden çıkar. Altın saldırısı yoksa düşman kısa bekler (`_global_cd` 0,25–0,5 sn, bugünkü sınır davranışı gibi). Bütün bölgelerde geçerli.
 - **Hazırlık (`windup`) değişmez.**
 - Uygulama: `TIER`'e `"late"` kademesi (Akrep–Balık): `full` ile aynı, yalnızca `slots: 4`.
@@ -488,10 +508,12 @@ Oda başı sınırlar (§13.3: 1. odada 1, diğer odalarda 2; ilk 3 bölgede tek
 | Başak | 0,40 · 0,45 · 0,50 · 0,50 | **0,45 · 0,50 · 0,55 · 0,55** |
 | Terazi | 0,45 · 0,50 · 0,50 · 0,55 | **0,50 · 0,55 · 0,55 · 0,60** |
 | Akrep | 0,50 · 0,50 · 0,55 · 0,55 | **0,60 · 0,60 · 0,65 · 0,65** |
-| Yay | 0,50 · 0,55 · 0,55 · 0,60 | **0,60 · 0,65 · 0,65 · 0,70** |
+| Yay | 0,50 · 0,55 · 0,55 · 0,60 | ~~0,60 · 0,65 · 0,65 · 0,70~~ **0,70 · 0,75 · 0,75 · 0,80** (+0,10, Yönetici kararı, Testçi 5. tur) |
 | Oğlak | 0,55 · 0,55 · 0,60 · 0,60 | **0,65 · 0,65 · 0,70 · 0,70** |
 | Kova | 0,55 · 0,60 · 0,60 · 0,65 | **0,65 · 0,70 · 0,70 · 0,75** |
 | Balık | 0,60 · 0,60 · 0,65 · 0,70 | **0,70 · 0,70 · 0,75 · 0,80** |
+
+- **Boss hasarı (`BOSS_DMG`, §13.4) — Yönetici kararı, Testçi 5. tur:** Yengeç 0,97 · Aslan 0,81 · Başak 1,15 · Terazi 1,15 · Akrep 0,71 · Yay 1,40 · Oğlak 1,50; Koç/Boğa 1,0, İkizler 0,65, Kova 1,1, Balık 2,5 aynı.
 
 #### 13.9.5 ATK_RATE kaldırılır
 - `enemy.gd` `ATK_RATE` ve `_ready` içindeki `/ atk_rate` bölmesi silinir; `cd` ve `recover` yalnızca `TIER`'den gelir.
@@ -527,6 +549,11 @@ Oda başı sınırlar (§13.3: 1. odada 1, diğer odalarda 2; ilk 3 bölgede tek
 | EN | TR |
 |---|---|
 | MIRROR GUARD · While its mirror is up, light hits bounce back. A heavy attack shatters it. | AYNA MUHAFIZI · Aynası açıkken hafif vuruşlar sana döner. Ağır saldırı aynayı kırar. |
+
+- **Yönetici kararı, Testçi 5. tur:**
+  - **Yoldaş vuruşları (T-50):** Tilki vb. yoldaşın aynaya çarpan vuruşu kahramana yansımaz ve düşmana hasar vermez; küçük bir ayna kıvılcımıyla söner.
+  - **Okunurluk (T-51):** ayna diski ve kenar halkasının emisyonu bloom eşiğinin (1,2) altında (disk ≈0,9, halka 1,1, yansıma parlaması 1,8; ışık enerjisi 1,5). Muhafız ve zemin uyarıları kalkanın arkasında görünür kalır. Seken mermi: koyu kenarlı, kızıl-altın, kalın (≥0,16 m) gövde ve arkasında 0,5 sn'de sönen koyu kenarlı iz (ışıksız, beyaz zeminde okunur). "↩" sayısı büyük (84), kalın koyu kenarlı ve kahramanın sağ üstünde, ışık halkasının dışında.
+  - **Ağır ok (T-52):** Kentaur Yayı'nın ağır oku aynayı okun kendi `heavy` bayrağıyla kırar (`hero.last_atk_kind`'a bakılmaz).
 
 ## 14. ÖĞRETİCİ ODA [CEO KARARI: onaylı özellik]
 

@@ -84,7 +84,7 @@ const COMBAT_L := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["shade", "shade", "shade", "caster", "caster"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "shade"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_L := [2.42, 2.53, 2.65, 2.82]   # GDD §13.9 (0.5.4)
+const HP_MULT_L := [2.22, 2.32, 2.43, 2.59]   # GDD §13.9 (Testçi 5. tur: ×0,92)
 const DMG_MULT_L := [1.66, 1.70, 1.73, 1.75]   # GDD §13.9 (0.5.4)
 const ELITE_CHANCE_L := [0.40, 0.45, 0.50, 0.50]   # GDD §13.9 (0.5.4)
 const COMBAT_V := [
@@ -93,7 +93,7 @@ const COMBAT_V := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "caster", "shade"]],
 ]
-const HP_MULT_V := [2.82, 3.00, 3.12, 3.30]   # GDD §13.9 (0.5.4)
+const HP_MULT_V := [2.59, 2.76, 2.87, 3.04]   # GDD §13.9 (Testçi 5. tur: ×0,92)
 const DMG_MULT_V := [2.05, 2.10, 2.14, 2.16]   # GDD §13.9 (0.5.4)
 const ELITE_CHANCE_V := [0.45, 0.50, 0.55, 0.55]   # GDD §13.9 (0.5.4)
 const COMBAT_B := [
@@ -120,9 +120,9 @@ const COMBAT_Y := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["caster", "caster", "leaper", "shade", "shade"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "leaper"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_Y := [4.19, 4.39, 4.59, 4.86]   # GDD §13.9 (0.5.4)
+const HP_MULT_Y := [5.03, 5.27, 5.51, 5.83]   # GDD §13.9 (Testçi 5. tur: ×1,20)
 const DMG_MULT_Y := [2.95, 3.02, 3.08, 3.11]   # GDD §13.9 (0.5.4)
-const ELITE_CHANCE_Y := [0.60, 0.65, 0.65, 0.70]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_Y := [0.70, 0.75, 0.75, 0.80]   # GDD §13.9 (Testçi 5. tur: +0,10)
 const COMBAT_K := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
@@ -218,8 +218,8 @@ var tc = null   # dokunmatik kontroller (telefon)   # bu odada doğan seçkin sa
 ## BOSS EĞRİSİ (GDD §13.4): taban can ve hasar çarpanı (retro/döngü/co-op çarpanları bunların üstüne)
 const BOSS_HP := {"aries": 1400.0, "taurus": 1800.0, "gemini": 2200.0, "cancer": 2500.0, "leo": 2900.0, "virgo": 3300.0,
 	"libra": 3600.0, "scorpio": 3700.0, "sagittarius": 4300.0, "capricorn": 4900.0, "aquarius": 5400.0, "pisces": 6000.0}
-const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 1.25, "leo": 0.70, "virgo": 1.25,
-	"libra": 1.45, "scorpio": 0.62, "sagittarius": 1.6, "capricorn": 1.25, "aquarius": 1.1, "pisces": 2.5}   # GDD §13.4 (0.5.2)
+const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 0.97, "leo": 0.81, "virgo": 1.15,
+	"libra": 1.15, "scorpio": 0.71, "sagittarius": 1.40, "capricorn": 1.50, "aquarius": 1.1, "pisces": 2.5}   # GDD §13.4 (Testçi 5. tur)
 
 
 func _ready() -> void:

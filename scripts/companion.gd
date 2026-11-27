@@ -172,7 +172,10 @@ func _tick_fox(delta: float, home: Vector3) -> void:
 			var dmg: float = [12.0, 18.0, 26.0][level - 1]
 			var d: Vector3 = _target.global_position - hero.global_position
 			d.y = 0.0
-			_target.take_hit(dmg, d.normalized() if d.length() > 0.1 else Vector3.FORWARD, 1.0, false)
+			if _target.has_method("mirror_up") and _target.mirror_up():
+				_target.mirror_fizzle(global_position)   # T-50: yoldaş vuruşu aynada söner, yansımaz
+			else:
+				_target.take_hit(dmg, d.normalized() if d.length() > 0.1 else Vector3.FORWARD, 1.0, false)
 			Sfx.play("cut", -10.0, 0.1, 0, 1.6)
 			_dash = 0.0
 			_target = null

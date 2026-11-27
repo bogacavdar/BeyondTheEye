@@ -96,6 +96,7 @@ var _mirror_icon: Label3D
 var _mirror_mat: StandardMaterial3D
 var _mirror_a := 0.0          # ayna görünürlüğü (0-1), açılış/kapanış geçişi
 const MIRROR_COL := Color(0.95, 0.9, 1.0)
+var hit_src := ""            # T-52: bir sonraki take_hit'in kaynağı ("arrow" = okun kendi heavy bayrağı)
 var _shell_hits := 0         # Kabuk Askeri: kısa sürede alınan vuruş sayısı
 var _shell_win := 0.0
 var crowned := 0.0           # Güneş Rahibi'nin tacı: süre (hasar +%50)
@@ -1569,12 +1570,12 @@ func _build_mguard() -> void:
 	disk.radial_segments = 24
 	_mirror_node.mesh = disk
 	var mm := StandardMaterial3D.new()
-	mm.albedo_color = Color(0.95, 0.9, 1.0)
-	mm.metallic = 1.0
-	mm.roughness = 0.05
+	mm.albedo_color = Color(0.78, 0.68, 0.48)
+	mm.metallic = 0.6
+	mm.roughness = 0.3
 	mm.emission_enabled = true
 	mm.emission = MIRROR_COL
-	mm.emission_energy_multiplier = 3.5
+	mm.emission_energy_multiplier = 0.9   # T-51: bloom eşiğinin (1,2) altında
 	_mirror_mat = mm
 	_mirror_node.material_override = mm
 	_mirror_node.position = Vector3(0, 1.4, -0.85)
@@ -1588,7 +1589,7 @@ func _build_mguard() -> void:
 	ring_mesh.outer_radius = 1.0
 	ring_mesh.rings = 40
 	_mirror_ring.mesh = ring_mesh
-	_mirror_ring.material_override = Fx.emissive(Color(1.0, 0.85, 0.45), 4.0)
+	_mirror_ring.material_override = Fx.emissive(Color(1.0, 0.8, 0.35), 1.1)
 	_mirror_node.add_child(_mirror_ring)
 	_mirror_dome = MeshInstance3D.new()
 	var dm := SphereMesh.new()
@@ -1599,7 +1600,7 @@ func _build_mguard() -> void:
 	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	dmat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	dmat.albedo_color = Color(1.0, 0.8, 0.35, 0.14)
+	dmat.albedo_color = Color(1.0, 0.78, 0.3, 0.10)
 	_mirror_dome.material_override = dmat
 	_mirror_dome.position = Vector3(0, 1.3, 0)
 	_mirror_dome.visible = false
@@ -2760,8 +2761,8 @@ const NATIVE_HIT := {
 
 
 ## BÖLGE VURUŞ DEĞERİ (GDD §13.9.2c): Yengeç'ten itibaren odadaki her normal düşmanın hasarlı her saldırısı
-## (kökeni ne olursa olsun) bu taban değeri alır. Aslan: Gölge 15, diğer roller 16. Koç-İkizler HIT_TABLE/NATIVE_HIT ile.
-const ZONE_HIT := {"cancer": 15.0, "leo": 16.0, "virgo": 17.0, "libra": 13.0, "scorpio": 18.0, "sagittarius": 14.0,
+## (kökeni ne olursa olsun) bu taban değeri alır. Aslan: Gölge 14, diğer roller 15 (Testçi 5. tur). Koç-İkizler HIT_TABLE/NATIVE_HIT ile.
+const ZONE_HIT := {"cancer": 12.0, "leo": 15.0, "virgo": 15.0, "libra": 13.0, "scorpio": 18.0, "sagittarius": 14.0,
 	"capricorn": 13.0, "aquarius": 12.0, "pisces": 11.0}
 
 
@@ -2771,7 +2772,7 @@ func _apply_zone_hit() -> void:
 		return
 	var v := float(ZONE_HIT[rz])
 	if rz == "leo" and kind == "shade":
-		v = 15.0
+		v = 14.0
 	for a in attacks:
 		if float(a["dmg"]) > 0.0:
 			a["dmg"] = v
@@ -2807,10 +2808,10 @@ func _apply_native_cap() -> void:
 ## dmg: hasar · slots: aynı anda saldıran · chain: seri tavanı · gold/red: hazırlık · recover · cd: bekleme
 const TIER := {
 	"learn": {"dmg": 0.8, "slots": 2, "chain": 2, "gold": 1.0, "red": 0.85, "recover": 1.1, "cd": 1.15},
-	"cancer": {"dmg": 0.9, "slots": 2, "chain": 2, "gold": 0.97, "red": 0.80, "recover": 1.05, "cd": 1.10},
-	"leo": {"dmg": 1.0, "slots": 3, "chain": 3, "gold": 0.95, "red": 0.72, "recover": 1.0, "cd": 1.02},
-	"full": {"dmg": 1.0, "slots": 3, "chain": 3, "gold": 0.92, "red": 0.65, "recover": 0.95, "cd": 0.95},
-	"late": {"dmg": 1.0, "slots": 4, "chain": 3, "gold": 0.92, "red": 0.65, "recover": 0.95, "cd": 0.95},   # §13.9.3 Akrep-Balık
+	"cancer": {"dmg": 0.9, "slots": 4, "chain": 2, "gold": 0.97, "red": 0.80, "recover": 1.05, "cd": 1.10},
+	"leo": {"dmg": 1.0, "slots": 4, "chain": 3, "gold": 0.95, "red": 0.72, "recover": 1.0, "cd": 1.02},
+	"full": {"dmg": 1.0, "slots": 4, "chain": 3, "gold": 0.92, "red": 0.65, "recover": 0.95, "cd": 0.95},
+	"late": {"dmg": 1.0, "slots": 4, "chain": 3, "gold": 0.92, "red": 0.65, "recover": 0.95, "cd": 0.95},   # §13.9.3: Yengeç'ten itibaren tüm kademeler 4
 }
 
 
@@ -2841,8 +2842,6 @@ func _early() -> bool:
 ## İlk bölgelerde 2, sonra 3 düşman.
 func _attack_slots_full() -> bool:
 	var cap := int(_tier()["slots"])
-	if _tier_zone() == "leo" and room_local < 2:
-		cap = 2   # Aslan geçiş kademesi: oda 1-2'de 2, oda 3-4'te 3
 	var n := 0
 	for o in get_tree().get_nodes_in_group("enemies"):
 		if o == self or o.get("phase") != null:
@@ -3533,7 +3532,12 @@ func _shell_snap() -> void:
 		var v: Vector3 = hero.global_position - global_position
 		v.y = 0.0
 		if v.length() <= 2.4 + 0.3:
-			hero.take_damage(16.0 * dmg_mult, v.normalized() if v.length() > 0.05 else _face, false)   # §13.8: 18 -> 16
+			# T-45: Yengeç ve sonrası ZONE_HIT kuralına bağlı; Koç–İkizler 16
+			var base := 16.0
+			var rz := _tier_zone()
+			if ZONE_HIT.has(rz):
+				base = float(ZONE_HIT[rz])
+			hero.take_damage(base * dmg_mult, v.normalized() if v.length() > 0.05 else _face, false)
 
 
 ## Merkür Habercisi: kahramandan uzağa ışınlanır
@@ -3655,6 +3659,8 @@ func pull_to(point: Vector3, strength: float) -> void:
 # ---------------------------------------------------------------- hasar
 
 func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -> void:
+	var src := hit_src
+	hit_src = ""
 	if puppet:
 		Net.send_hit(self, dmg, dir, kb, heavy, crit)
 		_flash = 1.0
@@ -3739,7 +3745,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 	# AYNA MUHAFIZI: ayna duruşunda hafif vuruşlar sana yansır; ağır vuruş aynayı kırar
 	if mirror_up():
 		# yalnızca kahramanın AĞIR saldırısı (Kentaur Yayı ağır oku dahil) aynayı kırar; diğer her vuruş yansır
-		var true_heavy: bool = heavy and hero != null and is_instance_valid(hero) and String(hero.get("last_atk_kind")) == "heavy"
+		var true_heavy: bool = heavy and (src == "arrow" or (hero != null and is_instance_valid(hero) and String(hero.get("last_atk_kind")) == "heavy"))
 		if true_heavy:
 			_shatter_mirror(dir)
 			stun(1.4)
@@ -3863,10 +3869,16 @@ func reflect_value(d: float) -> float:
 
 func mirror_flash(at: Vector3) -> void:
 	Sfx.play("parry", -3.0, 0.03, 0, 2.2)
-	Fx.flash_light(at, MIRROR_COL, 6.0, 4.0, 0.2)
+	Fx.flash_light(at, MIRROR_COL, 1.5, 3.0, 0.15)
 	HitFx.impact(get_parent(), at, Vector3.UP, MIRROR_COL, true)
 	if _mirror_mat != null:
-		_mirror_mat.emission_energy_multiplier = 6.0
+		_mirror_mat.emission_energy_multiplier = 1.8
+
+
+## T-50: yoldaş vuruşu aynaya çarptı: yansımaz, küçük ayna kıvılcımıyla söner
+func mirror_fizzle(at: Vector3) -> void:
+	HitFx.impact(get_parent(), at, Vector3.UP, MIRROR_COL, false)
+	Sfx.play("parry", -12.0, 0.05, 40, 2.4)
 
 
 ## Yakın dövüş / alan vuruşu: anında yansır (hasar zaten element dahil gelir)
@@ -3889,15 +3901,16 @@ static func reflect_feedback(h, v: float) -> void:
 	Fx.shake(0.25)
 	var l := Label3D.new()
 	l.text = "\u21A9 %d" % int(round(v))
-	l.font_size = 64
+	l.font_size = 84
 	l.pixel_size = 0.008
 	l.modulate = Color(1.0, 0.85, 0.4)
-	l.outline_size = 12
+	l.outline_size = 24
+	l.render_priority = 4
 	l.outline_modulate = Color(0.1, 0.05, 0.0)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
 	par.add_child(l)
-	l.global_position = h.global_position + Vector3(0, 2.4, 0)
+	l.global_position = h.global_position + Vector3(0.9, 3.1, 0)   # T-51: ışığın dışında, yana kaydırılmış
 	var tw := l.create_tween()
 	tw.tween_property(l, "global_position:y", l.global_position.y + 1.0, 0.7)
 	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.7)
@@ -3910,7 +3923,7 @@ func _beam(a: Vector3, b: Vector3) -> void:
 	var bx := BoxMesh.new()
 	bx.size = Vector3(0.08, 0.08, 1.0)
 	m.mesh = bx
-	m.material_override = Fx.emissive(Color(1.0, 0.85, 0.45), 8.0)
+	m.material_override = Fx.emissive(Color(1.0, 0.6, 0.25), 1.8)
 	get_parent().add_child(m)
 	var l := a.distance_to(b)
 	m.global_position = (a + b) * 0.5
@@ -4233,7 +4246,7 @@ func _animate(delta: float) -> void:
 			_mirror_node.scale = Vector3.ONE * maxf(k, 0.05)
 			_mirror_dome.scale = Vector3.ONE * maxf(k, 0.05)   # vis zaten size_k ölçekli: yarıçap 1,3 × size_k
 			_mirror_ring.rotation.y += delta * 2.5
-			_mirror_mat.emission_energy_multiplier = 3.5 + 1.2 * sin(_t * 23.0) + 0.6 * sin(_t * 9.0)   # yansıyan ışık titreşimi
+			_mirror_mat.emission_energy_multiplier = move_toward(_mirror_mat.emission_energy_multiplier, 0.9 + 0.25 * sin(_t * 23.0) + 0.1 * sin(_t * 9.0), delta * 6.0)   # yansıyan ışık titreşimi
 			var pulse := 1.0 + 0.18 * sin(_t * TAU / 0.6)
 			_mirror_icon.scale = Vector3.ONE * pulse
 			_mirror_icon.modulate.a = k
@@ -4278,32 +4291,81 @@ class ReflectedShot extends Node3D:
 	var max_dist := 14.0
 	var _dist := 0.0
 
+	var _seg_t := 0.0
+
+	static func _flat(c: Color) -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = c
+		return m
+
 	func _ready() -> void:
+		# T-51: koyu kenarlı, kızıl-altın, kalın gövde (beyaz zeminde de okunur, bloom patlatmaz)
+		var w := maxf(width, 0.16)
+		var edge := MeshInstance3D.new()
+		var eb := BoxMesh.new()
+		eb.size = Vector3(w + 0.12, 0.16, length + 0.12)
+		edge.mesh = eb
+		edge.material_override = _flat(Color(0.18, 0.02, 0.02, 0.95))
+		add_child(edge)
 		var m := MeshInstance3D.new()
 		var b := BoxMesh.new()
-		b.size = Vector3(maxf(width, 0.07), 0.07, length)
+		b.size = Vector3(w, 0.2, length)
 		m.mesh = b
-		m.material_override = Fx.emissive(Color(0.95, 0.9, 1.0), 8.0)
+		m.material_override = _flat(Color(1.0, 0.42, 0.12))
 		add_child(m)
 		var core := MeshInstance3D.new()
 		var s := SphereMesh.new()
-		s.radius = 0.13
-		s.height = 0.26
+		s.radius = 0.2
+		s.height = 0.4
 		core.mesh = s
-		core.material_override = Fx.emissive(Color(1.0, 0.9, 0.6), 10.0)
+		core.material_override = _flat(Color(1.0, 0.82, 0.3))
 		core.position = Vector3(0, 0, -length * 0.5)
 		add_child(core)
 		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.9, 0.7)
-		l.light_energy = 2.0
-		l.omni_range = 3.0
+		l.light_color = Color(1.0, 0.6, 0.3)
+		l.light_energy = 0.8
+		l.omni_range = 2.5
 		add_child(l)
-		load("res://scripts/skill_fx.gd").trail(self, Color(1.0, 0.85, 0.45), 30, 0.16, 0.45)
 		look_at(global_position + dir, Vector3.UP)
+
+	## Arkada kalan iz parçası: koyu kenar + kızıl-altın iç, 0,5 sn'de söner
+	func _drop_seg() -> void:
+		var par := get_parent()
+		if par == null:
+			return
+		var g := Node3D.new()
+		par.add_child(g)
+		g.global_transform = global_transform
+		var w := maxf(width, 0.16)
+		var e := MeshInstance3D.new()
+		var eb := BoxMesh.new()
+		eb.size = Vector3(w + 0.1, 0.06, 0.5)
+		e.mesh = eb
+		var em := _flat(Color(0.18, 0.02, 0.02, 0.85))
+		e.material_override = em
+		g.add_child(e)
+		var i := MeshInstance3D.new()
+		var ib := BoxMesh.new()
+		ib.size = Vector3(w * 0.7, 0.1, 0.5)
+		i.mesh = ib
+		var im := _flat(Color(1.0, 0.55, 0.15, 0.9))
+		i.material_override = im
+		g.add_child(i)
+		var tw := g.create_tween()
+		tw.tween_property(g, "scale", Vector3(0.3, 1.0, 1.0), 0.5)
+		tw.parallel().tween_property(em, "albedo_color:a", 0.0, 0.5)
+		tw.parallel().tween_property(im, "albedo_color:a", 0.0, 0.5)
+		tw.tween_callback(g.queue_free)
 
 	func _physics_process(delta: float) -> void:
 		var step := speed * delta
 		global_position += dir * step
+		_seg_t -= delta
+		if _seg_t <= 0.0:
+			_seg_t = 0.025
+			_drop_seg()
 		_dist += step
 		if hero != null and is_instance_valid(hero) and not hero.dead:
 			var d: Vector3 = hero.global_position - global_position
