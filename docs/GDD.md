@@ -423,7 +423,7 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 | Bölge | Eski | **Yeni (oda 1–4)** |
 |---|---|---|
 | Yengeç | 1,85 · 1,95 · 2,05 · 2,15 | **2,04 · 2,15 · 2,26 · 2,37** |
-| Aslan | 2,1 · 2,2 · 2,3 · 2,45 | ~~2,42 · 2,53 · 2,65 · 2,82~~ **2,22 · 2,32 · 2,43 · 2,59** (×0,92, Yönetici kararı, Testçi 5. tur) |
+| Aslan | 2,1 · 2,2 · 2,3 · 2,45 | ~~2,42 · 2,53 · 2,65 · 2,82~~ ~~2,22 · 2,32 · 2,43 · 2,59~~ (×0,92, Testçi 5. tur) **2,11 · 2,20 · 2,31 · 2,46** (×0,95, Yönetici kararı, Testçi 6. tur) |
 | Başak | 2,35 · 2,5 · 2,6 · 2,75 | ~~2,82 · 3,00 · 3,12 · 3,30~~ **2,59 · 2,76 · 2,87 · 3,04** (×0,92, Yönetici kararı, Testçi 5. tur) |
 | Terazi | 2,6 · 2,75 · 2,9 · 3,05 | **3,25 · 3,44 · 3,63 · 3,81** |
 | Akrep | 2,85 · 3,0 · 3,15 · 3,3 | **3,71 · 3,90 · 4,10 · 4,29** |
@@ -471,6 +471,7 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 
 - ZONE_HIT bazı bölgelerde B''nin altında seçildi (Yengeç, Akrep, Oğlak). Böylece ardışık oran 1,00–1,30 içinde kalır.
 - **Yönetici kararı, Testçi 5. tur:** ZONE_HIT Yengeç 15→12, Aslan Gölge 15→14 / diğer 16→15, Başak 17→15 (tablodaki "Tahmini ham baskı" ve "Oran" sütunları eski değerlere göredir; Testçi yeniden ölçer). Kabuk Askeri'nin kıskacı (`_shell_snap`, T-45) Yengeç ve sonrasında `ZONE_HIT[room_zone] × dmg_mult` vurur; Koç–İkizler'de 16 × dmg_mult kalır.
+- **Yönetici kararı, Testçi 6. tur (T-54):** sabit yazılmış ek vuruşlar da aynı kurala bağlı (`enemy.gd _zone_hit_or`): Karşı Ağırlık patlaması (Koç–İkizler 13), Koç Gölgesi'nin ölüm kor patlaması (10). Süreli hasarlar (Akrep zehri 4/5 × dmg_mult, ateş topu gölcüğü 5/sn × dmg_mult) vuruş sayılmaz, değişmedi.
 - Tahmin; şu çarpanlarla yapıldı:
   - (a) seçkin farkının kalkması: ×0,95
   - (b) 1. oda düzleşmesi: ×1,04–1,08
@@ -508,7 +509,7 @@ Oda başı sınırlar (§13.3: 1. odada 1, diğer odalarda 2; ilk 3 bölgede tek
 | Başak | 0,40 · 0,45 · 0,50 · 0,50 | **0,45 · 0,50 · 0,55 · 0,55** |
 | Terazi | 0,45 · 0,50 · 0,50 · 0,55 | **0,50 · 0,55 · 0,55 · 0,60** |
 | Akrep | 0,50 · 0,50 · 0,55 · 0,55 | **0,60 · 0,60 · 0,65 · 0,65** |
-| Yay | 0,50 · 0,55 · 0,55 · 0,60 | ~~0,60 · 0,65 · 0,65 · 0,70~~ **0,70 · 0,75 · 0,75 · 0,80** (+0,10, Yönetici kararı, Testçi 5. tur) |
+| Yay | 0,50 · 0,55 · 0,55 · 0,60 | ~~0,60 · 0,65 · 0,65 · 0,70~~ ~~0,70 · 0,75 · 0,75 · 0,80~~ (Testçi 5. tur) **0,80 · 0,85 · 0,85 · 0,90** (+0,10, Yönetici kararı, Testçi 6. tur) |
 | Oğlak | 0,55 · 0,55 · 0,60 · 0,60 | **0,65 · 0,65 · 0,70 · 0,70** |
 | Kova | 0,55 · 0,60 · 0,60 · 0,65 | **0,65 · 0,70 · 0,70 · 0,75** |
 | Balık | 0,60 · 0,60 · 0,65 · 0,70 | **0,70 · 0,70 · 0,75 · 0,80** |

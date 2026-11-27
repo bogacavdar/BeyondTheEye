@@ -2766,6 +2766,15 @@ const ZONE_HIT := {"cancer": 12.0, "leo": 15.0, "virgo": 15.0, "libra": 13.0, "s
 	"capricorn": 13.0, "aquarius": 12.0, "pisces": 11.0}
 
 
+## Sabit yazılmış ek vuruşlar (kabuk kıskacı, Karşı Ağırlık patlaması, kor patlaması): odanın bölgesi
+## Yengeç ve sonrasıysa ZONE_HIT[room_zone], değilse verilen değer (T-45, T-54)
+func _zone_hit_or(base: float) -> float:
+	var rz := _tier_zone()
+	if ZONE_HIT.has(rz) and not pebble:
+		return float(ZONE_HIT[rz])
+	return base
+
+
 func _apply_zone_hit() -> void:
 	var rz := _tier_zone()
 	if not ZONE_HIT.has(rz) or pebble:
@@ -3532,12 +3541,7 @@ func _shell_snap() -> void:
 		var v: Vector3 = hero.global_position - global_position
 		v.y = 0.0
 		if v.length() <= 2.4 + 0.3:
-			# T-45: Yengeç ve sonrası ZONE_HIT kuralına bağlı; Koç–İkizler 16
-			var base := 16.0
-			var rz := _tier_zone()
-			if ZONE_HIT.has(rz):
-				base = float(ZONE_HIT[rz])
-			hero.take_damage(base * dmg_mult, v.normalized() if v.length() > 0.05 else _face, false)
+			hero.take_damage(_zone_hit_or(16.0) * dmg_mult, v.normalized() if v.length() > 0.05 else _face, false)
 
 
 ## Merkür Habercisi: kahramandan uzağa ışınlanır
@@ -3708,7 +3712,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 			bw.hero = hero
 			bw.radius = 4.0
 			bw.delay = 0.7
-			bw.dmg = 13.0 * dmg_mult   # §13.8 Karşı Ağırlık: 22 -> 13
+			bw.dmg = _zone_hit_or(13.0) * dmg_mult   # T-54: Yengeç+ ZONE_HIT, Koç–İkizler 13
 			bw.col = Color(1.0, 0.7, 0.4)
 			bw.eff = "knock"
 			get_parent().add_child(bw)
@@ -3994,7 +3998,7 @@ func _die(dir: Vector3) -> void:
 	if zone == "aries" and kind == "shade":
 		var eb := EmberBurst.new()
 		eb.hero = hero
-		eb.dmg = 10.0 * dmg_mult
+		eb.dmg = _zone_hit_or(10.0) * dmg_mult   # T-54: Yengeç+ ZONE_HIT
 		eb.radius = 1.5 * (1.2 if elite else 1.0)
 		get_parent().add_child(eb)
 		eb.global_position = Vector3(global_position.x, 0.0, global_position.z)

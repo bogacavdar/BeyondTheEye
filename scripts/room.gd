@@ -84,7 +84,7 @@ const COMBAT_L := [
 	[["brute", "leaper", "caster", "shade", "shade"], ["shade", "shade", "shade", "caster", "caster"], ["brute", "brute", "shade", "leaper", "caster"]],
 	[["brute", "leaper", "leaper", "caster", "shade", "shade"], ["caster", "caster", "brute", "shade", "shade", "shade"], ["brute", "brute", "leaper", "caster", "shade", "shade"]],
 ]
-const HP_MULT_L := [2.22, 2.32, 2.43, 2.59]   # GDD §13.9 (Testçi 5. tur: ×0,92)
+const HP_MULT_L := [2.11, 2.20, 2.31, 2.46]   # GDD §13.9 (Testçi 6. tur: ×0,95)
 const DMG_MULT_L := [1.66, 1.70, 1.73, 1.75]   # GDD §13.9 (0.5.4)
 const ELITE_CHANCE_L := [0.40, 0.45, 0.50, 0.50]   # GDD §13.9 (0.5.4)
 const COMBAT_V := [
@@ -122,7 +122,7 @@ const COMBAT_Y := [
 ]
 const HP_MULT_Y := [5.03, 5.27, 5.51, 5.83]   # GDD §13.9 (Testçi 5. tur: ×1,20)
 const DMG_MULT_Y := [2.95, 3.02, 3.08, 3.11]   # GDD §13.9 (0.5.4)
-const ELITE_CHANCE_Y := [0.70, 0.75, 0.75, 0.80]   # GDD §13.9 (Testçi 5. tur: +0,10)
+const ELITE_CHANCE_Y := [0.80, 0.85, 0.85, 0.90]   # GDD §13.9 (Testçi 6. tur: +0,10)
 const COMBAT_K := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
