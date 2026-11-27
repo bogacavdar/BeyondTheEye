@@ -33,7 +33,26 @@ var dead := false
 var hero = null
 var _bounds := 10.0
 var state := "intro"
-var phase := 1
+## BOSS EVRE ALT SÜRESİ (GDD §13.6): her evre en az 6 sn (gerçek zaman); süre dolmadan can evre eşiğinin altına inmez
+const PHASE_MIN_T := 6.0
+var phase_th: Array = [0.6, 0.25]   # evre bitiş eşikleri (alt sınıflar _init içinde yazar)
+var _phase_t0 := 0.0
+var phase := 1:
+	set(v):
+		phase = v
+		_phase_t0 = Time.get_ticks_msec() / 1000.0
+
+
+## Evre tabanı: evre başlayalı 6 sn olmadıysa can bu değerin altına inemez (son evrede 1, yani ölemez)
+func _phase_floor() -> float:
+	var i := phase - 1
+	var has_th := i >= 0 and i < phase_th.size()
+	if Time.get_ticks_msec() / 1000.0 - _phase_t0 >= PHASE_MIN_T:
+		# süre doldu: can eşiğin hemen altına iner (sonraki evre başlar) ama fazla hasar sonraki evreye taşınmaz
+		return float(phase_th[i]) * max_hp - 1.0 if has_th else 0.0
+	if has_th:
+		return float(phase_th[i]) * max_hp
+	return 1.0
 var _st := 0.0
 var _t := 0.0
 var _face := Vector3.FORWARD
@@ -77,6 +96,8 @@ func _ready() -> void:
 	collision_mask = 0
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	hp = max_hp
+	if total_eclipse and phase_th == [0.6, 0.25]:
+		phase_th = [0.6, 0.25, 0.12]   # Koç, Tam Tutulma: 4. evre
 	_build()
 	vis.position.y = -4.0
 	var tw := create_tween()
@@ -330,6 +351,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		"intro":
 			if _st > 1.6:
+				_phase_t0 = Time.get_ticks_msec() / 1000.0   # 1. evre girişten sonra başlar
 				_set_state("chase")
 		"roar":
 			# evre geçişi: kükrer, kısa süre dokunulmaz
@@ -647,6 +669,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())
 	if hp <= 0.0:
 		_die()
 		return

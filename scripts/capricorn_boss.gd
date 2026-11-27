@@ -25,6 +25,7 @@ var _frost_tick := 0.0
 
 
 func _init() -> void:
+	phase_th = [0.65, 0.3]   # §13.6 evre eşikleri
 	kind = "capricorn"
 	title = "CAPRICORN  ·  THE MOUNTAIN ELDER"
 	max_hp = 3300.0
@@ -335,6 +336,7 @@ func stun(sec: float, parried := false) -> void:
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())   # §13.6
 	if hp <= 0.0:
 		_die()
 		return

@@ -22,6 +22,7 @@ var _wings: Array = []
 
 
 func _init() -> void:
+	phase_th = [0.65, 0.3]   # §13.6 evre eşikleri
 	kind = "virgo"
 	title = "VIRGO  ·  THE HARVEST MAIDEN"
 	max_hp = 2900.0
@@ -388,6 +389,7 @@ func stun(sec: float, parried := false) -> void:
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())   # §13.6
 	if hp <= 0.0:
 		_die()
 		return

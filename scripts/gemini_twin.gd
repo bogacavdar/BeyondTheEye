@@ -708,6 +708,11 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 		crit = true
 	var mult := 2.0 if (state == "stun" and _parried) else 1.0
 	var final := dmg * mult
+	# §13.6: İkizler'in toplam canı evre tabanının altına inmez (fazla hasar kaybolur)
+	if ctrl != null and is_instance_valid(ctrl) and ctrl.has_method("_phase_floor"):
+		var room_left: float = maxf(float(ctrl.hp) - float(ctrl._phase_floor()), 0.0)
+		final = minf(final, room_left)
+		ctrl.hp = float(ctrl.hp) - final
 	last_dealt = final
 	hp -= final
 	_flash = 1.0

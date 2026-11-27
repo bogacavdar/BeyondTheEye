@@ -25,6 +25,7 @@ var _pans: Array = []
 
 
 func _init() -> void:
+	phase_th = [0.65, 0.3]   # §13.6 evre eşikleri
 	kind = "libra"
 	title = "LIBRA  ·  ARBITER OF BALANCE"
 	max_hp = 3100.0
@@ -337,6 +338,7 @@ func take_hit(dmg: float, dir: Vector3, kb: float, heavy: bool, crit := false) -
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())   # §13.6
 	if hp <= 0.0:
 		_die()
 		return

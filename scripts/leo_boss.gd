@@ -21,6 +21,7 @@ var m_mane: StandardMaterial3D
 
 
 func _init() -> void:
+	phase_th = [0.65, 0.3]   # §13.6 evre eşikleri
 	kind = "leo"
 	title = "LEO  ·  THE SUN KING"
 	max_hp = 2700.0
@@ -379,6 +380,7 @@ func stun(sec: float, parried := false) -> void:
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())   # §13.6
 	if hp <= 0.0:
 		_die()
 		return

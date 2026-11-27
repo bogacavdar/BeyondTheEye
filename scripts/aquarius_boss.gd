@@ -25,6 +25,7 @@ var _clock := 0.0
 
 
 func _init() -> void:
+	phase_th = [0.65, 0.3]   # §13.6 evre eşikleri
 	kind = "aquarius"
 	title = "AQUARIUS  ·  THE WATER BEARER"
 	max_hp = 3500.0
@@ -366,6 +367,7 @@ func _slam_hit() -> void:
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())   # §13.6
 	if hp <= 0.0:
 		_die()
 		return

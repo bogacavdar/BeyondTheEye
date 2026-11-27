@@ -22,6 +22,7 @@ var m_coat: StandardMaterial3D
 
 
 func _init() -> void:
+	phase_th = [0.65, 0.3]   # §13.6 evre eşikleri
 	kind = "sagittarius"
 	title = "SAGITTARIUS  ·  THE ARCHER KING"
 	max_hp = 3000.0
@@ -347,6 +348,7 @@ func _kick_hit() -> void:
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())   # §13.6
 	if hp <= 0.0:
 		_die()
 		return

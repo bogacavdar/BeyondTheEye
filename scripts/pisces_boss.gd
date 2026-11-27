@@ -33,6 +33,7 @@ var _echo_bag: Array = []
 
 
 func _init() -> void:
+	phase_th = [0.65, 0.3]   # §13.6 evre eşikleri
 	kind = "pisces"
 	title = "PISCES  ·  THE DREAMER"
 	max_hp = 3800.0
@@ -349,6 +350,7 @@ func _tail_hit() -> void:
 
 func _damage(d: float) -> void:
 	hp -= d
+	hp = maxf(hp, _phase_floor())   # §13.6
 	if hp <= 0.0:
 		_die()
 		return
