@@ -14,6 +14,9 @@ signal hint(a: String, b: String)
 const H = preload("res://scripts/hazards.gd")
 const EnemyScript = preload("res://scripts/enemy.gd")
 const SkyEcho = preload("res://scripts/sky_echo.gd")
+## Büyük tek vuruşlar (GDD §13.4 Balık notu): BOSS_DMG 2,5 iken bu saldırılar etkin ~×1,6 vurur
+## (100 canlı taban kahramana tek vuruş <= 45). Diğer saldırılar tam çarpanla. Retro/döngü çarpanları üstüne biner.
+const BIG_HIT := 0.64
 const TAIL := {"windup": 0.55, "act": 0.16, "recover": 0.55, "dmg": 26.0, "reach": 4.0, "arc": 140.0}
 const PEARL := Color(0.88, 0.65, 1.0)
 const AQUA := Color(0.45, 0.95, 1.0)
@@ -256,7 +259,7 @@ func _act(_delta: float, _sm: float) -> Vector3:
 					ln.length = 14.0
 					ln.width = 1.5
 					ln.delay = 0.8 + float(i) * 0.2
-					ln.dmg = 20.0 * dmg_mult
+					ln.dmg = 20.0 * dmg_mult * BIG_HIT
 					ln.col = PEARL if i == 0 else AQUA
 					get_parent().add_child(ln)
 					ln.global_position = Vector3(global_position.x, 0, global_position.z)
@@ -285,7 +288,7 @@ func _act(_delta: float, _sm: float) -> Vector3:
 				b.hero = hero
 				b.radius = 3.2
 				b.delay = 2.4
-				b.dmg = 28.0 * dmg_mult
+				b.dmg = 28.0 * dmg_mult * BIG_HIT
 				b.col = AQUA
 				get_parent().add_child(b)
 				b.global_position = Vector3(global_position.x, 0, global_position.z)
@@ -313,7 +316,7 @@ func _echo() -> void:
 	ec.par = get_parent()
 	ec.center = Vector3(global_position.x, 0, global_position.z)
 	ec.bounds = _bounds
-	ec.dm = dmg_mult
+	ec.dm = dmg_mult * BIG_HIT   # burç yankıları 16-24 ham
 	ec.cast(sg)
 	ec.free()
 
@@ -342,7 +345,7 @@ func _tail_hit() -> void:
 	var dist := to.length()
 	if dist > reach + 0.4 or (dist > 0.3 and _aim_dir.angle_to(to / dist) > arc * 0.5):
 		return
-	var res: String = hero.take_damage(float(TAIL["dmg"]) * dmg_mult, to.normalized() if dist > 0.05 else _aim_dir, true)
+	var res: String = hero.take_damage(float(TAIL["dmg"]) * dmg_mult * BIG_HIT, to.normalized() if dist > 0.05 else _aim_dir, true)
 	if res == "parried":
 		stun(2.4, true)
 		_knock = -_aim_dir * 3.0

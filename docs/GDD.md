@@ -234,6 +234,7 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 | Hedef ham baskı | 6,7 | 7,4 | ~8,8 | ~10,1 | ~11,6 | ~12,9 | ~14,5 | ~15,9 | ~17,8 | ~20,0 | ~22,0 | ~26,3 |
 
   `const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 1.25, "leo": 0.70, "virgo": 1.25, "libra": 1.45, "scorpio": 0.62, "sagittarius": 1.6, "capricorn": 1.25, "aquarius": 1.1, "pisces": 2.5}`. Testçi'nin önerisinden farkı: Balık 2,0 değil 2,5, çünkü Kova 1,1'de ~22 ve Balık en yüksek olmalı. Aslan boss'unun yavruları da sürü kuralına bağlıysa yukarıdaki varyant düzeltmesi boss'u da etkiler; Testçi yeniden ölçer.
+  - **Balık notu [Yönetici kararı]:** `BOSS_DMG` 2,5 kalır, ama Balık'ın büyük tek vuruşları (`pisces_boss.gd` `BIG_HIT = 0,64` → etkin ~×1,6): kuyruk (26 ham → 41,6), girdap patlaması (28 → 44,8), çift ok çizgisi (20 → 32) ve burç yankıları (16–24 → 25,6–38,4). 100 canlı taban kahramana tek vuruş ≤ 45. Diğer saldırılar (kordon 18 → 45, kabarcık 14 → 35) tam ×2,5. Retro ve döngü çarpanları bunların üstüne biner.
 - **Boss tek vuruş tavanı (§15.3/3):** boss'ların en sert tek saldırıları ham 26–30 (Koç 30, Aslan 30, Yengeç 28, Oğlak 28, Balık 28). Yeni çarpanlarla Balık 28×2,5 = 70 ve Yay 24×1,6 ≈ 38 oluyor; 100 canlı kahramanda Balık kuralı bozuyor. Kural: **boss odasında** kahramanın aldığı tek bir vuruş, zırhtan önce, `0,40 × max_hp × (1 + 0,2 × Mars retrosu) × döngü hasar çarpanı` değerini aşamaz.
   - Uygulama: `room.gd` boss odasında `hero.hit_cap_frac = 0.40` verir (normal odada 0, yani tavan yok). `hero.take_damage` başında `amount = minf(amount, hit_cap_frac × max_hp × retro_cyc)`, retro/döngü çarpanı room'dan verilir.
   - Tavan boss'un yardımcılarına ve boss odasındaki tehlikelere de uygulanır (bunlar zaten daha düşük).
@@ -263,7 +264,7 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
   3. `_damage(d)` (base ve onu ezen her boss'ta) `hp -= d` satırından hemen sonra `hp = maxf(hp, _phase_floor())`. Akrep'te Anka doğuşundan sonraki evre de 6 sn kuralına uyar.
   4. Eşikler: her boss `_init` içinde kendi `phase_th`'ını yazar. Koç `[0.6, 0.25]` (Tam Tutulma açıkken `[0.6, 0.25, 0.12]`); Akrep `[0.5]` (Anka evresi son evre); Boğa, Yengeç, Aslan, Başak, Terazi, Yay, Oğlak, Kova, Balık `[0.65, 0.3]`.
   5. İkizler (`gemini_boss.gd`, `extends Node3D`): aynı setter ve `phase_th = [0.6, 0.3]`. Tabanı ikizler uygular: `gemini_twin.take_hit` içinde `final`, `boss.hp - final` tabandan aşağı inmeyecek kadar kırpılır (`boss` = ebeveyn İkizler düğümü).
-- Süre gerçek zamanla ölçülür (hitstop'tan etkilenmez); çevrim içi co-op'ta yalnızca host uygular.
+- Süre **ağır çekim/hitstop'tan etkilenmeyen, duraklatmada duran saat** ile ölçülür (`Fx.unscaled_t`; normal oyunda gerçek zamana eşit, `--fixed-fps` testlerinde kare sayısına bağlı); çevrim içi co-op'ta yalnızca host uygular.
 
 ### 13.7 Doğum Haritası azalan getiri [CEO KARARI]
 - Hedef: ilk run'lardaki his (ilk ~10 bin toz) **aynen** kalır; ileri kademelerde **hasar**, **kritik hasarı** ve **boss hasarı** yıldızları giderek daha az verir. Hedef: yarım harita (~506 bin toz) hasar ≲ ×2,5, boss hasarı ≲ ×3.
