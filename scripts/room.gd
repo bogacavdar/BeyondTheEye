@@ -122,7 +122,7 @@ const COMBAT_Y := [
 ]
 const HP_MULT_Y := [5.03, 5.27, 5.51, 5.83]   # GDD §13.9 (Testçi 5. tur: ×1,20)
 const DMG_MULT_Y := [2.95, 3.02, 3.08, 3.11]   # GDD §13.9 (0.5.4)
-const ELITE_CHANCE_Y := [0.80, 0.85, 0.85, 0.90]   # GDD §13.9 (Testçi 6. tur: +0,10)
+const ELITE_CHANCE_Y := [0.85, 0.90, 0.90, 0.95]   # GDD §13.9 (Testçi 8. tur: +0,05)
 const COMBAT_K := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
@@ -219,7 +219,7 @@ var tc = null   # dokunmatik kontroller (telefon)   # bu odada doğan seçkin sa
 const BOSS_HP := {"aries": 1400.0, "taurus": 1800.0, "gemini": 2200.0, "cancer": 2500.0, "leo": 2900.0, "virgo": 3300.0,
 	"libra": 3600.0, "scorpio": 3700.0, "sagittarius": 4300.0, "capricorn": 4900.0, "aquarius": 5400.0, "pisces": 6000.0}
 const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 0.97, "leo": 0.81, "virgo": 1.05,
-	"libra": 1.15, "scorpio": 0.95, "sagittarius": 1.15, "capricorn": 1.50, "aquarius": 1.1, "pisces": 2.5}   # GDD §13.4 (Testçi 5. tur)
+	"libra": 1.15, "scorpio": 1.10, "sagittarius": 1.15, "capricorn": 1.50, "aquarius": 1.30, "pisces": 2.5}   # GDD §13.4 (Testçi 5. tur)
 
 
 func _ready() -> void:
@@ -271,7 +271,8 @@ func _ready() -> void:
 		if zone == "sagittarius" or zone == "aquarius":
 			# T-60 (Yönetici kararı, Testçi 7. tur): 1. ve 2. dalgaya +1 Gölge
 			waves = waves.duplicate(true)
-			for wi in mini(2, waves.size()):
+			var nw := 3 if zone == "sagittarius" else 2   # Testçi 8. tur: Yay'da 3. dalgaya da +1 Gölge
+			for wi in mini(nw, waves.size()):
 				(waves[wi] as Array).append("shade")
 	Sfx.play_music(_music_path(), -9.0)
 	if not GameData.almanac.has("zone:" + zone):
@@ -2186,20 +2187,72 @@ func _fit_medals() -> void:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
-	var u := get_viewport().get_visible_rect().size.y / 1080.0
+	var vs := get_viewport().get_visible_rect().size
+	var u := vs.y / 1080.0
 	for i in range(0, _door_medals.size() - 1, 2):
 		var m = _door_medals[i]
 		var g = _door_medals[i + 1]
 		if not is_instance_valid(m) or not is_instance_valid(g):
 			continue
-		var y: float = m.position.y
-		while y < 8.0:
-			var sp := cam.unproject_position(m.get_parent().to_global(Vector3(0, y, 0)))
-			if not tc.overlaps(sp, 95.0 * u):
+		var root: Node3D = m.get_parent()
+		if root.scale.x < 0.95:
+			continue   # kapı açılış animasyonu sürüyor
+		# T-64: adaylar kapıya yakınlık sırasıyla denenir; ilk uygun olan seçilir (kamera değişince en iyiye döner)
+		var best := Vector3(0.0, 0.0, 0.55)
+		for c in _medal_candidates():
+			if _medal_ok(cam, root, c, vs, u):
+				best = c
 				break
-			y += 0.25
-		m.position.y = y
-		g.position.y = y
+		m.set_meta("fit", best)
+		m.position = Vector3(best.x, 4.05 + best.y, 0.0)
+		g.position = m.position
+		m.scale = Vector3.ONE * best.z
+		g.scale = Vector3.ONE * best.z
+
+
+## Aday: (yatay kayma, dikey kayma, ölçek). Kapıya en yakın ve en az küçültülmüş aday önce denenir;
+## yatay kayma en çok 2 m (madalyon kapısından kopmasın)
+static var _cands: Array = []
+
+
+static func _medal_candidates() -> Array:
+	if not _cands.is_empty():
+		return _cands
+	var out: Array = []
+	for k in [1.0, 0.75, 0.55]:
+		for ix in range(-5, 6):
+			for iy in range(-2, 6):
+				var dx := float(ix) * 0.4
+				var dy := float(iy) * 0.4
+				out.append([sqrt(dx * dx + dy * dy) + (1.0 - k) * 2.5, Vector3(dx, dy, k)])
+	out.sort_custom(func(p, q): return float(p[0]) < float(q[0]))
+	for o in out:
+		_cands.append(o[1])
+	return _cands
+
+
+## Madalyon ekranda düğmelere, HUD'un üst bölgesine ve ekran kenarına değmiyor mu
+func _medal_ok(cam: Camera3D, root: Node3D, c: Vector3, vs: Vector2, u: float) -> bool:
+	var wp: Vector3 = root.to_global(Vector3(c.x, 4.05 + c.y, 0.0))
+	if cam.is_position_behind(wp):
+		return false
+	var sp := cam.unproject_position(wp)
+	var rp := cam.unproject_position(wp + cam.global_transform.basis.x * 0.85 * c.z * root.scale.x)
+	var r := maxf(sp.distance_to(rp), 10.0)
+	if sp.x < r + 6.0 or sp.x > vs.x - r - 6.0 or sp.y < r + 6.0 or sp.y > vs.y - r - 6.0:
+		return false
+	if tc.overlaps(sp, r):
+		return false
+	var circ := Rect2(sp - Vector2(r, r), Vector2(r, r) * 2.0)
+	var bad := [
+		Rect2(0, 0, 470.0 * u, 175.0 * u),                       # can çubuğu + bilgi bloğu
+		Rect2(vs.x * 0.5 - 230.0 * u, 0, 460.0 * u, 115.0 * u),  # oda şeridi
+		Rect2(vs.x - 380.0 * u, 0, 380.0 * u, 230.0 * u),        # ödül, yıldız tozu, duraklat
+	]
+	for rr in bad:
+		if (rr as Rect2).intersects(circ):
+			return false
+	return true
 
 
 func _process(delta: float) -> void:

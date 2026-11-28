@@ -2761,8 +2761,8 @@ const NATIVE_HIT := {
 
 
 ## BÖLGE VURUŞ DEĞERİ (GDD §13.9.2c): Yengeç'ten itibaren odadaki her normal düşmanın hasarlı her saldırısı
-## (kökeni ne olursa olsun) bu taban değeri alır. Aslan: Gölge 14, diğer roller 15 (Testçi 5. tur). Koç-İkizler HIT_TABLE/NATIVE_HIT ile.
-const ZONE_HIT := {"cancer": 11.0, "leo": 15.0, "virgo": 15.0, "libra": 13.0, "scorpio": 18.0, "sagittarius": 14.0,
+## (kökeni ne olursa olsun) bu taban değeri alır. Aslan: Gölge 13, diğer roller 14 (Testçi 8. tur). Koç-İkizler HIT_TABLE/NATIVE_HIT ile.
+const ZONE_HIT := {"cancer": 11.0, "leo": 14.0, "virgo": 15.0, "libra": 13.0, "scorpio": 18.0, "sagittarius": 14.0,
 	"capricorn": 13.0, "aquarius": 12.0, "pisces": 11.0}
 
 
@@ -2781,7 +2781,7 @@ func _apply_zone_hit() -> void:
 		return
 	var v := float(ZONE_HIT[rz])
 	if rz == "leo" and kind == "shade":
-		v = 14.0
+		v = 13.0
 	for a in attacks:
 		if float(a["dmg"]) > 0.0:
 			a["dmg"] = v

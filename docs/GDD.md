@@ -244,7 +244,8 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 | Ölçülen ham baskı | 6,7 | 7,4 | 13,5 | 8,1 | 16,5 | 10,3 | 10,0 | 25,7 | 11,1 | 16,0 | 20,0 | 16,8 |
 | ~~Yeni BOSS_DMG~~ | 1,0 | 1,0 | 0,65 | 1,25 | 0,70 | 1,25 | 1,45 | 0,62 | 1,60 | 1,25 | 1,10 | 2,50 |
 | ~~BOSS_DMG (Testçi 5. tur)~~ | 1,0 | 1,0 | 0,65 | 0,97 | 0,81 | 1,15 | 1,15 | 0,71 | 1,40 | 1,50 | 1,10 | 2,50 |
-| **BOSS_DMG (Yönetici kararı, Testçi 7. tur)** | 1,0 | 1,0 | **0,65** | **0,97** | **0,81** | **1,05** | **1,15** | **0,95** | **1,15** | **1,50** | **1,10** | **2,50** |
+| ~~BOSS_DMG (Testçi 7. tur)~~ | 1,0 | 1,0 | 0,65 | 0,97 | 0,81 | 1,05 | 1,15 | 0,95 | 1,15 | 1,50 | 1,10 | 2,50 |
+| **BOSS_DMG (Yönetici kararı, Testçi 8. tur)** | 1,0 | 1,0 | **0,65** | **0,97** | **0,81** | **1,05** | **1,15** | **1,10** | **1,15** | **1,50** | **1,30** | **2,50** |
 | Hedef ham baskı | 6,7 | 7,4 | ~8,8 | ~10,1 | ~11,6 | ~12,9 | ~14,5 | ~15,9 | ~17,8 | ~20,0 | ~22,0 | ~26,3 |
 
   `const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 1.25, "leo": 0.70, "virgo": 1.25, "libra": 1.45, "scorpio": 0.62, "sagittarius": 1.6, "capricorn": 1.25, "aquarius": 1.1, "pisces": 2.5}`. Testçi'nin önerisinden farkı: Balık 2,0 değil 2,5, çünkü Kova 1,1'de ~22 ve Balık en yüksek olmalı. Aslan boss'unun yavruları da sürü kuralına bağlıysa yukarıdaki varyant düzeltmesi boss'u da etkiler; Testçi yeniden ölçer.
@@ -473,7 +474,7 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 |---|---|---|---|---|---|
 | İkizler (değişmez) | 115 | – | – | 9,3 (ölçülen) | – |
 | Yengeç | 115 | 17,8 | ~~15~~ ~~12~~ **11** (Yönetici kararı, Testçi 7. tur) | ~11,5 | 1,24 |
-| Aslan | 125 | 15,3 Gölge (sürü+taç ×1,40) · 16,5 diğer (taç ×1,30) | ~~15 Gölge · 16 diğer~~ **14 Gölge · 15 diğer** | ~13,8 | 1,20 |
+| Aslan | 125 | 15,3 Gölge (sürü+taç ×1,40) · 16,5 diğer (taç ×1,30) | ~~15 Gölge · 16 diğer~~ ~~14 Gölge · 15 diğer~~ **13 Gölge · 14 diğer** (Yönetici kararı, Testçi 8. tur) | ~13,8 | 1,20 |
 | Başak | 125 | 17,4 | ~~17~~ **15** | ~16,5 | 1,20 |
 | Terazi | 125 | 13,8 | **13** | ~17,1 | 1,04 |
 | Akrep | 150 | 21,7 | **18** | ~18,2 | 1,06 |
@@ -522,13 +523,14 @@ Oda başı sınırlar (§13.3: 1. odada 1, diğer odalarda 2; ilk 3 bölgede tek
 | Başak | 0,40 · 0,45 · 0,50 · 0,50 | **0,45 · 0,50 · 0,55 · 0,55** |
 | Terazi | 0,45 · 0,50 · 0,50 · 0,55 | **0,50 · 0,55 · 0,55 · 0,60** |
 | Akrep | 0,50 · 0,50 · 0,55 · 0,55 | **0,60 · 0,60 · 0,65 · 0,65** |
-| Yay | 0,50 · 0,55 · 0,55 · 0,60 | ~~0,60 · 0,65 · 0,65 · 0,70~~ ~~0,70 · 0,75 · 0,75 · 0,80~~ (Testçi 5. tur) **0,80 · 0,85 · 0,85 · 0,90** (+0,10, Yönetici kararı, Testçi 6. tur) |
+| Yay | 0,50 · 0,55 · 0,55 · 0,60 | ~~0,60 · 0,65 · 0,65 · 0,70~~ ~~0,70 · 0,75 · 0,75 · 0,80~~ (Testçi 5. tur) ~~0,80 · 0,85 · 0,85 · 0,90~~ (Testçi 6. tur) **0,85 · 0,90 · 0,90 · 0,95** (+0,05, Yönetici kararı, Testçi 8. tur) |
 | Oğlak | 0,55 · 0,55 · 0,60 · 0,60 | ~~0,65 · 0,65 · 0,70 · 0,70~~ **0,70 · 0,70 · 0,75 · 0,75** (+0,05, Yönetici kararı, Testçi 7. tur) |
 | Kova | 0,55 · 0,60 · 0,60 · 0,65 | **0,65 · 0,70 · 0,70 · 0,75** |
 | Balık | 0,60 · 0,60 · 0,65 · 0,70 | **0,70 · 0,70 · 0,75 · 0,80** |
 
 - **Boss hasarı (`BOSS_DMG`, §13.4) — Yönetici kararı, Testçi 5. tur:** Yengeç 0,97 · Aslan 0,81 · Başak 1,15 · Terazi 1,15 · Akrep 0,71 · Yay 1,40 · Oğlak 1,50; Koç/Boğa 1,0, İkizler 0,65, Kova 1,1, Balık 2,5 aynı.
 - **Yönetici kararı, Testçi 7. tur:** BOSS_DMG Başak 1,15→1,05, Akrep 0,71→0,95, Yay 1,40→1,15; ZONE_HIT Yengeç 12→11; Oğlak seçkin oranı +0,05. Akrep boss'unun en büyük tek vuruşu (dalış patlaması 26 × 0,95) 100 canlı taban kahramana **24,7** (%24,7). **Yay ve Kova (T-60):** her odada 1. ve 2. dalgaya +1 Gölge (`room.gd`, dalga tablosu kopyalanarak). **Bitmeyen oda (T-58):** odada aynı anda en çok 1 şifacı seçkin; şifacı ile kalkanlı aynı düşmanda birleşmez.
+- **Yönetici kararı, Testçi 8. tur:** ZONE_HIT Aslan Gölge 14→13, diğer 15→14; Yay seçkin oranı +0,05 (0,85–0,95) ve Yay'da 3. dalgaya da +1 Gölge; BOSS_DMG Akrep 0,95→1,10, Kova 1,1→1,30. Kova boss'unun en büyük tek vuruşu (çarpma 26 × 1,30) 100 canlı taban kahramana **33,8** (%33,8); Akrep boss'u dalış patlaması 26 × 1,10 = 28,6. **Dokunmatik kapı madalyonu (T-64):** taşıma her karede kapının taban konumundan yeniden hesaplanır; düğmeler, HUD üst bölgesi (can çubuğu ve bilgi bloğu, oda şeridi, ödül/yıldız tozu/duraklat) ve ekran kenarları yasak alandır. Sıra: yerinde → yukarı/aşağı → kapının yanına yatay kayma → ×0,75 ve ×0,55 küçültme; hiçbiri uymazsa yerinde ×0,55.
 
 #### 13.9.5 ATK_RATE kaldırılır
 - `enemy.gd` `ATK_RATE` ve `_ready` içindeki `/ atk_rate` bölmesi silinir; `cd` ve `recover` yalnızca `TIER`'den gelir.
