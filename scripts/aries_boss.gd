@@ -224,6 +224,29 @@ func _build() -> void:
 	l.omni_range = 7.0
 	l.position = Vector3(0, 3.0, 0)
 	vis.add_child(l)
+	_try_ai_model()
+
+
+## PİLOT: portreden üretilmiş 3D model (TRELLIS.2). Varsa basit parçaları gizler, modeli koyar.
+const AI_MODEL := "res://assets/models3d/aries_boss.glb"
+
+func _try_ai_model() -> void:
+	if get_script() != load("res://scripts/aries_boss.gd") or not ResourceLoader.exists(AI_MODEL):
+		return
+	var ps := load(AI_MODEL) as PackedScene
+	if ps == null:
+		return
+	for c in vis.get_children():
+		if c is MeshInstance3D or c == head:
+			c.visible = false
+	arm_l.visible = false
+	arm_r.visible = false
+	var m := ps.instantiate() as Node3D
+	m.scale = Vector3.ONE * 4.4
+	m.position = Vector3(0, 2.19, 0)
+	mane.visible = false
+	m.rotation.y = PI
+	vis.add_child(m)
 
 	tele = MeshInstance3D.new()
 	tele_mat = StandardMaterial3D.new()
