@@ -93,6 +93,18 @@ Run öncesi Gözlemevi'ndeki **Silah Sunağı**'ndan seçilir, yıldız tozuyla 
 | Kuyruklu Yıldız Mızrağı | 200 | uzun menzil, fırlat-geri çağır | Kuyruklu Yıldız Atışı · Günberi Hücumu · Kuyruk Süpürmesi |
 | Meteor Zinciri | 240 | çok hızlı, çok vuruş | Çarpma · Yörünge · Zincir Kancası |
 
+- **Kentaur Yayı gücü [CEO KARARI]:** yayın saniye başı hasarı diğer 5 silahın ortalamasının ~%80'i (kombo, ağır ve yetenekler ayrı ayrı); uzaktan vurma avantajı için %20 eksik kalır. Atış hızı değişmedi (okunurluk). `weapon_kits.gd`: kombo okları 6/6/4×3 → **12/12/8×3**, ağır ok 22 → **50**, ağır bekleme 2,0 → **1,5 sn**, Ok Yağmuru 6 → **7,5** (×10), Delici Yıldız 18 → **22**, Kentaur Sıçrayışı 12 → **15**. Silah lütufları (çoklu atış, sekme, Avcı Yıldızı ×2,5 / bekleme ×1,6, Gök Avı) ve Doğum Haritası çarpanları bu tabanlara oranla uygulanır. Ölçüm (30 sn sabit hedef, 2,5 m, taban kahraman, saniye başı hasar):
+
+| Silah | Kombo | Ağır | Yetenek |
+|---|---|---|---|
+| Yıldız Kılıcı | 58,1 | 43,0 | 11,1 |
+| Ay Orağı | 50,6 | 41,2 | 14,2 |
+| Güneş Gürzü | 56,4 | 48,8 | 13,9 |
+| Kuyruklu Yıldız Mızrağı | 59,5 | 58,5 | 11,5 |
+| Meteor Zinciri | 53,9 | 40,8 | 14,7 |
+| **Kentaur Yayı** (eski 23,7 · 13,8 · 8,0) | **44,1** | **37,6** | **10,8** |
+| Yay / diğerlerinin ortalaması | %79 | %81 | %83 |
+
 Run içinde **silah ustalığı** kapıları silaha özel geliştirmeler verir (`weapon_boons.gd`).
 
 ## 8. Kontroller [CEO KARARI]
