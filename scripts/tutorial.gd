@@ -765,10 +765,12 @@ func _draw_overlay() -> void:
 		# dokunmatik: rozet yok, ilgili ekran düğmesi parlar; metin yine üst-ortada
 		_text(_key(act), Vector2(cx, y + 6.0), 20, gold)
 		y += 36.0
-	if step == 2:
-		# §14.4: ilerleme göstergesi 1/3, 2/3, 3/3
-		_text("%d / 3" % combo_prog, Vector2(cx, y + 6.0), 20, gold)
-		y += 30.0
+	# ilerleme çubuğu: kombo 3, atılma 2, parry 3 (dolu altın bölmeler + sayı)
+	if step == 2 or step == 4 or step == 6:
+		var need := 2 if step == 4 else 3
+		var have := combo_prog if step == 2 else (dodges if step == 4 else parries)
+		_pips(mini(have, need), need, cx, y + 6.0, gold)
+		y += 40.0
 	if step == 4:
 		_text(_t("Dash recharges when the ring fills"), Vector2(cx, y + 6.0), 18, Color(UI.CREAM.r, UI.CREAM.g, UI.CREAM.b, 0.85))
 		y += 30.0
@@ -818,3 +820,21 @@ func _draw_overlay() -> void:
 		var na := clampf((NICE_TIME - nice_t) * 4.0, 0.0, 1.0)
 		var sc := 1.0 + 0.15 * clampf(1.0 - nice_t * 5.0, 0.0, 1.0)
 		_text(_t("Nice!"), Vector2(cx, vs.y * 0.36), int(56.0 * sc), Color(gold.r, gold.g, gold.b, na))
+
+
+## Öğretici ilerleme çubuğu: `total` bölme, `have` kadarı dolu; ortasında "have / total"
+func _pips(have: int, total: int, cx: float, y: float, gold: Color) -> void:
+	var w := 64.0
+	var h := 14.0
+	var gap := 10.0
+	var full := w * float(total) + gap * float(total - 1)
+	var x := cx - full * 0.5 - 40.0
+	overlay.draw_rect(Rect2(x - 10.0, y - h - 6.0, full + 100.0, h + 22.0), Color(0.01, 0.015, 0.05, 0.6))
+	for i in total:
+		var r := Rect2(x + float(i) * (w + gap), y - h, w, h)
+		if i < have:
+			overlay.draw_rect(r, gold)
+		else:
+			overlay.draw_rect(r, Color(gold.r, gold.g, gold.b, 0.15))
+		overlay.draw_rect(r, Color(gold.r, gold.g, gold.b, 0.9), false, 1.5)
+	_text("%d / %d" % [have, total], Vector2(x + full + 44.0, y - 1.0), 22, gold)
