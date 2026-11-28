@@ -262,6 +262,17 @@ func _draw() -> void:
 			_text(tr("REVIVE"), sp + Vector2(0, 50), 15, UI.CREAM)
 	var carding := _card_t >= 0.0 and not _card.is_empty()   # T-18: boss kartı süresince sol üst yazılar ve boss çubuğu gizli
 	if not tutorial_mode and not carding:
+		# OYN-24: sol üst bilgi bloğunun arkasına Gözlemevi'ndeki gibi koyu şerit
+		var nl := 2
+		if GameData.run_cycle > 0:
+			nl += 1
+		if GameData.run_rising != "":
+			nl += 1
+		if zone_el != "":
+			nl += 1
+			if GameData.hero_el != "" and Elements.mult(GameData.hero_el, GameData.hero_el_n, zone_el) != 1.0:
+				nl += 1
+		_strip_rect(Rect2(bx + Vector2(-12.0, bh + 12.0), Vector2(maxf(bw + 24.0, 400.0), 18.0 + 24.0 * float(nl) + 12.0)))
 		_text(tr("%d stardust") % dust, bx + Vector2(0, bh + 38.0), 20, UI.CREAM, false)
 		_draw_elements(bx + Vector2(0, bh + 68.0))
 
@@ -340,6 +351,8 @@ func _draw() -> void:
 		if GameData.input_mode == "pad":
 			hint_txt = tr("X attack  ·  Y heavy  ·  B parry (gold warnings)  ·  A dash (red warnings)  ·  LT sprint  ·  LB RB RT skills")
 		if GameData.input_mode != "touch":
+			var hw := _font.get_string_size(hint_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x + 70.0
+			draw_rect(Rect2(size.x * 0.5 - hw * 0.5, size.y - 196.0 - 22.0, hw, 32.0), Color(0.01, 0.015, 0.05, 0.85 * a))   # OYN-24
 			_text_keys(hint_txt, Vector2(size.x * 0.5, size.y - 196.0), 16, _a(UI.CREAM, 0.85 * a), KEY_NAMES)
 
 

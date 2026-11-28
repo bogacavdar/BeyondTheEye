@@ -2762,7 +2762,7 @@ const NATIVE_HIT := {
 
 ## BÖLGE VURUŞ DEĞERİ (GDD §13.9.2c): Yengeç'ten itibaren odadaki her normal düşmanın hasarlı her saldırısı
 ## (kökeni ne olursa olsun) bu taban değeri alır. Aslan: Gölge 14, diğer roller 15 (Testçi 5. tur). Koç-İkizler HIT_TABLE/NATIVE_HIT ile.
-const ZONE_HIT := {"cancer": 12.0, "leo": 15.0, "virgo": 15.0, "libra": 13.0, "scorpio": 18.0, "sagittarius": 14.0,
+const ZONE_HIT := {"cancer": 11.0, "leo": 15.0, "virgo": 15.0, "libra": 13.0, "scorpio": 18.0, "sagittarius": 14.0,
 	"capricorn": 13.0, "aquarius": 12.0, "pisces": 11.0}
 
 

@@ -76,7 +76,7 @@ Dört rol; her bölgede görünüş ve mekanik o burca göre değişir (ör. Ko�
 | Kolos (brute) | 230 | ezme 24 (**altın**), deprem 26 (**kızıl daire**) |
 
 - **Seri saldırılar:** bazı saldırılar 2–3 kez art arda gelir; parry seriyi keser.
-- **Seçkin:** altın haleli, can ×1,6, hasar ×1,25; run'ın 3. odasından sonra özellik alır (kalkanlı, hızlı, bölünen, şifacı, patlayan, hayalet). Sayı ve özellik sınırları §13.3.
+- **Seçkin:** altın haleli, can ×1,6, hasar ×1,25; run'ın 3. odasından sonra özellik alır (kalkanlı, hızlı, bölünen, şifacı, patlayan, hayalet). Sayı ve özellik sınırları §13.3. Odada aynı anda en çok 1 şifacı; şifacı ve kalkanlı aynı düşmanda olmaz (Yönetici kararı, Testçi 7. tur, T-58).
 - **Karışık gruplar:** Boğa'dan itibaren düşmanların ~%25'i önceki bölgelerin yaratıklarıdır.
 - **Saldırı sırası:** aynı anda en fazla 2 / 3 düşman saldırır (§13.1), diğerleri çevrede bekler.
 
@@ -231,7 +231,8 @@ Tablo düşüşü (×0,7) bu düzeltmeyle birlikte hesaplandı; tahmini toplam e
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Ölçülen ham baskı | 6,7 | 7,4 | 13,5 | 8,1 | 16,5 | 10,3 | 10,0 | 25,7 | 11,1 | 16,0 | 20,0 | 16,8 |
 | ~~Yeni BOSS_DMG~~ | 1,0 | 1,0 | 0,65 | 1,25 | 0,70 | 1,25 | 1,45 | 0,62 | 1,60 | 1,25 | 1,10 | 2,50 |
-| **BOSS_DMG (Testçi 5. tur, Yönetici kararı)** | 1,0 | 1,0 | **0,65** | **0,97** | **0,81** | **1,15** | **1,15** | **0,71** | **1,40** | **1,50** | **1,10** | **2,50** |
+| ~~BOSS_DMG (Testçi 5. tur)~~ | 1,0 | 1,0 | 0,65 | 0,97 | 0,81 | 1,15 | 1,15 | 0,71 | 1,40 | 1,50 | 1,10 | 2,50 |
+| **BOSS_DMG (Yönetici kararı, Testçi 7. tur)** | 1,0 | 1,0 | **0,65** | **0,97** | **0,81** | **1,05** | **1,15** | **0,95** | **1,15** | **1,50** | **1,10** | **2,50** |
 | Hedef ham baskı | 6,7 | 7,4 | ~8,8 | ~10,1 | ~11,6 | ~12,9 | ~14,5 | ~15,9 | ~17,8 | ~20,0 | ~22,0 | ~26,3 |
 
   `const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 1.25, "leo": 0.70, "virgo": 1.25, "libra": 1.45, "scorpio": 0.62, "sagittarius": 1.6, "capricorn": 1.25, "aquarius": 1.1, "pisces": 2.5}`. Testçi'nin önerisinden farkı: Balık 2,0 değil 2,5, çünkü Kova 1,1'de ~22 ve Balık en yüksek olmalı. Aslan boss'unun yavruları da sürü kuralına bağlıysa yukarıdaki varyant düzeltmesi boss'u da etkiler; Testçi yeniden ölçer.
@@ -459,7 +460,7 @@ Yengeç'ten itibaren bölge başına artan çarpan: Yengeç ×1,10 · Aslan ×1,
 | Bölge | Referans can | B' | **ZONE_HIT** | Tahmini ham baskı (1. oda) | Oran |
 |---|---|---|---|---|---|
 | İkizler (değişmez) | 115 | – | – | 9,3 (ölçülen) | – |
-| Yengeç | 115 | 17,8 | ~~15~~ **12** | ~11,5 | 1,24 |
+| Yengeç | 115 | 17,8 | ~~15~~ ~~12~~ **11** (Yönetici kararı, Testçi 7. tur) | ~11,5 | 1,24 |
 | Aslan | 125 | 15,3 Gölge (sürü+taç ×1,40) · 16,5 diğer (taç ×1,30) | ~~15 Gölge · 16 diğer~~ **14 Gölge · 15 diğer** | ~13,8 | 1,20 |
 | Başak | 125 | 17,4 | ~~17~~ **15** | ~16,5 | 1,20 |
 | Terazi | 125 | 13,8 | **13** | ~17,1 | 1,04 |
@@ -510,11 +511,12 @@ Oda başı sınırlar (§13.3: 1. odada 1, diğer odalarda 2; ilk 3 bölgede tek
 | Terazi | 0,45 · 0,50 · 0,50 · 0,55 | **0,50 · 0,55 · 0,55 · 0,60** |
 | Akrep | 0,50 · 0,50 · 0,55 · 0,55 | **0,60 · 0,60 · 0,65 · 0,65** |
 | Yay | 0,50 · 0,55 · 0,55 · 0,60 | ~~0,60 · 0,65 · 0,65 · 0,70~~ ~~0,70 · 0,75 · 0,75 · 0,80~~ (Testçi 5. tur) **0,80 · 0,85 · 0,85 · 0,90** (+0,10, Yönetici kararı, Testçi 6. tur) |
-| Oğlak | 0,55 · 0,55 · 0,60 · 0,60 | **0,65 · 0,65 · 0,70 · 0,70** |
+| Oğlak | 0,55 · 0,55 · 0,60 · 0,60 | ~~0,65 · 0,65 · 0,70 · 0,70~~ **0,70 · 0,70 · 0,75 · 0,75** (+0,05, Yönetici kararı, Testçi 7. tur) |
 | Kova | 0,55 · 0,60 · 0,60 · 0,65 | **0,65 · 0,70 · 0,70 · 0,75** |
 | Balık | 0,60 · 0,60 · 0,65 · 0,70 | **0,70 · 0,70 · 0,75 · 0,80** |
 
 - **Boss hasarı (`BOSS_DMG`, §13.4) — Yönetici kararı, Testçi 5. tur:** Yengeç 0,97 · Aslan 0,81 · Başak 1,15 · Terazi 1,15 · Akrep 0,71 · Yay 1,40 · Oğlak 1,50; Koç/Boğa 1,0, İkizler 0,65, Kova 1,1, Balık 2,5 aynı.
+- **Yönetici kararı, Testçi 7. tur:** BOSS_DMG Başak 1,15→1,05, Akrep 0,71→0,95, Yay 1,40→1,15; ZONE_HIT Yengeç 12→11; Oğlak seçkin oranı +0,05. Akrep boss'unun en büyük tek vuruşu (dalış patlaması 26 × 0,95) 100 canlı taban kahramana **24,7** (%24,7). **Yay ve Kova (T-60):** her odada 1. ve 2. dalgaya +1 Gölge (`room.gd`, dalga tablosu kopyalanarak). **Bitmeyen oda (T-58):** odada aynı anda en çok 1 şifacı seçkin; şifacı ile kalkanlı aynı düşmanda birleşmez.
 
 #### 13.9.5 ATK_RATE kaldırılır
 - `enemy.gd` `ATK_RATE` ve `_ready` içindeki `/ atk_rate` bölmesi silinir; `cd` ve `recover` yalnızca `TIER`'den gelir.

@@ -131,7 +131,7 @@ const COMBAT_K := [
 ]
 const HP_MULT_K := [4.69, 4.90, 5.18, 5.46]   # GDD §13.9 (0.5.4)
 const DMG_MULT_K := [3.41, 3.48, 3.55, 3.59]   # GDD §13.9 (0.5.4)
-const ELITE_CHANCE_K := [0.65, 0.65, 0.70, 0.70]   # GDD §13.9 (0.5.4)
+const ELITE_CHANCE_K := [0.70, 0.70, 0.75, 0.75]   # GDD §13.9 (Testçi 7. tur: +0,05)
 const COMBAT_Q := [
 	[["shade", "shade", "caster", "leaper"], ["brute", "shade", "shade", "caster"]],
 	[["shade", "shade", "leaper", "caster"], ["brute", "caster", "shade", "leaper"], ["leaper", "leaper", "caster", "shade", "shade"]],
@@ -218,8 +218,8 @@ var tc = null   # dokunmatik kontroller (telefon)   # bu odada doğan seçkin sa
 ## BOSS EĞRİSİ (GDD §13.4): taban can ve hasar çarpanı (retro/döngü/co-op çarpanları bunların üstüne)
 const BOSS_HP := {"aries": 1400.0, "taurus": 1800.0, "gemini": 2200.0, "cancer": 2500.0, "leo": 2900.0, "virgo": 3300.0,
 	"libra": 3600.0, "scorpio": 3700.0, "sagittarius": 4300.0, "capricorn": 4900.0, "aquarius": 5400.0, "pisces": 6000.0}
-const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 0.97, "leo": 0.81, "virgo": 1.15,
-	"libra": 1.15, "scorpio": 0.71, "sagittarius": 1.40, "capricorn": 1.50, "aquarius": 1.1, "pisces": 2.5}   # GDD §13.4 (Testçi 5. tur)
+const BOSS_DMG := {"aries": 1.0, "taurus": 1.0, "gemini": 0.65, "cancer": 0.97, "leo": 0.81, "virgo": 1.05,
+	"libra": 1.15, "scorpio": 0.95, "sagittarius": 1.15, "capricorn": 1.50, "aquarius": 1.1, "pisces": 2.5}   # GDD §13.4 (Testçi 5. tur)
 
 
 func _ready() -> void:
@@ -268,6 +268,11 @@ func _ready() -> void:
 	else:
 		var table: Array = _zt(COMBAT, COMBAT_T, COMBAT_G, COMBAT_C, COMBAT_L, COMBAT_V, COMBAT_B, COMBAT_S, COMBAT_Y, COMBAT_K, COMBAT_Q, COMBAT_P)
 		waves = table[mini(local_i, table.size() - 1)]
+		if zone == "sagittarius" or zone == "aquarius":
+			# T-60 (Yönetici kararı, Testçi 7. tur): 1. ve 2. dalgaya +1 Gölge
+			waves = waves.duplicate(true)
+			for wi in mini(2, waves.size()):
+				(waves[wi] as Array).append("shade")
 	Sfx.play_music(_music_path(), -9.0)
 	if not GameData.almanac.has("zone:" + zone):
 		GameData.almanac["zone:" + zone] = 1   # almanakta burcun sayfası açılır
@@ -2171,7 +2176,34 @@ func _sphere(r: float) -> SphereMesh:
 
 # ---------------------------------------------------------------- akış
 
+## T-61: dokunmatik kipte kapı madalyonunun ekran izdüşümü bir düğmeye düşüyorsa madalyon yukarı taşınır
+var _door_medals: Array = []
+
+
+func _fit_medals() -> void:
+	if tc == null or not is_instance_valid(tc) or _door_medals.is_empty():
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var u := get_viewport().get_visible_rect().size.y / 1080.0
+	for i in range(0, _door_medals.size() - 1, 2):
+		var m = _door_medals[i]
+		var g = _door_medals[i + 1]
+		if not is_instance_valid(m) or not is_instance_valid(g):
+			continue
+		var y: float = m.position.y
+		while y < 8.0:
+			var sp := cam.unproject_position(m.get_parent().to_global(Vector3(0, y, 0)))
+			if not tc.overlaps(sp, 95.0 * u):
+				break
+			y += 0.25
+		m.position.y = y
+		g.position.y = y
+
+
 func _process(delta: float) -> void:
+	_fit_medals()
 	_t += delta
 	if hero2 != null:
 		_coop_tick(delta)
@@ -2294,7 +2326,21 @@ func _spawn_enemy(pos: Vector3, kind: String) -> void:
 		var pool: Array = ["shielded", "swift", "splitting", "healer", "volatile", "phantom"]
 		pool.shuffle()
 		var n := 2 if ZONE_ORDER.find(zone) >= 3 else 1
-		e.affixes = pool.slice(0, n)
+		# T-58: odada aynı anda en çok 1 şifacı; şifacı ile kalkanlı aynı düşmanda birleşmez
+		var healers := 0
+		for o in get_tree().get_nodes_in_group("enemies"):
+			if not bool(o.get("dead")) and o.get("affixes") is Array and (o.affixes as Array).has("healer"):
+				healers += 1
+		if healers >= 1:
+			pool.erase("healer")
+		var pick: Array = []
+		for af in pool:
+			if pick.size() >= n:
+				break
+			if (af == "healer" and pick.has("shielded")) or (af == "shielded" and pick.has("healer")):
+				continue
+			pick.append(af)
+		e.affixes = pick
 		for af in e.affixes:
 			_affix_hint(String(af))
 	e._bounds = ARENA_R - 0.5
@@ -2910,6 +2956,7 @@ func _add_door(pos: Vector3, type: String) -> void:
 	mm.render_priority = 1
 	var medal := _mesh(med, Vector3(0, 4.05, 0), mm, root)
 	medal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_door_medals.append(medal)
 	var g := UI.label3d(String(info["glyph"]) + "\uFE0E", 96, col, 1.6)
 	g.font = UI.symbol_font()
 	g.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -2917,6 +2964,7 @@ func _add_door(pos: Vector3, type: String) -> void:
 	g.render_priority = 2
 	g.position = Vector3(0, 4.05, 0)
 	root.add_child(g)
+	_door_medals.append(g)
 	_light_at(pos + Vector3(0, 2.0, 1.0), col, root)
 	root.scale = Vector3(0.01, 0.01, 0.01)
 	var tw := root.create_tween()

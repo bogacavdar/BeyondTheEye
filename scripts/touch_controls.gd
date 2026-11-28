@@ -228,6 +228,16 @@ func _use_visible() -> bool:
 	return hud != null and is_instance_valid(hud) and String(hud.prompt) != ""
 
 
+## T-61: ekrandaki bir daire (madalyon) herhangi bir dokunmatik düğmenin alanına (alt yazısı dahil) düşüyor mu
+func overlaps(p: Vector2, r: float) -> bool:
+	for b in _buttons:
+		var bp: Vector2 = b["pos"]
+		var br: float = float(b["r"])
+		if p.distance_to(bp) < r + br + 10.0 or p.distance_to(bp + Vector2(0, br + 22.0)) < r + 20.0:
+			return true
+	return false
+
+
 func _button_at(p: Vector2) -> int:
 	for i in _buttons.size():
 		var b: Dictionary = _buttons[i]
@@ -357,7 +367,13 @@ func _draw_button(cv: Control, i: int) -> void:
 		var pulse := 0.5 + 0.5 * sin(_clock * 6.0)
 		cv.draw_circle(p, r + 18.0 + 6.0 * pulse, Color(gold.r, gold.g, gold.b, 0.15 + 0.15 * pulse))
 		cv.draw_arc(p, r + 14.0 + 6.0 * pulse, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, 0.6 + 0.4 * pulse), 5.0)
-	cv.draw_circle(p, r, Color(0.02, 0.03, 0.1, 0.55 if on else 0.38))
+	var use_lit := String(b["action"]) == "interact" and not hub_mode
+	if use_lit:
+		# T-61: kapı menzilinde KULLAN tam parlak ve nabız halkalı
+		var pu := 0.5 + 0.5 * sin(_clock * 6.0)
+		cv.draw_circle(p, r + 16.0 + 8.0 * pu, Color(gold.r, gold.g, gold.b, 0.18 + 0.12 * pu))
+		cv.draw_arc(p, r + 12.0 + 8.0 * pu, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, 0.7 + 0.3 * pu), 5.0)
+	cv.draw_circle(p, r, Color(0.02, 0.03, 0.1, 0.85 if use_lit else (0.55 if on else 0.38)))
 	if rd < 1.0:
 		cv.draw_arc(p, r - 6.0, -PI * 0.5, -PI * 0.5 + TAU * rd, 48, Color(gold.r, gold.g, gold.b, 0.8), 6.0)
 	cv.draw_arc(p, r, 0.0, TAU, 48, Color(gold.r, gold.g, gold.b, (0.95 if on else 0.6) * (1.0 if rd >= 1.0 else 0.5)), 3.0)
@@ -392,4 +408,11 @@ func _draw_button(cv: Control, i: int) -> void:
 		for li in sub_lines.size():
 			var sl := String(sub_lines[li])
 			var sw := font.get_string_size(sl, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs).x
+			if use_lit:
+				sfs = 24
+				sw = font.get_string_size(sl, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs).x
+				cv.draw_rect(Rect2(p + Vector2(-sw * 0.5 - 12.0, -sfs * 0.5 - 8.0), Vector2(sw + 24.0, sfs + 14.0)), Color(0.01, 0.015, 0.05, 0.92))
+				cv.draw_rect(Rect2(p + Vector2(-sw * 0.5 - 12.0, -sfs * 0.5 - 8.0), Vector2(sw + 24.0, sfs + 14.0)), gold, false, 2.0)
+				cv.draw_string(font, p + Vector2(-sw * 0.5, sfs * 0.4), sl, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs, Color(1.0, 0.95, 0.8))
+				continue
 			cv.draw_string(font, p + Vector2(-sw * 0.5, r + 22.0 + float(li) * (sfs + 2.0)), sl, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs, Color(gold.r, gold.g, gold.b, 0.75))
